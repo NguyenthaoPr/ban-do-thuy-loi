@@ -2414,8 +2414,11 @@
       flex-shrink: 0;
     }
     #searchResults .result-item .info {
+      display: block !important;
       flex: 1;
       min-width: 0;
+      visibility: visible !important;
+      opacity: 1 !important;
     }
     #searchResults .result-item .info .name {
       font-weight: 700;
@@ -3635,6 +3638,10 @@
 #mapAlertBtn.is-loading{opacity:.82}
 #mapAlertBtn.is-loading{animation:tlAlertLoadingPulse 1.05s ease-in-out infinite}
 #mapAlertBtn.is-loading .alert-bell{animation:tlAlertBell 0.9s ease-in-out infinite}
+#mapAlertBtn.is-loading{background:#ef4444 !important;color:#fff !important;animation:tlAlertLoadingPulseRed 1s ease-in-out infinite}
+#mapAlertBtn.is-loading #mapAlertBadge{background:#fff;color:#ef4444;animation:tlAlertBadgeBlink .8s ease-in-out infinite}
+@keyframes tlAlertLoadingPulseRed{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.35),0 4px 14px rgba(0,0,0,.18);transform:scale(1)}50%{box-shadow:0 0 0 9px rgba(239,68,68,0),0 5px 24px rgba(239,68,68,.52);transform:scale(1.045)}}
+@keyframes tlAlertBadgeBlink{0%,100%{opacity:.45;transform:scale(.92)}50%{opacity:1;transform:scale(1.08)}}
 @keyframes tlAlertLoadingPulse{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.18);transform:scale(1)}50%{box-shadow:0 4px 22px rgba(37,99,235,.30);transform:scale(1.035)}}
 @keyframes tlAlertBell{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
 .tl-alert-loading-pulse{display:flex;align-items:center;justify-content:center;gap:8px;padding:22px 12px;color:#64748b;font-size:12px}
@@ -4061,6 +4068,8 @@
       let tlReservoirAlertRecords = [];
       let tlReservoirAlertsLoaded = false;
       let tlAlertSelectedGroup = 'all';
+      let tlAlertRefreshPromise = null;
+      let tlAlertRefreshStarted = false;
 
 
       // =========================================================
@@ -6462,50 +6471,57 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       }
 
       async function tlRefreshReservoirAlerts(background = false){
-        if(!searchIndex?.length){
-          tlAlertList.innerHTML='<div class="tl-alert-empty">Bản đồ đang tải dữ liệu công trình…</div>';
-          return;
-        }
-        mapAlertBtn.classList.add('is-loading');
-        if(!background){
-          tlAlertList.innerHTML='<div class="tl-alert-loading-pulse"><span>Đang tải mực nước</span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
-        }
-        const reservoirs=searchIndex.filter(r=>r.type==='ho' && r.name);
-        const out=[]; let cursor=0;
-        const pushResult=(item)=>{
-          if(!item) return;
-          const existing=out.findIndex(x=>x.name===item.name);
-          if(existing>=0) out[existing]=item; else out.push(item);
-          out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
-          tlReservoirAlertRecords=out.slice();
-          tlReservoirAlertsLoaded=false;
-          tlRenderAlertSummary();
-        };
-        const worker=async()=>{
-          while(cursor<reservoirs.length){
-            const record=reservoirs[cursor++];
-            try{
-              const p=record.feature?.properties||{};
-              const localZ=Number(p.Z ?? p.z ?? p.MucNuoc ?? p.muc_nuoc ?? p.water_level ?? p.water_level_m);
-              const localMndbt=Number(p.MNDBT ?? p.mndbt ?? p.MucNuocDBT);
-              const localMndgc=Number(p.MNDGC ?? p.mndgc ?? p.MucNuocDGC);
-              let item=tlAlertRecordsFromOneLocal(record,localZ,localMndbt,localMndgc);
-              try{
-                const live=await tlFetchLive(record.name,false);
-                const liveItem=tlAlertRecordFromData(record,live);
-                item=liveItem || null;
-              }catch(e){ /* giữ dữ liệu GIS làm fallback */ }
-              pushResult(item);
-            }catch(e){ console.warn('Alert hồ:',record.name,e); }
+        if (tlAlertRefreshPromise) return tlAlertRefreshPromise;
+        tlAlertRefreshPromise = (async function(){
+          if(!searchIndex?.length){
+            if (!background) tlAlertList.innerHTML='<div class="tl-alert-empty">Bản đồ đang tải dữ liệu công trình…</div>';
+            return;
           }
-        };
-        await Promise.all(Array.from({length:Math.min(12,reservoirs.length)},()=>worker()));
-        tlReservoirAlertsLoaded=true;
-        window.__TL_ALERT_LAST_REFRESH=Date.now();
-        mapAlertBtn.classList.remove('is-loading');
-        tlRenderAlertSummary();
-        if(tlAlertSelectedGroup !== 'all') tlRenderAlertList();
-        else tlAlertList.innerHTML='<div class="tl-alert-empty">Chọn một nhóm phía trên để xem chi tiết hồ.</div>';
+          tlAlertRefreshStarted = true;
+          mapAlertBtn.classList.add('is-loading');
+          if(!background){
+            tlAlertList.innerHTML='<div class="tl-alert-loading-pulse"><span>Đang tải mực nước</span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+          }
+          const reservoirs=searchIndex.filter(r=>r.type==='ho' && r.name);
+          const out=[]; let cursor=0;
+          const pushResult=(item)=>{
+            if(!item) return;
+            const existing=out.findIndex(x=>x.name===item.name);
+            if(existing>=0) out[existing]=item; else out.push(item);
+            out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
+            tlReservoirAlertRecords=out.slice();
+            tlReservoirAlertsLoaded=false;
+            tlRenderAlertSummary();
+          };
+          const worker=async()=>{
+            while(cursor<reservoirs.length){
+              const record=reservoirs[cursor++];
+              try{
+                const p=record.feature?.properties||{};
+                const localZ=Number(p.Z ?? p.z ?? p.MucNuoc ?? p.muc_nuoc ?? p.water_level ?? p.water_level_m);
+                const localMndbt=Number(p.MNDBT ?? p.mndbt ?? p.MucNuocDBT);
+                const localMndgc=Number(p.MNDGC ?? p.mndgc ?? p.MucNuocDGC);
+                let item=tlAlertRecordsFromOneLocal(record,localZ,localMndbt,localMndgc);
+                try{
+                  const live=await tlFetchLive(record.name,false);
+                  const liveItem=tlAlertRecordFromData(record,live);
+                  if(liveItem) item=liveItem;
+                  else if(!Number.isFinite(localZ)) item=null;
+                }catch(e){}
+                pushResult(item);
+              }catch(e){ console.warn('Alert hồ:',record.name,e); }
+            }
+          };
+          await Promise.all(Array.from({length:Math.min(12,reservoirs.length)},()=>worker()));
+          tlReservoirAlertsLoaded=true;
+          window.__TL_ALERT_LAST_REFRESH=Date.now();
+          mapAlertBtn.classList.remove('is-loading');
+          tlRenderAlertSummary();
+          if(tlAlertSelectedGroup !== 'all') tlRenderAlertList();
+          else if (!tlAlertSheet.hidden) tlAlertList.innerHTML='<div class="tl-alert-empty">Chọn một nhóm phía trên để xem chi tiết hồ.</div>';
+        })();
+        try { return await tlAlertRefreshPromise; }
+        finally { tlAlertRefreshPromise=null; }
       }
       function tlAlertRecordsFromOneLocal(record,z,mndbt,mndgc){
         const kind=tlAlertType(z,mndbt,mndgc); if(!kind) return null;
@@ -6742,6 +6758,14 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               gisSearchReady = true;
               tlReservoirAlertRecords = tlAlertRecordsFromGIS();
               tlRenderAlertSummary();
+              // Bắt đầu tải cảnh báo ngay khi Search Index sẵn sàng.
+              // Nút 🔔 sẽ nhấp nháy trong toàn bộ thời gian chờ dữ liệu LIVE.
+              if (!tlAlertRefreshStarted) {
+                tlRefreshReservoirAlerts(true).catch(function(e){
+                  console.warn('[Alert] Refresh:', e);
+                  mapAlertBtn.classList.remove('is-loading');
+                });
+              }
               // Làm ấm cache mực nước theo đợt nhỏ sau khi bản đồ đã hiện.
               // Không chặn render bản đồ và không tạo hàng trăm request cùng lúc.
               tlWarmReservoirLiveCache();

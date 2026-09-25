@@ -4102,16 +4102,11 @@
       // tại /gis/master.geojson. Không còn phụ thuộc Render cho GIS.
       const GIS_DATA_URL = '/gis/master.geojson';
 
-      // Technical API cũ không còn là nguồn bắt buộc của bản đồ.
-      // Live/Chart đọc trực tiếp AI_DATA; Reservoir Engine chỉ dùng object có sẵn nếu được cung cấp.
-      const TL_TECHNICAL_API_BASE = '';
-      // Backend AI/report remains on Render; GIS and AI_DATA remain local/Vercel.
-      const TL_BACKEND_API_BASE = 'https://thuyloiai.onrender.com';
-      function tlBackendUrl(path) {
-        const p = String(path || '');
-        if (/^https?:\/\//i.test(p)) return p;
-        return TL_BACKEND_API_BASE.replace(/\/$/, '') + (p.startsWith('/') ? p : '/' + p);
-      }
+      // Technical Module chạy độc lập trên Vercel.
+      // Chỉ dùng cho API quan trắc thực tế; không thay đổi GIS API trên Render.
+      const TL_TECHNICAL_API_BASE = String(
+        window.THULYLOI_TECHNICAL_API || 'https://thuyloiai-technical-vercel.vercel.app'
+      ).replace(/\/$/, '');
 
       window.preparedImageBlob = null;
       window.preparedImageName = 'image.jpg';
@@ -4770,218 +4765,121 @@ if (cameraBtn && imageInput) {
       // LIVE ENGINE – ĐỌC QUAN TRẮC THỰC TẾ TỪ AI_DATA QUA VERCEL
       // BỔ SUNG, KHÔNG THAY ĐỔI GIS / SEARCH / MARKER / KML
       // =========================================================
-      /* =========================================================
-         AI_DATA DIRECT READER V7
-         - GIS: /gis/master.geojson
-         - Quan trắc: Google Sheet AI_DATA qua /api/ai-data
-         - Hỗ trợ đúng cấu trúc AI_DATA hiện tại:
-           A Tháng | B Ngày | C Giờ | D Đơn vị | E Công trình |
-           F Hạng mục | G Thông số | H Đơn vị đo | I Giá trị ...
-         - Đồng thời tương thích schema cũ nếu gặp.
-         ========================================================= */
-      const TL_AI_DATA_SPREADSHEET_ID = '1SJU9aCRZGWeAeHw6UfY_08HK8-A34kIlnrEiPJNEnko';
-      const TL_AI_DATA_GID = '1866404435';
-      const TL_AI_DATA_PROXY_URL = '/api/ai-data';
-      const TL_AI_DATA_CACHE_TTL = 30 * 1000;
-      let TL_AI_DATA_CACHE = null;
-      let TL_AI_DATA_INFLIGHT = null;
-
-      // Cache LIVE nội bộ cho Popup.
-      // V8 đã gọi các biến này nhưng chưa khai báo, gây:
-      // ReferenceError: TL_LIVE_MEMORY_CACHE is not defined
+      const TL_LIVE_TIMEOUT = 7000;
+      // Cache dữ liệu quan trắc ngắn hạn để mở lại nhanh, vẫn có nút refresh cưỡng bức.
+      const TL_LIVE_CACHE_TTL = 60 * 1000; // 60 giây
       const TL_LIVE_MEMORY_CACHE = new Map();
       const TL_LIVE_INFLIGHT = new Map();
-      const TL_LIVE_CACHE_TTL = 60 * 1000;
 
-      function tlAiNorm(v) {
-        let s = String(v ?? '').replace(/\ufeff/g, '').replace(/[\r\n\t]+/g, ' ').trim().normalize('NFD');
-        s = s.replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
-        return s.toLowerCase().replace(/[()\[\]{}]/g, ' ').replace(/\s+/g, ' ').trim();
+      function tlLiveFormatNumber(value, digits = 2) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n.toFixed(digits) : '—';
       }
-      function tlAiNum(v) {
-        if (v === null || v === undefined || v === '') return null;
-        let s = String(v).trim().replace(/−/g, '-').replace(/\s/g, '');
-        if (!s) return null;
-        if (s.includes(',') && s.includes('.')) s = s.replace(/\./g, '').replace(',', '.');
-        else s = s.replace(',', '.');
-        const m = s.match(/[-+]?\d+(?:\.\d+)?/);
-        return m ? Number(m[0]) : null;
+
+      function tlLiveTimeLabel(value) {
+        if (!value) return '—';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return String(value);
+        try {
+          return new Intl.DateTimeFormat('vi-VN', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+          }).format(d);
+        } catch (_) {
+          return String(value);
+        }
       }
-      function tlAiCsvParse(text) {
-        const rows=[]; let row=[], cell='', quoted=false;
-        for(let i=0;i<text.length;i++){
-          const c=text[i];
-          if(quoted){
-            if(c==='"' && text[i+1]==='"'){cell+='"';i++;}
-            else if(c==='"') quoted=false;
-            else cell+=c;
-          }else{
-            if(c==='"') quoted=true;
-            else if(c===','){row.push(cell);cell='';}
-            else if(c==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell='';}
-            else cell+=c;
+
+      function tlLiveFetchUrl(facility) {
+        return TL_TECHNICAL_API_BASE + '/api/live?facility=' + encodeURIComponent(String(facility || ''));
+      }
+
+      async function tlFetchLive(facility, force = false) {
+        const key = String(facility || '').trim();
+        if (!key) throw new Error('Thiếu tên công trình.');
+
+        const now = Date.now();
+        const cached = TL_LIVE_MEMORY_CACHE.get(key);
+        if (!force && cached && (now - cached.timestamp) < TL_LIVE_CACHE_TTL) {
+          return cached.data;
+        }
+
+        // Chống gọi trùng cùng một công trình khi Popup + Cảnh báo cùng tải.
+        if (!force && TL_LIVE_INFLIGHT.has(key)) {
+          return TL_LIVE_INFLIGHT.get(key);
+        }
+
+        const promise = (async () => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), TL_LIVE_TIMEOUT);
+          try {
+            const url = tlLiveFetchUrl(key) + (force ? '&fresh=1&ts=' + Date.now() : '');
+            const response = await fetch(url, {
+              method: 'GET',
+              cache: force ? 'no-store' : 'default',
+              mode: 'cors',
+              headers: { 'Accept': 'application/json' },
+              signal: controller.signal
+            });
+
+            let data = null;
+            try { data = await response.json(); } catch (_) {}
+            if (!response.ok || !data || data.ok !== true) {
+              const message = data?.error || ('Technical API HTTP ' + response.status);
+              const err = new Error(message);
+              err.status = response.status;
+              throw err;
+            }
+            TL_LIVE_MEMORY_CACHE.set(key, { timestamp: Date.now(), data });
+            return data;
+          } finally {
+            clearTimeout(timer);
+            TL_LIVE_INFLIGHT.delete(key);
           }
-        }
-        if(cell.length||row.length){row.push(cell);rows.push(row);}
-        return rows;
-      }
-      function tlAiHeaderMap(header) {
-        const map={};
-        (header||[]).forEach((h,i)=>{ const n=tlAiNorm(h); if(n) map[n]=i; });
-        const pick=(...names)=>{for(const n of names){const i=map[tlAiNorm(n)];if(Number.isInteger(i))return i;}return -1;};
-        return {
-          month:pick('Tháng','Month'), day:pick('Ngày','Date','Day'), hour:pick('Giờ','Time','Hour'), year:pick('Năm','Year'),
-          facility:pick('Công trình','Cong trinh','Facility'), parameter:pick('Thông số','Thong so','Parameter'),
-          unit:pick('Đơn vị đo','Don vi do','Unit'), value:pick('Giá trị','Gia tri','Value'),
-          date:pick('Ngày giờ','Datetime','DateTime','Timestamp')
-        };
-      }
-      function tlAiDateTime(row, schema) {
-        const idx=schema||{};
-        const rawDate=idx.date>=0?String(row?.[idx.date]??'').trim():'';
-        const rawDay=idx.day>=0?String(row?.[idx.day]??'').trim():'';
-        const rawMonth=idx.month>=0?String(row?.[idx.month]??'').trim():'';
-        const rawYear=idx.year>=0?String(row?.[idx.year]??'').trim():String(new Date().getFullYear());
-        const rawHour=idx.hour>=0?String(row?.[idx.hour]??'').trim():'';
-        let d=null;
-        if(rawDate){
-          let m=rawDate.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-          if(m)d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));
-          if(!d||Number.isNaN(d.getTime())){m=rawDate.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);if(m)d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));}
-          if(!d||Number.isNaN(d.getTime())){const p=new Date(rawDate);if(!Number.isNaN(p.getTime()))d=p;}
-        }
-        if(!d){
-          const day=tlAiNum(rawDay), month=tlAiNum(rawMonth), year=tlAiNum(rawYear);
-          if(Number.isFinite(day)&&Number.isFinite(month)){
-            d=new Date(Number.isFinite(year)?year:new Date().getFullYear(),month-1,day);
-          }
-        }
-        if(!d||Number.isNaN(d.getTime())) return null;
-        const hNum=Number(String(rawHour).replace(',','.'));
-        const h=Number.isFinite(hNum)?Math.floor(hNum):0;
-        const minute=Number.isFinite(hNum)?Math.round((hNum-h)*60):0;
-        d.setHours(Math.max(0,Math.min(23,h)),Math.max(0,Math.min(59,minute)),0,0);
-        return d;
-      }
-      function tlAiParameterCode(name){
-        const n=tlAiNorm(name);
-        if(['h','h m','muc nuoc','muc nuoc thuong luu'].includes(n)) return 'WATER_LEVEL';
-        if(['htl','htl m','muc nuoc thuong luu'].includes(n)||n.startsWith('htl ')) return 'WATER_LEVEL_UPSTREAM';
-        if(['hhl','hhl m','muc nuoc ha luu'].includes(n)||n.startsWith('hhl ')) return 'WATER_LEVEL_DOWNSTREAM';
-        if(['x mm','x','luong mua','mua'].includes(n)) return 'RAINFALL';
-        if(['x t1 mm','x t1'].includes(n)) return 'RAINFALL_T1';
-        if(['x c24 mm','x c24'].includes(n)) return 'RAINFALL_C24';
-        return null;
-      }
-      function tlAiSimplifyFacility(v){
-        return tlAiNorm(v)
-          .replace(/\s*\b(c\s*\d+|h\s*\d+)\b\s*$/i,'')
-          .replace(/\s*\(\s*[^)]*\s*\)\s*/g,' ')
-          .replace(/^(ho chua nuoc|ho chua|ho|dap|tram bom)\s+/i,'')
-          .replace(/\s+/g,' ').trim();
-      }
-      function tlAiFindRowsForFacility(allRows, facility){
-        if(!Array.isArray(allRows)||allRows.length<2) return [];
-        const schema=tlAiHeaderMap(allRows[0]);
-        const fi=schema.facility;
-        if(fi<0) return [];
-        const key=tlAiNorm(facility), simple=tlAiSimplifyFacility(facility);
-        const data=allRows.slice(1);
-        let rows=data.filter(r=>tlAiNorm(r?.[fi])===key);
-        if(rows.length) return rows;
-        rows=data.filter(r=>tlAiSimplifyFacility(r?.[fi])===simple);
-        if(rows.length) return rows;
-        // Type alias / code-stripped fallback. Chỉ nhận khi tên cốt lõi đủ dài.
-        if(simple.length>=4){
-          rows=data.filter(r=>{
-            const rs=tlAiSimplifyFacility(r?.[fi]);
-            return rs===simple || rs.includes(simple) || simple.includes(rs);
-          });
-        }
-        return rows;
-      }
-      async function tlAiFetchRows(force=false){
-        const now=Date.now();
-        if(!force&&TL_AI_DATA_CACHE&&now-TL_AI_DATA_CACHE.time<TL_AI_DATA_CACHE_TTL)return TL_AI_DATA_CACHE.rows;
-        if(!force&&TL_AI_DATA_INFLIGHT)return TL_AI_DATA_INFLIGHT;
-        const fetchCsv=async(url)=>{
-          const c=new AbortController(), t=setTimeout(()=>c.abort(),9000);
-          try{
-            const r=await fetch(url,{method:'GET',cache:'no-store',mode:'cors',headers:{'Accept':'text/csv,text/plain,*/*'},signal:c.signal});
-            if(!r.ok)throw new Error('AI_DATA HTTP '+r.status);
-            const text=await r.text(); const rows=tlAiCsvParse(text);
-            if(rows.length<2)throw new Error('AI_DATA không trả dữ liệu bảng.');
-            return rows;
-          }finally{clearTimeout(t);}
-        };
-        TL_AI_DATA_INFLIGHT=(async()=>{
-          const base=`https://docs.google.com/spreadsheets/d/${TL_AI_DATA_SPREADSHEET_ID}`;
-          const exactUrl=`${base}/gviz/tq?tqx=out:csv&gid=${encodeURIComponent(TL_AI_DATA_GID)}&tq=${encodeURIComponent('select *')}`;
-          try{
-            try{const rows=await fetchCsv(TL_AI_DATA_PROXY_URL);TL_AI_DATA_CACHE={time:Date.now(),rows};return rows;}
-            catch(e){console.warn('📊 AI_DATA proxy không đọc được, thử trực tiếp Google Sheets:',e);}
-            const rows=await fetchCsv(exactUrl);TL_AI_DATA_CACHE={time:Date.now(),rows};return rows;
-          }finally{TL_AI_DATA_INFLIGHT=null;}
         })();
-        return TL_AI_DATA_INFLIGHT;
+
+        if (!force) TL_LIVE_INFLIGHT.set(key, promise);
+        return promise;
       }
-      function tlAiExtractLimit(rows,label){
-        const nlabel=tlAiNorm(label); let found=null;
-        for(const row of rows||[]){for(const cell of row||[]){const s=tlAiNorm(cell);const m=s.match(new RegExp('^'+nlabel+'\\s*[:=]?\\s*([-+]?\\d+(?:[\\.,]\\d+)?)$','i'));if(m)found=tlAiNum(m[1]);}}
-        return found;
+
+  const TL_CHART_CACHE = new Map();
+  const TL_CHART_CACHE_TTL = 5 * 60 * 1000; // 5 phút
+
+  async function tlFetchChartHistory(facilityName, code) {
+    const candidates = [];
+    if (code) candidates.push(`${facilityName} (${code})`);
+    candidates.push(facilityName);
+
+    for (const facility of candidates) {
+      const cached = TL_CHART_CACHE.get(facility);
+      if (cached && (Date.now() - cached.timestamp) < TL_CHART_CACHE_TTL) {
+        return cached.points;
       }
-      function tlAiBuildLivePayload(facility,rows){
-        const schema=tlAiHeaderMap(rows?.[0]||[]);
-        const matched=tlAiFindRowsForFacility(rows,facility);
-        if(!matched.length)throw Object.assign(new Error(`Không tìm thấy công trình "${facility}" trong AI_DATA.`),{status:404});
-        const parsed=matched.map(r=>({row:r,dt:tlAiDateTime(r,schema),parameter:String(r?.[schema.parameter]??'').trim(),value:tlAiNum(r?.[schema.value]),unit:String(r?.[schema.unit]??'').trim()})).filter(x=>x.dt&&x.parameter&&Number.isFinite(x.value));
-        if(!parsed.length)throw Object.assign(new Error(`Công trình "${facility}" chưa có bản ghi quan trắc hợp lệ trong AI_DATA.`),{status:404});
-        const water=parsed.filter(x=>['WATER_LEVEL','WATER_LEVEL_UPSTREAM','WATER_LEVEL_DOWNSTREAM'].includes(tlAiParameterCode(x.parameter)));
-        const rain=parsed.filter(x=>['RAINFALL','RAINFALL_T1','RAINFALL_C24'].includes(tlAiParameterCode(x.parameter)));
-        const latestByName=arr=>{const m=new Map();arr.forEach(x=>{const old=m.get(tlAiNorm(x.parameter));if(!old||x.dt>old.dt)m.set(tlAiNorm(x.parameter),x);});return [...m.values()];};
-        const priority={'WATER_LEVEL_UPSTREAM':0,'WATER_LEVEL':1,'WATER_LEVEL_DOWNSTREAM':2};
-        const waterLatest=latestByName(water).sort((a,b)=>(priority[tlAiParameterCode(a.parameter)]??99)-(priority[tlAiParameterCode(b.parameter)]??99)||b.dt-a.dt)[0]||null;
-        const rainLatest=latestByName(rain).sort((a,b)=>b.dt-a.dt)[0]||null;
-        const limits={MNDBT:tlAiExtractLimit(matched,'MNDBT'),MNDGC:tlAiExtractLimit(matched,'MNDGC')};
-        // AI_DATA hiện tại thường lưu MNDBT/MNDGC ở cột Thông số, Giá trị.
-        for(const x of parsed){
-          const pn=tlAiNorm(x.parameter);
-          if(!Number.isFinite(limits.MNDBT) && (pn==='mndbt'||pn.includes('muc nuoc dang binh thuong'))) limits.MNDBT=x.value;
-          if(!Number.isFinite(limits.MNDGC) && (pn==='mndgc'||pn.includes('muc nuoc dang gia cuong'))) limits.MNDGC=x.value;
+      try {
+        const url = TL_TECHNICAL_API_BASE + '/api/chart?facility=' + encodeURIComponent(facility) + '&days=2';
+        const response = await fetch(url, { method: 'GET', cache: 'no-store', mode: 'cors', headers: { 'Accept': 'application/json' } });
+        if (!response.ok) continue;
+        const json = await response.json();
+        if (!json || json.ok !== true || !json.data) continue;
+
+        const waterArr = Array.isArray(json.data.water) ? json.data.water
+          : (json.data.waterVariants && json.data.waterParameter && Array.isArray(json.data.waterVariants[json.data.waterParameter])
+              ? json.data.waterVariants[json.data.waterParameter] : []);
+
+        const points = waterArr
+          .map(x => ({ t: x?.time, v: Number(x?.value) }))
+          .filter(x => x.t && Number.isFinite(x.v));
+
+        if (points.length) {
+          TL_CHART_CACHE.set(facility, { timestamp: Date.now(), points });
+          return points;
         }
-        if(!Number.isFinite(limits.MNDBT)||!Number.isFinite(limits.MNDGC)){
-          const target=(searchIndex||[]).find(r=>tlAiSimplifyFacility(r?.name)===tlAiSimplifyFacility(facility)||tlAiNorm(r?.name)===tlAiNorm(facility));
-          const p=target?.feature?.properties||{};
-          if(!Number.isFinite(limits.MNDBT))limits.MNDBT=tlAiNum(p.MNDBT??p.mndbt??p.MucNuocDBT);
-          if(!Number.isFinite(limits.MNDGC))limits.MNDGC=tlAiNum(p.MNDGC??p.mndgc??p.MucNuocDGC);
-        }
-        const z=waterLatest?{parameter:waterLatest.parameter,value:waterLatest.value,unit:waterLatest.unit||'m',time:waterLatest.dt.toISOString()}:null;
-        const r=rainLatest?{parameter:rainLatest.parameter,value:rainLatest.value,unit:rainLatest.unit||'mm',time:rainLatest.dt.toISOString()}:null;
-        return {ok:true,source:'google_sheets',data:{facility,water_level:z,rainfall:r,limits,status:z?{label:'Đã kết nối AI_DATA',level:'info',message:'Đọc trực tiếp số liệu quan trắc mới nhất.'}:{label:'AI_DATA chưa có mực nước',level:'warning'},updated_label:z?.time?tlLiveTimeLabel(z.time):'AI_DATA'}};
+      } catch (e) {
+        console.warn('📈 Chart API error cho facility', facility, e);
       }
-      async function tlFetchLive(facility,force=false){
-        const key=String(facility||'').trim(); if(!key)throw new Error('Thiếu tên công trình.');
-        const cached=TL_LIVE_MEMORY_CACHE.get(key);
-        if(!force&&cached&&Date.now()-cached.timestamp<TL_LIVE_CACHE_TTL)return cached.data;
-        if(!force&&TL_LIVE_INFLIGHT.has(key))return TL_LIVE_INFLIGHT.get(key);
-        const promise=(async()=>{try{const rows=await tlAiFetchRows(force);const data=tlAiBuildLivePayload(key,rows);TL_LIVE_MEMORY_CACHE.set(key,{timestamp:Date.now(),data});return data;}finally{TL_LIVE_INFLIGHT.delete(key);}})();
-        if(!force)TL_LIVE_INFLIGHT.set(key,promise); return promise;
-      }
-      const TL_CHART_CACHE=new Map(),TL_CHART_CACHE_TTL=5*60*1000;
-      async function tlFetchChartHistory(facilityName,code){
-        const candidates=[]; if(code)candidates.push(`${facilityName} (${code})`); candidates.push(facilityName);
-        for(const facility of candidates){
-          const cached=TL_CHART_CACHE.get(facility); if(cached&&Date.now()-cached.timestamp<TL_CHART_CACHE_TTL)return cached.points;
-          try{
-            const rows=await tlAiFetchRows(false), matched=tlAiFindRowsForFacility(rows,facility), schema=tlAiHeaderMap(rows?.[0]||[]);
-            const water=matched.map(r=>({dt:tlAiDateTime(r,schema),parameter:String(r?.[schema.parameter]??'').trim(),value:tlAiNum(r?.[schema.value])})).filter(x=>x.dt&&Number.isFinite(x.value)&&['WATER_LEVEL','WATER_LEVEL_UPSTREAM','WATER_LEVEL_DOWNSTREAM'].includes(tlAiParameterCode(x.parameter)));
-            const names=[...new Set(water.map(x=>x.parameter))], preferred=names.find(n=>tlAiParameterCode(n)==='WATER_LEVEL_UPSTREAM')||names.find(n=>tlAiParameterCode(n)==='WATER_LEVEL')||names[0];
-            const points=water.filter(x=>x.parameter===preferred).sort((a,b)=>a.dt-b.dt).slice(-1000).map(x=>({t:x.dt.toISOString(),v:x.value}));
-            if(points.length){TL_CHART_CACHE.set(facility,{timestamp:Date.now(),points});return points;}
-          }catch(e){console.warn('📈 AI_DATA chart error:',facility,e);}
-        }
-        return [];
-      }
+    }
+    return [];
+  }
       function tlLiveHistoryKey(facility) {
         return 'TL_LIVE_HISTORY_V1:' + String(facility || '').trim();
       }
@@ -5266,7 +5164,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             tlLoadLiveForPopup(card, card.dataset.tlLiveFacility || '', true);
           });
         }
-        console.warn('📊 AI_DATA Live error:', error);
+        console.warn('📊 Technical Live API error:', error);
       }
 
       async function tlLoadLiveForPopup(card, facility, force = false) {
@@ -5475,11 +5373,64 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       const TL_RESERVOIR_CACHE_TTL = 60 * 1000;
 
       async function tlFetchReservoirMetrics(facility, waterLevel, force = false) {
-        // Không gọi /api/reservoir-state hoặc /api/reservoir-q cũ.
-        // F/V/Q chỉ được hiển thị khi livePayload đã có object reservoir do Engine cung cấp.
-        const z=Number(waterLevel);
-        if(!Number.isFinite(z)) throw new Error('Chưa có mực nước H/Z để tính Z–F–V–Q.');
-        return {Z:z,F:null,V:null,Q:null,name:String(facility||''),source:'AI_DATA',qMode:'',curveRange:''};
+        const facilityKey = String(facility || '').trim();
+        const zKey = Number.isFinite(Number(waterLevel)) ? Number(waterLevel).toFixed(2) : 'na';
+        const cacheKey = facilityKey + '|' + zKey;
+        const now = Date.now();
+
+        if (!force) {
+          const cached = TL_RESERVOIR_CACHE.get(cacheKey);
+          if (cached && (now - cached.time) < TL_RESERVOIR_CACHE_TTL) return cached.metrics;
+        }
+
+        const qs = new URLSearchParams();
+        qs.set('facility', facilityKey);
+        qs.set('waterLevel', String(waterLevel));
+        if (force) qs.set('fresh', '1');
+
+        const requestJson = async (path) => {
+          const controller = new AbortController();
+          const timer = window.setTimeout(() => controller.abort(), 5500);
+          try {
+            const response = await fetch(TL_TECHNICAL_API_BASE + path + '?' + qs.toString(), {
+              method: 'GET',
+              cache: force ? 'no-store' : 'default',
+              mode: 'cors',
+              headers: { 'Accept': 'application/json' },
+              signal: controller.signal
+            });
+            if (!response.ok) return { ok: false, payload: {} };
+            return { ok: true, payload: await response.json() };
+          } finally {
+            window.clearTimeout(timer);
+          }
+        };
+
+        // Chỉ gọi Q riêng khi state chưa cung cấp Q.
+        // Như vậy lần mở Popup bình thường thường chỉ có 1 request Engine.
+        let stateResult = await requestJson('/api/reservoir-state');
+        let statePayload = stateResult.payload || {};
+        let state = tlReservoirUnwrap(statePayload);
+        let qPayload = state;
+        let qResult = { ok: false };
+
+        const hasQ = tlReservoirPick(state, ['q_m3s', 'Q_m3s', 'spillway_q_m3s', 'spillwayQ_m3s', 'Q', 'q']) != null
+          || tlReservoirPick(state?.spillway_q || state?.spillwayQ || {}, ['q_m3s', 'value', 'Q']) != null;
+
+        if (!hasQ) {
+          qResult = await requestJson('/api/reservoir-q');
+          qPayload = qResult.payload || {};
+        }
+
+        if (!stateResult.ok && !qResult.ok) {
+          const err = new Error('Reservoir Engine không trả dữ liệu.');
+          err.status = 0;
+          throw err;
+        }
+
+        const metrics = tlReservoirNormalize(statePayload, qPayload, waterLevel);
+        TL_RESERVOIR_CACHE.set(cacheKey, { time: Date.now(), metrics });
+        return metrics;
       }
 
       async function tlLoadReservoirForPopup(card, facility, livePayload, force = false) {
@@ -5532,7 +5483,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         const type = getCongTrinhType(p, feature.geometry);
         const label = getCongTrinhLabel(type);
         const name = p.name || p.Name || p.NAME || 'Chưa xác định';
-        const description = p.description == null ? '' : String(p.description);
+        const description = p.description || '';
         const code = p.code || p.Code || p.ma || p.Ma || p.id || p.ID || '';
         const station = p.station || p.Station || p.ly_trinh || p.LyTrinh || p.lyTrinh || '';
 
@@ -5985,7 +5936,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           const label = getCongTrinhLabel(type);
           const name = p.name || p.Name || p.NAME || '';
           const code = p.code || p.Code || p.ma || p.Ma || p.id || p.ID || '';
-          const description = p.description == null ? '' : String(p.description);
+          const description = p.description || '';
           const status = p.status || p.Status || p.trang_thai || p.TrangThai || p.tinh_trang || p.TinhTrang || '';
           const station = p.station || p.Station || p.ly_trinh || p.LyTrinh || p.lyTrinh || '';
           const aliases = buildAliases(feature);
@@ -7758,7 +7709,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
             if (window.kmlGpsResult) {
               formData.append('kml_context', JSON.stringify(window.kmlGpsResult));
             }
-            const result = await fetchJSON(tlBackendUrl('/field-report'), { method: 'POST', body: formData }, 90000);
+            const result = await fetchJSON('/field-report', { method: 'POST', body: formData }, 90000);
             if (!result.success) {
               throw new Error(result.error || 'Không tạo được báo cáo.');
             }
@@ -7818,7 +7769,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
       async function health() {
         try {
           statusEl.textContent = 'Đang kiểm tra...';
-          const d = await fetchJSON(tlBackendUrl('/health?t=' + Date.now()), { method: 'GET', headers: { 'Accept': 'application/json',
+          const d = await fetchJSON('/health?t=' + Date.now(), { method: 'GET', headers: { 'Accept': 'application/json',
               'Cache-Control': 'no-cache' } }, 15000);
           const ok = d && d.status === 'ok' && d.gemini_configured === true && d.file_search_configured === true;
           if (ok) {
@@ -7873,7 +7824,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
           if (window.preparedImageBlob) {
             const formData = new FormData();
             formData.append('file', window.preparedImageBlob, window.preparedImageName);
-            const url = tlBackendUrl('/image-analyze?question=' + encodeURIComponent(finalQuestion));
+            const url = '/image-analyze?question=' + encodeURIComponent(finalQuestion);
             d = await fetchJSON(url, { method: 'POST', body: formData }, 60000);
             addAI(d.answer || d.message || 'Gemini không trả về nội dung phân tích ảnh.', d.sources || d.citations || []);
             window.preparedImageBlob = null;
@@ -7997,7 +7948,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
           formData.append("image", file);
           console.log('📤 Gửi ảnh lên server:', { name: file.name, size: file.size + ' bytes', type: file.type });
 
-          const response = await fetch(tlBackendUrl("/field-report-pdf"), { method: "POST", body: formData });
+          const response = await fetch("/field-report-pdf", { method: "POST", body: formData });
           if (!response.ok) throw new Error("Máy chủ không tạo được PDF.");
           const blob = await response.blob();
           if (!blob || blob.size === 0) throw new Error("File PDF rỗng.");

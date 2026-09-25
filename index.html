@@ -115,7 +115,7 @@
        và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
        initAiMap() và prepareImageWithStamp().
        ═════════════════════════════════════════════════════════ -->
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=MJH0dY1e8SkZAUbOaDXr4Os1Lj0fXSDqhmn3CGF_02qf0hT4C4-4YSK_P2_mh38YYhnxUteIiV8OnvL9-p2X85c9bHenopYJ0iZ-1nrodild_4z12J9coE5izh_4ktFe66gAJ6wWdYSmwbb8CiAQ47gUdAE01tV-2bhfGi78p2NtO3VQLFRtveffvM5dkQyufltT6EhsNvLy1-NnWcSurd1hQKUumeoInXqNswfobsW-l07DsojWg0BVorgs12knaYyI9v8RImzAYzg0A7JxVqo6EbTc_rfjPU0U7rCzv_pymgax-rAOcATj_G4MwO4HBZYjM1n3hgy2eYc7yhwEsw" charset="UTF-8"></script><style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=q3EKjLCWrmEmoGW6fveQE5ImSOXg2S60wfODChzKhDeOmkCgPJ8A9YlHX6F9Q2ITYEDb-jIfWgLmy7bq8ycHYUsO1X4mCfXwYkiEnobaIfXExLjhH_7PeuZxOBaR6PbVq_MW9hGVyhnmNRS812b460Tz-BmzyTYH6a4UouOYs2c4jc2QfkpQXHvPbDQrr7n-vmLHXq-5l9cd_jD6nEiywX6wx_LAPZ1Pot772VpAvmsXrfEHots2FEIWv-dy6V6982ehhyn1fTnF2SUIvTpkdemi1W-x4IN8R0IAuLZdfyQpx2rwtRGnz5x8El8xbpmLFEFzTfPnMsSB-L2VifpotQ" charset="UTF-8"></script><style>
     /* =========================================================
        CSS GỐC – GIỮ NGUYÊN (đã được copy từ code trước)
        ========================================================= */
@@ -4549,7 +4549,11 @@ if (cameraBtn && imageInput) {
         if (text.includes('cống') || text.includes('cong ') || text.includes('cống tưới') || text.includes('cống tiêu'))
           return 'cong';
         if (text.includes('trạm bơm') || text.includes('tram bom') || text.includes('tb ')) return 'tram_bom';
-        if (text.includes('hồ ') || text.startsWith('hồ') || text.includes('ho chua') || text.includes('hồ chứa'))
+        // GIS Master có cả tên không dấu, ví dụ "HO THACH BAN".
+        // Bổ sung nhận diện "ho " / "ho chua" nhưng không thay đổi cấu trúc dữ liệu.
+        if (text.includes('hồ ') || text.startsWith('hồ') ||
+            text.includes('ho ') || text.startsWith('ho') ||
+            text.includes('ho chua') || text.includes('hồ chứa'))
           return 'ho';
         if (text.includes('đập ') || text.startsWith('đập') || text.includes('dap ')) return 'dap';
         if (text.includes('kênh') || text.includes('kenh ') || text.includes('kênh chính') || text.includes('kênh nhánh'))
@@ -5483,7 +5487,9 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         const type = getCongTrinhType(p, feature.geometry);
         const label = getCongTrinhLabel(type);
         const name = p.name || p.Name || p.NAME || 'Chưa xác định';
-        const description = p.description || '';
+        // GIS có thể chứa description ở nhiều dạng; chuẩn hóa thành chuỗi
+        // để Popup không bị lỗi khi gặp một công trình có thuộc tính bất thường.
+        const description = p.description == null ? '' : String(p.description);
         const code = p.code || p.Code || p.ma || p.Ma || p.id || p.ID || '';
         const station = p.station || p.Station || p.ly_trinh || p.LyTrinh || p.lyTrinh || '';
 
@@ -7471,15 +7477,37 @@ if (description) {
                 console.warn('Popup GIS bind error:', popupError);
               }
 
-              marker.on('click', function() {
+              marker.on('click', function(e) {
                 try {
+                  // Không để click của marker bị xử lý tiếp bởi Map/Cluster.
+                  if (e && e.originalEvent) {
+                    L.DomEvent.stopPropagation(e.originalEvent);
+                  }
+
                   if (!marker._tlPopupReady) {
                     buildModernPopup(feature, marker);
                     marker._tlPopupReady = true;
                   }
+
+                  // Popup đã được bind khi tạo marker; mở ngay trên chính marker.
                   marker.openPopup();
                 } catch (popupError) {
                   console.warn('Popup GIS error:', popupError);
+
+                  // Fallback tối thiểu: dù một thuộc tính GIS bất thường,
+                  // công trình vẫn phải có Popup tên công trình.
+                  try {
+                    const pp = feature.properties || {};
+                    const fallbackName = pp.name || pp.Name || pp.NAME || 'Công trình';
+                    marker.bindPopup(
+                      `<div style="font-family:Inter,Arial,sans-serif;font-weight:700;padding:8px 4px;">${String(fallbackName)}</div>`,
+                      { maxWidth: 400, autoPan: true }
+                    );
+                    marker._tlPopupReady = true;
+                    marker.openPopup();
+                  } catch (fallbackError) {
+                    console.warn('Popup fallback error:', fallbackError);
+                  }
                 }
               });
 

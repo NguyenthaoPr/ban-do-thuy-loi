@@ -3633,6 +3633,14 @@
 }
 #mapAlertBtn.has-alert{background:#ef4444;color:#fff;box-shadow:0 4px 18px rgba(239,68,68,.38)}
 #mapAlertBtn.is-loading{opacity:.82}
+#mapAlertBtn.is-loading{animation:tlAlertLoadingPulse 1.05s ease-in-out infinite}
+#mapAlertBtn.is-loading .alert-bell{animation:tlAlertBell 0.9s ease-in-out infinite}
+@keyframes tlAlertLoadingPulse{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,.18);transform:scale(1)}50%{box-shadow:0 4px 22px rgba(37,99,235,.30);transform:scale(1.035)}}
+@keyframes tlAlertBell{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.tl-alert-loading-pulse{display:flex;align-items:center;justify-content:center;gap:8px;padding:22px 12px;color:#64748b;font-size:12px}
+.tl-alert-loading-pulse .dot{width:7px;height:7px;border-radius:50%;background:#2563eb;animation:tlLoadingDot 1s infinite ease-in-out}
+.tl-alert-loading-pulse .dot:nth-child(2){animation-delay:.15s}.tl-alert-loading-pulse .dot:nth-child(3){animation-delay:.3s}
+@keyframes tlLoadingDot{0%,80%,100%{opacity:.25;transform:scale(.75)}40%{opacity:1;transform:scale(1)}}
 #mapAlertBtn .alert-bell{line-height:1}
 #mapAlertBadge{
   position:absolute; top:-7px; right:-7px; min-width:22px; height:22px;
@@ -5961,7 +5969,13 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             lat: lat,
             lng: lng,
             // Lưu layer để sau này gắn marker (sẽ cập nhật sau)
-            layer: null
+            layer: null,
+            // Chuẩn hóa một lần để tìm kiếm trên mobile không phải normalize lại hàng nghìn bản ghi mỗi lần gõ.
+            _nameNorm: normalizeSearch(name),
+            _codeNorm: normalizeSearch(code),
+            _aliasesNorm: aliases.map(normalizeSearch),
+            _statusNorm: normalizeSearch(status),
+            _searchTextNorm: normalizeSearch([name, code, aliases.join(' '), station, description, location].join(' '))
           };
           index.push(record);
         });
@@ -6031,20 +6045,20 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           let matchedFields = [];
 
           // 1. Mã chính xác
-          if (record.code && normalizeSearch(record.code) === q) {
+          if (record._codeNorm && record._codeNorm === q) {
             score += 100;
             matchedFields.push('code_exact');
           }
 
           // 2. Tên chính xác
-          if (record.name && normalizeSearch(record.name) === q) {
+          if (record._nameNorm && record._nameNorm === q) {
             score += 95;
             matchedFields.push('name_exact');
           }
 
           // 3. Tên bắt đầu bằng từ khóa (textQuery)
           if (record.name && textQuery) {
-            const normName = normalizeSearch(record.name);
+            const normName = record._nameNorm || normalizeSearch(record.name);
             if (normName.startsWith(textQuery)) {
               score += 85;
               matchedFields.push('name_prefix');
@@ -6056,8 +6070,8 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 
           // 4. Alias
           if (record.aliases && record.aliases.length) {
-            for (let alias of record.aliases) {
-              const normAlias = normalizeSearch(alias);
+            for (let ai=0; ai<record.aliases.length; ai++) {
+              const normAlias = record._aliasesNorm?.[ai] || normalizeSearch(record.aliases[ai]);
               if (normAlias === q) {
                 score += 80;
                 matchedFields.push('alias_exact');
@@ -6078,7 +6092,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 
           // 6. Trạng thái (nếu filterStatus khớp)
           if (statusGroup) {
-            const normStatus = normalizeSearch(record.status);
+            const normStatus = record._statusNorm || normalizeSearch(record.status);
             const groupWords = STATUS_GROUPS[statusGroup] || [];
             let match = false;
             for (let w of groupWords) {
@@ -6092,7 +6106,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 
           // 7. Kênh (tìm trong station, description)
           if (textQuery) {
-            const searchText = normalizeSearch([record.station, record.description, record.location].join(' '));
+            const searchText = record._searchTextNorm || normalizeSearch([record.station, record.description, record.location].join(' '));
             if (searchText.includes(textQuery)) {
               score += 30;
               matchedFields.push('location_desc');
@@ -6435,7 +6449,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       function tlCloseAlertSheet(){tlAlertSheet.hidden=true;}
       async function tlWarmReservoirLiveCache(){
         try {
-          const reservoirs=(searchIndex||[]).filter(r=>r.type==='ho' && r.name).slice(0, 40);
+          const reservoirs=(searchIndex||[]).filter(r=>r.type==='ho' && r.name).slice(0, 30);
           let i=0;
           const worker=async()=>{
             while(i<reservoirs.length){
@@ -6443,15 +6457,30 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               try { await tlFetchLive(record.name,false); } catch(e) {}
             }
           };
-          await Promise.all(Array.from({length:Math.min(4,reservoirs.length)},()=>worker()));
+          await Promise.all(Array.from({length:Math.min(8,reservoirs.length)},()=>worker()));
         } catch(e) {}
       }
 
       async function tlRefreshReservoirAlerts(background = false){
-        if(!searchIndex?.length){tlAlertList.innerHTML='<div class="tl-alert-empty">Bản đồ đang tải dữ liệu công trình…</div>';return;}
-        if(!background) tlAlertList.innerHTML='<div class="tl-alert-loading">⏳ Đang cập nhật mực nước các hồ…</div>';
+        if(!searchIndex?.length){
+          tlAlertList.innerHTML='<div class="tl-alert-empty">Bản đồ đang tải dữ liệu công trình…</div>';
+          return;
+        }
+        mapAlertBtn.classList.add('is-loading');
+        if(!background){
+          tlAlertList.innerHTML='<div class="tl-alert-loading-pulse"><span>Đang tải mực nước</span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+        }
         const reservoirs=searchIndex.filter(r=>r.type==='ho' && r.name);
         const out=[]; let cursor=0;
+        const pushResult=(item)=>{
+          if(!item) return;
+          const existing=out.findIndex(x=>x.name===item.name);
+          if(existing>=0) out[existing]=item; else out.push(item);
+          out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
+          tlReservoirAlertRecords=out.slice();
+          tlReservoirAlertsLoaded=false;
+          tlRenderAlertSummary();
+        };
         const worker=async()=>{
           while(cursor<reservoirs.length){
             const record=reservoirs[cursor++];
@@ -6464,20 +6493,18 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               try{
                 const live=await tlFetchLive(record.name,false);
                 const liveItem=tlAlertRecordFromData(record,live);
-                if(liveItem) item=liveItem; else if(item) item=null;
-              }catch(e){ /* fallback GIS */ }
-              if(item) out.push(item);
+                item=liveItem || null;
+              }catch(e){ /* giữ dữ liệu GIS làm fallback */ }
+              pushResult(item);
             }catch(e){ console.warn('Alert hồ:',record.name,e); }
           }
         };
-        await Promise.all(Array.from({length:Math.min(8,reservoirs.length)},()=>worker()));
-        tlReservoirAlertRecords=out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
+        await Promise.all(Array.from({length:Math.min(12,reservoirs.length)},()=>worker()));
         tlReservoirAlertsLoaded=true;
         window.__TL_ALERT_LAST_REFRESH=Date.now();
-        if(!background) tlAlertSelectedGroup='all';
-        tlRenderAlertSheetCompact();
+        mapAlertBtn.classList.remove('is-loading');
         tlRenderAlertSummary();
-        if(background && tlAlertSelectedGroup !== 'all') tlRenderAlertList();
+        if(tlAlertSelectedGroup !== 'all') tlRenderAlertList();
         else tlAlertList.innerHTML='<div class="tl-alert-empty">Chọn một nhóm phía trên để xem chi tiết hồ.</div>';
       }
       function tlAlertRecordsFromOneLocal(record,z,mndbt,mndgc){
@@ -7519,7 +7546,7 @@ if (description) {
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(function() {
           performSearch(val);
-        }, 250);
+        }, 120);
       }
 
       if (mapSearch) {

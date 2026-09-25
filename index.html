@@ -4105,6 +4105,13 @@
       // Technical API cũ không còn là nguồn bắt buộc của bản đồ.
       // Live/Chart đọc trực tiếp AI_DATA; Reservoir Engine chỉ dùng object có sẵn nếu được cung cấp.
       const TL_TECHNICAL_API_BASE = '';
+      // Backend AI/report remains on Render; GIS and AI_DATA remain local/Vercel.
+      const TL_BACKEND_API_BASE = 'https://thuyloiai.onrender.com';
+      function tlBackendUrl(path) {
+        const p = String(path || '');
+        if (/^https?:\/\//i.test(p)) return p;
+        return TL_BACKEND_API_BASE.replace(/\/$/, '') + (p.startsWith('/') ? p : '/' + p);
+      }
 
       window.preparedImageBlob = null;
       window.preparedImageName = 'image.jpg';
@@ -5518,7 +5525,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         const type = getCongTrinhType(p, feature.geometry);
         const label = getCongTrinhLabel(type);
         const name = p.name || p.Name || p.NAME || 'Chưa xác định';
-        const description = p.description || '';
+        const description = p.description == null ? '' : String(p.description);
         const code = p.code || p.Code || p.ma || p.Ma || p.id || p.ID || '';
         const station = p.station || p.Station || p.ly_trinh || p.LyTrinh || p.lyTrinh || '';
 
@@ -5971,7 +5978,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           const label = getCongTrinhLabel(type);
           const name = p.name || p.Name || p.NAME || '';
           const code = p.code || p.Code || p.ma || p.Ma || p.id || p.ID || '';
-          const description = p.description || '';
+          const description = p.description == null ? '' : String(p.description);
           const status = p.status || p.Status || p.trang_thai || p.TrangThai || p.tinh_trang || p.TinhTrang || '';
           const station = p.station || p.Station || p.ly_trinh || p.LyTrinh || p.lyTrinh || '';
           const aliases = buildAliases(feature);
@@ -7744,7 +7751,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
             if (window.kmlGpsResult) {
               formData.append('kml_context', JSON.stringify(window.kmlGpsResult));
             }
-            const result = await fetchJSON('/field-report', { method: 'POST', body: formData }, 90000);
+            const result = await fetchJSON(tlBackendUrl('/field-report'), { method: 'POST', body: formData }, 90000);
             if (!result.success) {
               throw new Error(result.error || 'Không tạo được báo cáo.');
             }
@@ -7804,7 +7811,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
       async function health() {
         try {
           statusEl.textContent = 'Đang kiểm tra...';
-          const d = await fetchJSON('/health?t=' + Date.now(), { method: 'GET', headers: { 'Accept': 'application/json',
+          const d = await fetchJSON(tlBackendUrl('/health?t=' + Date.now()), { method: 'GET', headers: { 'Accept': 'application/json',
               'Cache-Control': 'no-cache' } }, 15000);
           const ok = d && d.status === 'ok' && d.gemini_configured === true && d.file_search_configured === true;
           if (ok) {
@@ -7859,7 +7866,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
           if (window.preparedImageBlob) {
             const formData = new FormData();
             formData.append('file', window.preparedImageBlob, window.preparedImageName);
-            const url = '/image-analyze?question=' + encodeURIComponent(finalQuestion);
+            const url = tlBackendUrl('/image-analyze?question=' + encodeURIComponent(finalQuestion));
             d = await fetchJSON(url, { method: 'POST', body: formData }, 60000);
             addAI(d.answer || d.message || 'Gemini không trả về nội dung phân tích ảnh.', d.sources || d.citations || []);
             window.preparedImageBlob = null;
@@ -7983,7 +7990,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
           formData.append("image", file);
           console.log('📤 Gửi ảnh lên server:', { name: file.name, size: file.size + ' bytes', type: file.type });
 
-          const response = await fetch("/field-report-pdf", { method: "POST", body: formData });
+          const response = await fetch(tlBackendUrl("/field-report-pdf"), { method: "POST", body: formData });
           if (!response.ok) throw new Error("Máy chủ không tạo được PDF.");
           const blob = await response.blob();
           if (!blob || blob.size === 0) throw new Error("File PDF rỗng.");

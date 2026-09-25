@@ -4786,6 +4786,13 @@ if (cameraBtn && imageInput) {
       let TL_AI_DATA_CACHE = null;
       let TL_AI_DATA_INFLIGHT = null;
 
+      // Cache LIVE nội bộ cho Popup.
+      // V8 đã gọi các biến này nhưng chưa khai báo, gây:
+      // ReferenceError: TL_LIVE_MEMORY_CACHE is not defined
+      const TL_LIVE_MEMORY_CACHE = new Map();
+      const TL_LIVE_INFLIGHT = new Map();
+      const TL_LIVE_CACHE_TTL = 60 * 1000;
+
       function tlAiNorm(v) {
         let s = String(v ?? '').replace(/\ufeff/g, '').replace(/[\r\n\t]+/g, ' ').trim().normalize('NFD');
         s = s.replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
@@ -5259,7 +5266,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             tlLoadLiveForPopup(card, card.dataset.tlLiveFacility || '', true);
           });
         }
-        console.warn('📊 Technical Live API error:', error);
+        console.warn('📊 AI_DATA Live error:', error);
       }
 
       async function tlLoadLiveForPopup(card, facility, force = false) {

@@ -4,10 +4,6 @@
     {
       "source": "/kml-gps-test",
       "destination": "https://thuyloiai.onrender.com/kml-gps-test"
-    },
-    {
-      "source": "/field-report-pdf",
-      "destination": "https://thuyloiai.onrender.com/field-report-pdf"
     }
   ],
   "headers": [

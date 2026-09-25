@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#08233d">
-  <title>THỦY LỢI AI</title>
+  <title>BẢN ĐỒ THỦY LỢI | VU GIA – THU BỒN</title>
 
   <!-- ═════════════════════════════════════════════════════════
        PERF PATCH — RESOURCE HINTS (bổ sung, không đổi logic)
@@ -17,8 +17,6 @@
   <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://thuyloiai.onrender.com" crossorigin>
   <link rel="dns-prefetch" href="https://thuyloiai.onrender.com">
-  <link rel="preconnect" href="https://thuyloiai-technical-vercel.vercel.app" crossorigin>
-  <link rel="dns-prefetch" href="https://thuyloiai-technical-vercel.vercel.app">
   <link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
   <link rel="dns-prefetch" href="https://api.open-meteo.com">
 
@@ -44,9 +42,76 @@
          script có thuộc tính src trỏ tới):
          qrcode.min.js, leaflet.js, leaflet.markercluster.js
        Ba thư viện này giờ được nạp lười (lazy) bằng tlLoadScript()
-       ngay trước khi cần dùng (mở Bản đồ AI / chụp ảnh QR), và
+       ngay trước khi cần dùng (mở Bản đồ thủy lợi / chụp ảnh QR), và
        được nạp ngầm lúc rảnh (requestIdleCallback) để không chặn
-       màn hình chat hiển thị đầu tiên. Xem khối script cuối </head>
+       màn hình bản đồ hiển thị đầu tiên. Xem khối script cuối 
+  <style id="map-only-cleanup">
+    /* =========================================================
+       BẢN ĐỒ THỦY LỢI — MAP ONLY
+       Chỉ hiển thị trải nghiệm bản đồ; các module Chat AI,
+       Báo cáo hiện trường, QR/Camera và Technical UI không còn
+       xuất hiện trong giao diện.
+       Không thay đổi GIS, Popup, Search, MarkerCluster hay Alert.
+       ========================================================= */
+    html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden !important; background:#eef3f7; }
+    body > header.header,
+    body > main > .card.chat,
+    body > main > .footer,
+    body > main > .field-report-entry,
+    #fieldReportPanel,
+    #technicalModuleContainer,
+    #reportEditor,
+    #pdfActions,
+    #pdfStatus,
+    #pdfResult,
+    #imagePreview,
+    .ai-action-buttons,
+    .compose,
+    .suggestions,
+    .quick-title,
+    .quick,
+    .hero,
+    .info { display:none !important; }
+
+    body > main { width:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; }
+    #mapAiPanel.map-ai-panel { display:flex !important; position:fixed !important; inset:0 !important; width:100vw !important; height:100dvh !important; max-width:none !important; margin:0 !important; z-index:9999 !important; background:#fff !important; overflow:hidden !important; }
+    #mapAiPanel.map-ai-panel.hidden { display:flex !important; }
+    #mapAiPanel .map-ai-header { flex:0 0 auto; }
+    #mapAiPanel .map-container { flex:1 1 auto; min-height:0 !important; height:auto !important; }
+    #mapAiPanel #aiMap { height:100% !important; min-height:0 !important; }
+    #mapAiPanel .map-ai-status { display:none !important; }
+    #mapAiPanel .map-feature-card.hidden { display:none !important; }
+    /* Bản đồ độc lập: không có nút quay lại Chat AI. */
+    #mapAiPanel #closeMapAi { display:none !important; }
+    /* Quick chips vẫn là chức năng tìm kiếm bản đồ, giữ nguyên. */
+    /* Không cho nội dung cũ vô tình trồi lên khi responsive. */
+    @media (max-width:700px) {
+      #mapAiPanel .map-ai-header { display:none !important; }
+      #mapAiPanel .map-search-wrap { z-index:5100 !important; }
+      #mapAiPanel .map-container { min-height:0 !important; }
+    }
+  </style>
+
+<style id="map-only-mobile-alert-final">
+@media (max-width:700px){
+  #mapAiPanel #tlAlertSheet{
+    position:absolute !important;
+    left:0 !important; right:0 !important; bottom:0 !important;
+    width:100% !important; max-height:min(44dvh,420px) !important;
+    border-radius:24px 24px 0 0 !important;
+    padding-bottom:env(safe-area-inset-bottom) !important;
+    overflow:hidden !important;
+  }
+  #mapAiPanel #tlAlertSheet.is-expanded{max-height:min(78dvh,760px) !important;}
+  #mapAiPanel .tl-alert-summary{grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:8px !important;}
+  #mapAiPanel .tl-alert-summary button{min-height:72px !important; padding:10px 6px !important;}
+  #mapAiPanel .tl-alert-list{max-height:calc(min(44dvh,420px) - 150px) !important; overflow:auto !important;}
+  #mapAiPanel #tlAlertSheet.is-expanded .tl-alert-list{max-height:calc(min(78dvh,760px) - 150px) !important;}
+  #mapAiPanel .tl-alert-title{font-size:16px !important;}
+  #mapAiPanel .tl-alert-footer{font-size:10px !important; padding:8px 14px !important;}
+}
+</style>
+</head>
        và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
        initAiMap() và prepareImageWithStamp().
        ═════════════════════════════════════════════════════════ -->
@@ -3645,6 +3710,53 @@
 }
 </style>
 
+
+  <style id="map-only-cleanup">
+    /* =========================================================
+       BẢN ĐỒ THỦY LỢI — MAP ONLY
+       Chỉ hiển thị trải nghiệm bản đồ; các module Chat AI,
+       Báo cáo hiện trường, QR/Camera và Technical UI không còn
+       xuất hiện trong giao diện.
+       Không thay đổi GIS, Popup, Search, MarkerCluster hay Alert.
+       ========================================================= */
+    html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden !important; background:#eef3f7; }
+    body > header.header,
+    body > main > .card.chat,
+    body > main > .footer,
+    body > main > .field-report-entry,
+    #fieldReportPanel,
+    #technicalModuleContainer,
+    #reportEditor,
+    #pdfActions,
+    #pdfStatus,
+    #pdfResult,
+    #imagePreview,
+    .ai-action-buttons,
+    .compose,
+    .suggestions,
+    .quick-title,
+    .quick,
+    .hero,
+    .info { display:none !important; }
+
+    body > main { width:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; }
+    #mapAiPanel.map-ai-panel { display:flex !important; position:fixed !important; inset:0 !important; width:100vw !important; height:100dvh !important; max-width:none !important; margin:0 !important; z-index:9999 !important; background:#fff !important; overflow:hidden !important; }
+    #mapAiPanel.map-ai-panel.hidden { display:flex !important; }
+    #mapAiPanel .map-ai-header { flex:0 0 auto; }
+    #mapAiPanel .map-container { flex:1 1 auto; min-height:0 !important; height:auto !important; }
+    #mapAiPanel #aiMap { height:100% !important; min-height:0 !important; }
+    #mapAiPanel .map-ai-status { display:none !important; }
+    #mapAiPanel .map-feature-card.hidden { display:none !important; }
+    /* Bản đồ độc lập: không có nút quay lại Chat AI. */
+    #mapAiPanel #closeMapAi { display:none !important; }
+    /* Quick chips vẫn là chức năng tìm kiếm bản đồ, giữ nguyên. */
+    /* Không cho nội dung cũ vô tình trồi lên khi responsive. */
+    @media (max-width:700px) {
+      #mapAiPanel .map-ai-header { display:none !important; }
+      #mapAiPanel .map-search-wrap { z-index:5100 !important; }
+      #mapAiPanel .map-container { min-height:0 !important; }
+    }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -3756,7 +3868,7 @@
             </div>
             <span class="map-live-pill"><i></i> GIS ONLINE</span>
           </div>
-          <button id="closeMapAi" type="button" class="map-back-btn" title="Quay lại Chat AI">
+          <button id="closeMapAi" type="button" class="map-back-btn" title="Đóng bản đồ">
             ← <span>Chat AI</span>
           </button>
         </div>
@@ -3849,9 +3961,9 @@
   <!-- ═════════════════════════════════════════════════════════
        PERF PATCH — LAZY LOADER cho Leaflet/MarkerCluster & QRCode
        BỔ SUNG, không thay đổi logic GIS/AI hiện có.
-       Các thư viện chỉ tải khi thực sự cần (mở Bản đồ AI, chụp ảnh
+       Các thư viện chỉ tải khi thực sự cần (mở Bản đồ thủy lợi, chụp ảnh
        để lấy QR), đồng thời được nạp ngầm lúc trình duyệt rảnh để
-       không làm chậm màn hình chat hiển thị đầu tiên trên mobile.
+       không làm chậm màn hình bản đồ hiển thị đầu tiên trên mobile.
        ═════════════════════════════════════════════════════════ -->
   <script>
     window.__tlScriptCache = window.__tlScriptCache || {};
@@ -7431,10 +7543,10 @@ if (description) {
       // =========================================================
       // 15. SỰ KIỆN MỞ/ĐÓNG BẢN ĐỒ, FIELD REPORT (giữ nguyên)
       // =========================================================
-      mapAiBtn.addEventListener('click', async function() {
+      if (mapAiBtn) mapAiBtn.addEventListener('click', async function() {
     mapAiPanel.classList.remove('hidden');
 
-    // Khóa cuộn giao diện Chat AI khi mở Bản đồ AI
+    // Khóa cuộn giao diện Chat AI khi mở Bản đồ thủy lợi
     document.body.style.overflow = 'hidden';
 
     await initAiMap();
@@ -7447,7 +7559,7 @@ if (description) {
     }
 });
 
-closeMapAi.addEventListener('click', function() {
+if (closeMapAi) closeMapAi.addEventListener('click', function() {
     mapAiPanel.classList.add('hidden');
 
     // Trả lại khả năng cuộn cho giao diện Chat AI
@@ -8671,8 +8783,8 @@ closeMapAi.addEventListener('click', function() {
 <!-- =========================================================
      THỦY LỢI AI — BẢN ĐỒ THỦY LỢI STANDALONE
      Bản sao độc lập từ App gốc.
-     GIỮ NGUYÊN toàn bộ HTML/CSS/JS/GIS/AI/Technical logic gốc.
-     Chỉ bổ sung lớp trình bày để triển khai riêng phần Bản đồ.
+     Giữ lõi GIS, tìm kiếm, Popup, dữ liệu vận hành và Cảnh báo hồ chứa.
+     Giao diện hiển thị chỉ dành cho Bản đồ Thủy lợi.
      ========================================================= -->
 <style id="standalone-map-shell">
   html, body {

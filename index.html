@@ -3579,9 +3579,34 @@
 .tl-alert-loading{padding:22px 12px;text-align:center;color:#64748b;font-size:12px}
 .tl-alert-footer{padding:7px 12px;border-top:1px solid #e8eef4;background:#f8fafc;color:#64748b;font-size:9px;text-align:center}
 @media(max-width:700px){
-  #mapAlertBtn{position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 56px);right:8px;width:46px;height:46px;z-index:6200}
-  #tlAlertSheet{position:fixed;left:0;right:0;bottom:0;max-height:min(72dvh,650px);border-radius:22px 22px 0 0;z-index:7000}
-  .tl-alert-list{max-height:calc(min(72dvh,650px) - 190px)}
+  #mapAlertBtn{position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 58px);right:10px;width:50px;height:50px;border-radius:16px;z-index:6200}
+  #mapAlertBtn .alert-bell{font-size:21px}
+  #mapAlertBadge{top:-6px;right:-5px;min-width:21px;height:21px;font-size:10px}
+  #tlAlertSheet{position:fixed;left:0;right:0;bottom:0;width:100vw;max-height:42dvh;border-radius:24px 24px 0 0;z-index:7000;box-shadow:0 -10px 35px rgba(8,42,74,.22);padding-bottom:max(0px,env(safe-area-inset-bottom))}
+  #tlAlertSheet.expanded{max-height:78dvh}
+  .tl-alert-grab{width:44px;height:4px;margin:8px auto 1px}
+  .tl-alert-head{padding:7px 14px 8px}
+  .tl-alert-title{font-size:16px;gap:8px}
+  .tl-alert-title-icon{width:32px;height:32px;font-size:16px}
+  .tl-alert-summary{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:0 9px 8px}
+  .tl-alert-group{min-height:66px;padding:8px 5px;border-radius:13px}
+  .tl-alert-group .num{font-size:20px}
+  .tl-alert-group .label{font-size:9px;margin-top:5px}
+  .tl-alert-list{max-height:calc(42dvh - 158px);padding:0 9px 8px}
+  #tlAlertSheet.expanded .tl-alert-list{max-height:calc(78dvh - 158px)}
+  .tl-alert-list-head{font-size:12px;padding:4px 3px 7px}
+  .tl-alert-row{grid-template-columns:30px minmax(0,1fr) auto;gap:7px;padding:8px 7px;margin-bottom:6px;border-radius:12px}
+  .tl-alert-icon{width:29px;height:29px;border-radius:9px;font-size:13px}
+  .tl-alert-name{font-size:12px}
+  .tl-alert-meta{font-size:9px}
+  .tl-alert-diff{font-size:11px}
+  .tl-alert-footer{font-size:8.5px;padding:6px 8px}
+}
+@media(max-width:390px){
+  .tl-alert-group{min-height:62px}
+  .tl-alert-group .num{font-size:18px}
+  .tl-alert-group .label{font-size:8.5px}
+  .tl-alert-title{font-size:15px}
 }
 </style>
 
@@ -6134,7 +6159,8 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         const counts={above_mndgc:0,near_mndgc:0,above_mndbt:0,near_mndbt:0};
         tlReservoirAlertRecords.forEach(x=>{ if(counts[x.kind]!==undefined) counts[x.kind]++; });
         const total=Object.values(counts).reduce((a,b)=>a+b,0);
-        mapAlertBadge.textContent=total>99?'99+':String(total);
+        const loading=!tlReservoirAlertsLoaded && !tlReservoirAlertRecords.length;
+        mapAlertBadge.textContent=loading?'…':(total>99?'99+':String(total));
         mapAlertBtn.classList.toggle('has-alert', total>0);
         tlAlertSummary.innerHTML=Object.values(TL_ALERT_DEFS).map(def=>`
           <button class="tl-alert-group ${tlAlertSelectedGroup===def.key?'active':''}" data-alert-group="${def.key}" style="--alert-color:${def.color}">
@@ -6142,6 +6168,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           </button>`).join('');
         tlAlertSummary.querySelectorAll('[data-alert-group]').forEach(btn=>btn.addEventListener('click',()=>{
           tlAlertSelectedGroup=btn.dataset.alertGroup;
+          if(window.matchMedia('(max-width:700px)').matches) tlAlertSheet.classList.add('expanded');
           tlRenderAlertSummary(); tlRenderAlertList();
         }));
       }
@@ -6158,9 +6185,24 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           if(x?.record){ tlCloseAlertSheet(); zoomToFeature(x.record); }
         }));
       }
+      function tlRenderAlertSheetCompact(){
+        if(window.matchMedia('(max-width:700px)').matches) tlAlertSheet.classList.remove('expanded');
+      }
       function tlOpenAlertSheet(){
         tlAlertSheet.hidden=false;
-        if(!tlReservoirAlertsLoaded) tlRefreshReservoirAlerts(); else {tlRenderAlertSummary();tlRenderAlertList();}
+        tlAlertSheet.classList.remove('expanded');
+        if(!tlReservoirAlertsLoaded){
+          const local=tlAlertRecordsFromGIS();
+          if(local.length){
+            tlReservoirAlertRecords=local;
+            tlRenderAlertSummary();
+            tlAlertList.innerHTML='<div class=\"tl-alert-empty\">Chọn một nhóm phía trên để xem chi tiết hồ.</div>';
+          }else{
+            tlRenderAlertSummary();
+            tlAlertList.innerHTML='<div class=\"tl-alert-loading\">⏳ Đang cập nhật mực nước hồ…</div>';
+          }
+          tlRefreshReservoirAlerts();
+        } else { tlRenderAlertSummary(); tlRenderAlertList(); }
       }
       function tlCloseAlertSheet(){tlAlertSheet.hidden=true;}
       async function tlRefreshReservoirAlerts(){
@@ -6190,6 +6232,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         tlReservoirAlertRecords=out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
         tlReservoirAlertsLoaded=true;
         tlAlertSelectedGroup='all';
+        tlRenderAlertSheetCompact();
         tlRenderAlertSummary();
         tlAlertList.innerHTML='<div class="tl-alert-empty">Chọn một nhóm phía trên để xem chi tiết hồ.</div>';
       }

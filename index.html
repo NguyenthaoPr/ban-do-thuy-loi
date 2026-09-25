@@ -4097,11 +4097,10 @@
         set activeBaseLayerKey(v){ activeBaseLayerKey = v; }
       };
 
-      // Backend GIS chạy trên Render. Có thể ghi đè bằng window.THULYLOI_GIS_API nếu sau này đổi server.
-      const GIS_API_BASE = String(
-        window.THULYLOI_GIS_API || 'https://thuyloiai.onrender.com'
-      ).replace(/\/$/, '');
-      const GIS_DATA_URL = GIS_API_BASE + '/gis/data';
+      // GIS chạy hoàn toàn từ chính repository/Vercel.
+      // master.kmz là nguồn duy nhất; Vercel build chuyển KMZ -> GeoJSON
+      // tại /gis/master.geojson. Không còn phụ thuộc Render cho GIS.
+      const GIS_DATA_URL = '/gis/master.geojson';
 
       // Technical Module chạy độc lập trên Vercel.
       // Chỉ dùng cho API quan trắc thực tế; không thay đổi GIS API trên Render.
@@ -6552,51 +6551,31 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 
       async function tlFetchGISFast() {
         const cacheSupported = 'caches' in window;
-        if (!cacheSupported) {
-          const r = await fetch(GIS_DATA_URL, { method:'GET', cache:'default', mode:'cors', headers:{'Accept':'application/json'} });
-          if (!r.ok) throw new Error('Không thể truy cập /gis/data (' + r.status + ')');
-          return await r.json();
-        }
-
-        const cache = await caches.open(TL_GIS_CACHE_NAME);
-        const cached = await cache.match(TL_GIS_CACHE_KEY);
-        let cachedAge = Infinity;
-        if (cached) {
-          const stamp = Number(cached.headers.get('x-thuyloi-cache-time') || 0);
-          cachedAge = stamp ? Date.now() - stamp : Infinity;
-        }
-
-        const fetchFresh = async () => {
+        const cacheName = 'thuyloi-gis-v2-local';
+        const cacheKey = new Request(GIS_DATA_URL);
+        const readFresh = async () => {
           const response = await fetch(GIS_DATA_URL, {
-            method:'GET', cache:'no-store', mode:'cors',
-            headers:{'Accept':'application/json','X-ThuyLoi-Cache':'revalidate'}
+            method:'GET', cache:'no-store', headers:{'Accept':'application/geo+json, application/json'}
           });
-          if (!response.ok) throw new Error('Không thể truy cập /gis/data (' + response.status + ')');
-          const clone = response.clone();
-          try {
-            const h = new Headers(clone.headers);
-            h.set('x-thuyloi-cache-time', String(Date.now()));
-            const body = await clone.blob();
-            await cache.put(TL_GIS_CACHE_KEY, new Response(body, {status:clone.status, statusText:clone.statusText, headers:h}));
-          } catch(e) { /* cache chỉ là tối ưu, không được làm hỏng bản đồ */ }
+          if (!response.ok) throw new Error('Không thể tải GIS local (' + response.status + ')');
           return await response.json();
         };
-
-        if (cached && cachedAge <= TL_GIS_CACHE_TTL) {
-          // Trả dữ liệu cache ngay; cập nhật nền không chặn giao diện.
-          fetchFresh().catch(e => console.warn('[GIS] Background refresh:', e));
-          return await cached.json();
+        if (!cacheSupported) {
+          const geojson = await readFresh();
+          return {success:true, geojson};
         }
-
-        try {
-          return await fetchFresh();
-        } catch (e) {
-          if (cached) {
-            console.warn('[GIS] Dùng cache cũ vì mạng/API chậm:', e);
-            return await cached.json();
-          }
-          throw e;
+        const cache = await caches.open(cacheName);
+        const cached = await cache.match(cacheKey);
+        if (cached) {
+          // Hiển thị cache ngay để bản đồ mở nhanh; revalidate nền.
+          readFresh().then(async geojson => {
+            try { await cache.put(cacheKey, new Response(JSON.stringify(geojson), {headers:{'Content-Type':'application/json'}})); } catch(e) {}
+          }).catch(e => console.warn('[GIS] Local background refresh:', e));
+          return {success:true, geojson: await cached.json()};
         }
+        const geojson = await readFresh();
+        try { await cache.put(cacheKey, new Response(JSON.stringify(geojson), {headers:{'Content-Type':'application/json'}})); } catch(e) {}
+        return {success:true, geojson};
       }
 
       async function initAiMap() {
@@ -6738,8 +6717,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           gisSearchReady = false;
           searchIndex = [];
 
-          // GIS API nằm trên Render, còn giao diện có thể chạy trên GitHub Pages/Vercel/preview.
-          // Vì vậy phải gọi URL tuyệt đối thay vì fetch('/gis/data').
+          // GIS là file build cục bộ của chính Vercel; không gọi Render.
           console.log('[GIS] Data URL:', GIS_DATA_URL);
           const result = await tlFetchGISFast();
           if (!result || !result.success) {

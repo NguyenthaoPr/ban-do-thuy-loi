@@ -115,7 +115,7 @@
        và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
        initAiMap() và prepareImageWithStamp().
        ═════════════════════════════════════════════════════════ -->
-  <style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=MJH0dY1e8SkZAUbOaDXr4Os1Lj0fXSDqhmn3CGF_02qf0hT4C4-4YSK_P2_mh38YYhnxUteIiV8OnvL9-p2X85c9bHenopYJ0iZ-1nrodild_4z12J9coE5izh_4ktFe66gAJ6wWdYSmwbb8CiAQ47gUdAE01tV-2bhfGi78p2NtO3VQLFRtveffvM5dkQyufltT6EhsNvLy1-NnWcSurd1hQKUumeoInXqNswfobsW-l07DsojWg0BVorgs12knaYyI9v8RImzAYzg0A7JxVqo6EbTc_rfjPU0U7rCzv_pymgax-rAOcATj_G4MwO4HBZYjM1n3hgy2eYc7yhwEsw" charset="UTF-8"></script><style>
     /* =========================================================
        CSS GỐC – GIỮ NGUYÊN (đã được copy từ code trước)
        ========================================================= */
@@ -7461,15 +7461,22 @@ if (description) {
               marker._tlPopupReady = false;
               markerFeatureMap.set(feature, marker);
 
+              // POPUP FIX V2 — chỉ nâng cấp cơ chế Popup.
+              // Bind Popup ngay khi tạo marker để các công trình hiện hữu
+              // luôn có Popup trước khi người dùng click.
+              try {
+                buildModernPopup(feature, marker);
+                marker._tlPopupReady = true;
+              } catch (popupError) {
+                console.warn('Popup GIS bind error:', popupError);
+              }
+
               marker.on('click', function() {
                 try {
-                  // Chỉ nâng cấp cơ chế Popup: mở ngay ở lần chạm/click đầu tiên.
-                  // Không thay đổi dữ liệu GIS, cấu trúc marker hay nội dung Popup.
                   if (!marker._tlPopupReady) {
                     buildModernPopup(feature, marker);
                     marker._tlPopupReady = true;
                   }
-
                   marker.openPopup();
                 } catch (popupError) {
                   console.warn('Popup GIS error:', popupError);

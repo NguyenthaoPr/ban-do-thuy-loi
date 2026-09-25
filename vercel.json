@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": ".",
   "rewrites": [
     {
       "source": "/kml-gps-test",
@@ -7,6 +9,12 @@
     }
   ],
   "headers": [
+    {
+      "source": "/gis/master.geojson",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [

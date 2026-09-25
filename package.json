@@ -1,0 +1,13 @@
+{
+  "name": "ban-do-thuy-loi",
+  "private": true,
+  "version": "9.0.0",
+  "scripts": {
+    "build": "node scripts/build-gis.mjs"
+  },
+  "dependencies": {
+    "@tmcw/togeojson": "^7.1.2",
+    "@xmldom/xmldom": "^0.8.10",
+    "jszip": "^3.10.1"
+  }
+}

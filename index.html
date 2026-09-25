@@ -8949,3 +8949,236 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
   }
 })();
 </script>
+
+<!-- =========================================================
+     THUY LOI MAP V7 — MOBILE CONTROL STACK + LAYER FIX
+     Patch only: không thay Popup/GIS/Search/Alert logic hiện hữu.
+     ========================================================= -->
+<style id="tl-map-v7-mobile-fix">
+/* ---------- Mobile: control stack ---------- */
+#mapAiPanel #mapAlertBtn,
+#mapAiPanel #mapLayerBtn,
+#mapAiPanel #mapGpsBtn,
+#mapAiPanel #mapHomeBtn{
+  box-sizing:border-box!important;
+}
+
+@media (max-width:700px){
+  /* Search + quick chips giữ nguyên; controls bắt đầu bên dưới chúng. */
+  #mapAiPanel #mapAlertBtn{
+    position:fixed!important;
+    top:calc(max(8px, env(safe-area-inset-top)) + 116px)!important;
+    right:max(8px, env(safe-area-inset-right))!important;
+    width:46px!important;height:46px!important;
+    z-index:6200!important;
+  }
+  #mapAiPanel #mapLayerBtn{
+    position:fixed!important;
+    top:calc(max(8px, env(safe-area-inset-top)) + 170px)!important;
+    right:max(8px, env(safe-area-inset-right))!important;
+    width:46px!important;height:46px!important;
+    z-index:6200!important;
+  }
+  #mapAiPanel #mapGpsBtn{
+    position:fixed!important;
+    top:calc(max(8px, env(safe-area-inset-top)) + 224px)!important;
+    right:max(8px, env(safe-area-inset-right))!important;
+    width:46px!important;height:46px!important;
+    z-index:6200!important;
+  }
+  #mapAiPanel #mapHomeBtn{
+    position:fixed!important;
+    top:calc(max(8px, env(safe-area-inset-top)) + 278px)!important;
+    right:max(8px, env(safe-area-inset-right))!important;
+    width:46px!important;height:46px!important;
+    z-index:6200!important;
+  }
+
+  /* Layer panel nằm ngay bên trái stack, không chui xuống Alert Sheet. */
+  #mapAiPanel .map-layer-panel{
+    position:fixed!important;
+    top:calc(max(8px, env(safe-area-inset-top)) + 170px)!important;
+    right:62px!important;
+    width:min(300px,calc(100vw - 76px))!important;
+    max-height:calc(100dvh - 210px)!important;
+    overflow:auto!important;
+    z-index:6250!important;
+  }
+
+  /* Khi mở Layer, không cho Alert sheet đang đóng che panel. */
+  #mapAiPanel .map-layer-panel[hidden]{display:none!important;}
+
+  /* Alert sheet là lớp cao nhất khi mở. */
+  #mapAiPanel #tlAlertSheet{
+    z-index:9000!important;
+  }
+}
+
+/* Desktop: Alert nằm cùng hệ control, không thay đổi bố cục bản đồ. */
+@media (min-width:701px){
+  #mapAiPanel #mapAlertBtn{z-index:6200!important;}
+  #mapAiPanel #mapLayerBtn,
+  #mapAiPanel #mapGpsBtn,
+  #mapAiPanel #mapHomeBtn{z-index:6200!important;}
+  #mapAiPanel .map-layer-panel{z-index:6250!important;}
+  #mapAiPanel #tlAlertSheet{z-index:9000!important;}
+}
+</style>
+
+<script id="tl-map-v7-mobile-fix-js">
+(function(){
+  'use strict';
+
+  function ready(){
+    const panel=document.getElementById('mapAiPanel');
+    if(!panel) return;
+
+    const layerBtn=document.getElementById('mapLayerBtn');
+    const layerPanel=document.getElementById('mapLayerPanel');
+    const layerClose=document.getElementById('mapLayerClose');
+    const alertBtn=document.getElementById('mapAlertBtn');
+    const alertSheet=document.getElementById('tlAlertSheet');
+    const facilityToggle=document.getElementById('toggleFacilities');
+    const channelToggle=document.getElementById('toggleChannels');
+    const areaToggle=document.getElementById('toggleAreas');
+    const baseButtons=panel.querySelectorAll('[data-basemap]');
+
+    /* Đồng bộ tham chiếu runtime. V6 chỉ đồng bộ mỗi 1,2s; V7 dùng
+       thêm nhịp ngắn để thao tác Layer luôn bắt đúng bản đồ hiện tại. */
+    function sync(){
+      try{
+        if(typeof aiMap!=='undefined') window.aiMap=aiMap;
+        if(typeof aiMapLayer!=='undefined') window.aiMapLayer=aiMapLayer;
+        if(typeof markerCluster!=='undefined') window.markerCluster=markerCluster;
+        if(typeof nonPointLayer!=='undefined') window.nonPointLayer=nonPointLayer;
+        if(typeof aiBaseLayers!=='undefined') window.aiBaseLayers=aiBaseLayers;
+        if(typeof activeBaseLayerKey!=='undefined') window.activeBaseLayerKey=activeBaseLayerKey;
+      }catch(e){}
+    }
+    sync();
+    const syncTimer=setInterval(function(){
+      sync();
+      if(window.aiMap && window.aiMapLayer && window.markerCluster){
+        clearInterval(syncTimer);
+      }
+    },250);
+
+    function setLayerPanel(open){
+      if(!layerPanel) return;
+      layerPanel.hidden=!open;
+      if(layerBtn) layerBtn.setAttribute('aria-expanded',String(open));
+      if(open){
+        // Khi mở lớp bản đồ, đóng cảnh báo để hai panel không tranh vùng hiển thị.
+        if(alertSheet && !alertSheet.hidden) alertSheet.hidden=true;
+        sync();
+      }
+    }
+
+    if(layerBtn){
+      layerBtn.setAttribute('aria-expanded','false');
+      layerBtn.addEventListener('click',function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        setLayerPanel(!!layerPanel && layerPanel.hidden);
+      },true);
+    }
+    if(layerClose){
+      layerClose.addEventListener('click',function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        setLayerPanel(false);
+      },true);
+    }
+
+    /* Nếu mở cảnh báo thì đóng Layer; giữ nguyên Popup cảnh báo. */
+    if(alertBtn){
+      alertBtn.addEventListener('click',function(){
+        if(layerPanel) layerPanel.hidden=true;
+        if(layerBtn) layerBtn.setAttribute('aria-expanded','false');
+      },true);
+    }
+
+    /* ---------- Nền bản đồ ---------- */
+    baseButtons.forEach(function(btn){
+      btn.addEventListener('click',function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        sync();
+        const key=btn.dataset.basemap;
+        const map=window.aiMap;
+        const layers=window.aiBaseLayers;
+        if(!map || !layers || !layers[key]){
+          console.warn('[Map V7] Base map chưa sẵn sàng:',key);
+          return;
+        }
+        Object.keys(layers).forEach(function(k){
+          try{ if(map.hasLayer(layers[k])) map.removeLayer(layers[k]); }catch(err){}
+        });
+        try{ layers[key].addTo(map); }catch(err){ console.warn('[Map V7] Không đổi được nền:',err); return; }
+        window.activeBaseLayerKey=key;
+        baseButtons.forEach(function(b){b.classList.toggle('active',b===btn);});
+      },true);
+    });
+
+    /* ---------- Công trình ---------- */
+    if(facilityToggle){
+      facilityToggle.addEventListener('change',function(){
+        sync();
+        const map=window.aiMap;
+        const group=window.markerCluster;
+        if(!map || !group){ console.warn('[Map V7] Marker cluster chưa sẵn sàng'); return; }
+        try{
+          if(facilityToggle.checked){
+            if(!map.hasLayer(group)) group.addTo(map);
+          }else{
+            if(map.hasLayer(group)) map.removeLayer(group);
+          }
+        }catch(e){ console.warn('[Map V7] Toggle công trình:',e); }
+      },true);
+    }
+
+    /* ---------- Tuyến / Kênh và Khu tưới ----------
+       Hai lớp đang dùng chung nonPointLayer trong code cũ. V7 không
+       remove cả group nữa; thay vào đó ẩn/hiện đúng geometry từng layer. */
+    function setNonPointVisibility(){
+      sync();
+      const group=window.nonPointLayer;
+      if(!group || typeof group.eachLayer!=='function') return;
+      const showChannels=!channelToggle || channelToggle.checked;
+      const showAreas=!areaToggle || areaToggle.checked;
+      group.eachLayer(function(layer){
+        const f=layer && layer.feature;
+        const t=f && f.geometry && f.geometry.type;
+        try{
+          if(t==='LineString' || t==='MultiLineString'){
+            if(layer.setStyle) layer.setStyle({opacity:showChannels?0.90:0, fillOpacity:0});
+          }else if(t==='Polygon' || t==='MultiPolygon'){
+            if(layer.setStyle) layer.setStyle({opacity:showAreas?0.75:0, fillOpacity:showAreas?0.06:0});
+          }
+        }catch(e){}
+      });
+    }
+    if(channelToggle) channelToggle.addEventListener('change',setNonPointVisibility,true);
+    if(areaToggle) areaToggle.addEventListener('change',setNonPointVisibility,true);
+
+    /* Chờ GeoJSON render xong rồi áp dụng đúng trạng thái hiện tại. */
+    let tries=0;
+    const applyTimer=setInterval(function(){
+      sync();
+      if(window.nonPointLayer){
+        setNonPointVisibility();
+        clearInterval(applyTimer);
+      }
+      if(++tries>40) clearInterval(applyTimer);
+    },250);
+
+    /* ESC đóng Layer trước. */
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Escape' && layerPanel && !layerPanel.hidden) setLayerPanel(false);
+    });
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',ready);
+  else ready();
+})();
+</script>

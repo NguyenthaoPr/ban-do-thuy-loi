@@ -5,16 +5,51 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#08233d">
   <title>THỦY LỢI AI</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
-  </script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  </script>
+
+  <!-- ═════════════════════════════════════════════════════════
+       PERF PATCH — RESOURCE HINTS (bổ sung, không đổi logic)
+       Kết nối sớm tới các domain hay gọi để giảm độ trễ DNS/TLS
+       lần gọi đầu tiên trên di động.
+       ═════════════════════════════════════════════════════════ -->
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="dns-prefetch" href="https://unpkg.com">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://thuyloiai.onrender.com" crossorigin>
+  <link rel="dns-prefetch" href="https://thuyloiai.onrender.com">
+  <link rel="preconnect" href="https://thuyloiai-technical-vercel.vercel.app" crossorigin>
+  <link rel="dns-prefetch" href="https://thuyloiai-technical-vercel.vercel.app">
+  <link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
+  <link rel="dns-prefetch" href="https://api.open-meteo.com">
+
+  <!-- ═════════════════════════════════════════════════════════
+       PERF PATCH — CSS Leaflet/MarkerCluster: KHÔNG chặn render
+       Dùng preload + chuyển thành stylesheet sau khi tải xong.
+       Nội dung CSS và hiệu lực cuối cùng giữ nguyên như bản gốc.
+       ═════════════════════════════════════════════════════════ -->
+  <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
+
   <!-- MARKER CLUSTER -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js">
-  </script>
+  <link rel="preload" as="style" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+        onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"></noscript>
+  <link rel="preload" as="style" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+        onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"></noscript>
+
+  <!-- ═════════════════════════════════════════════════════════
+       PERF PATCH — Đã bỏ 3 script chặn render tại đây (dạng thẻ
+         script có thuộc tính src trỏ tới):
+         qrcode.min.js, leaflet.js, leaflet.markercluster.js
+       Ba thư viện này giờ được nạp lười (lazy) bằng tlLoadScript()
+       ngay trước khi cần dùng (mở Bản đồ AI / chụp ảnh QR), và
+       được nạp ngầm lúc rảnh (requestIdleCallback) để không chặn
+       màn hình chat hiển thị đầu tiên. Xem khối script cuối </head>
+       và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
+       initAiMap() và prepareImageWithStamp().
+       ═════════════════════════════════════════════════════════ -->
   <style>
     /* =========================================================
        CSS GỐC – GIỮ NGUYÊN (đã được copy từ code trước)
@@ -3811,6 +3846,55 @@
     <div class="footer">THỦY LỢI AI • FastAPI • Gemini File Search</div>
   </main>
 
+  <!-- ═════════════════════════════════════════════════════════
+       PERF PATCH — LAZY LOADER cho Leaflet/MarkerCluster & QRCode
+       BỔ SUNG, không thay đổi logic GIS/AI hiện có.
+       Các thư viện chỉ tải khi thực sự cần (mở Bản đồ AI, chụp ảnh
+       để lấy QR), đồng thời được nạp ngầm lúc trình duyệt rảnh để
+       không làm chậm màn hình chat hiển thị đầu tiên trên mobile.
+       ═════════════════════════════════════════════════════════ -->
+  <script>
+    window.__tlScriptCache = window.__tlScriptCache || {};
+    function tlLoadScript(url) {
+      if (window.__tlScriptCache[url]) return window.__tlScriptCache[url];
+      const p = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = url;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Không tải được: ' + url));
+        document.head.appendChild(s);
+      });
+      window.__tlScriptCache[url] = p;
+      return p;
+    }
+
+    let __tlLeafletPromise = null;
+    window.tlEnsureLeaflet = function () {
+      if (__tlLeafletPromise) return __tlLeafletPromise;
+      __tlLeafletPromise = tlLoadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')
+        .then(() => tlLoadScript('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'));
+      return __tlLeafletPromise;
+    };
+
+    let __tlQrPromise = null;
+    window.tlEnsureQRCode = function () {
+      if (__tlQrPromise) return __tlQrPromise;
+      __tlQrPromise = tlLoadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+      return __tlQrPromise;
+    };
+
+    // Nạp ngầm lúc trình duyệt rảnh (không chặn hiển thị chat) để khi
+    // người dùng bấm "BẢN ĐỒ AI" hoặc chụp ảnh thì thư viện đã sẵn sàng.
+    (function tlWarmUpLibs() {
+      const idle = window.requestIdleCallback || function (fn) { setTimeout(fn, 2500); };
+      idle(function () {
+        window.tlEnsureLeaflet().catch(function (e) { console.warn('[Lazy] Leaflet warm-up:', e); });
+        window.tlEnsureQRCode().catch(function (e) { console.warn('[Lazy] QRCode warm-up:', e); });
+      }, { timeout: 4000 });
+    })();
+  </script>
+
   <script>
     (function() {
       'use strict';
@@ -4235,6 +4319,8 @@
         if (location && qrSize > 0) {
           const qrUrl = `https://www.google.com/maps?q=${lat},${lng}`;
           try {
+            // PERF PATCH: QRCode được nạp lười; đảm bảo đã sẵn sàng trước khi dùng.
+            await window.tlEnsureQRCode();
             const qrCanvas = await generateQRCanvas(qrUrl, qrSize);
             if (qrCanvas) {
               const qrX = posX + boxWidth - qrSize - 12;
@@ -6352,6 +6438,17 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           setTimeout(function() { aiMap.invalidateSize(); }, 200);
           return;
         }
+        // PERF PATCH: Leaflet/MarkerCluster giờ được nạp lười (xem loader
+        // cuối trang). Đợi nạp xong trước khi dùng L — không đổi logic bản đồ.
+        if (typeof L === 'undefined') {
+          mapAiStatus.textContent = '⏳ Đang tải thư viện bản đồ...';
+          try {
+            await window.tlEnsureLeaflet();
+          } catch (e) {
+            mapAiStatus.textContent = '❌ Không tải được thư viện bản đồ.';
+            return;
+          }
+        }
         if (typeof L === 'undefined') {
           mapAiStatus.textContent = '❌ Không tải được thư viện bản đồ.';
           return;
@@ -7780,11 +7877,14 @@ closeMapAi.addEventListener('click', function() {
         </button>
     </div>
 
+    <!-- PERF PATCH: dùng data-src thay vì src để KHÔNG tải app Vercel này
+         ngay khi mở trang; chỉ tải khi người dùng thực sự bấm mở (xem
+         openTechnicalModule() bên dưới). Không đổi URL/nội dung iframe. -->
     <iframe
         id="technicalModuleFrame"
-        src="https://thuyloiai-technical-vercel.vercel.app"
+        data-src="https://thuyloiai-technical-vercel.vercel.app"
         title="Thông tin cập nhật"
-        loading="eager">
+        loading="lazy">
     </iframe>
 
 </div>
@@ -8191,6 +8291,12 @@ closeMapAi.addEventListener('click', function() {
         if (!container) {
             console.error("Không tìm thấy Technical Module.");
             return;
+        }
+
+        // PERF PATCH: chỉ gán src (bắt đầu tải iframe) ở lần mở đầu tiên.
+        const frame = document.getElementById("technicalModuleFrame");
+        if (frame && !frame.src && frame.dataset.src) {
+            frame.src = frame.dataset.src;
         }
 
         container.classList.remove(

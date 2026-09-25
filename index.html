@@ -3517,6 +3517,74 @@
 }
 </style>
 
+
+<style id="thuyloi-alert-center-v1">
+/* =========================================================
+   THỦY LỢI AI — ALERT CENTER V1
+   Chỉ bổ sung Cảnh báo; không thay đổi Popup công trình.
+   ========================================================= */
+#mapAlertBtn{
+  position:absolute; top:16px; right:14px; z-index:505;
+  width:46px; height:46px; border:0; border-radius:14px;
+  background:rgba(255,255,255,.96); color:#0f3b63;
+  box-shadow:0 4px 14px rgba(0,0,0,.18); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; touch-action:manipulation;
+}
+#mapAlertBtn.has-alert{background:#ef4444;color:#fff;box-shadow:0 4px 18px rgba(239,68,68,.38)}
+#mapAlertBtn.is-loading{opacity:.82}
+#mapAlertBtn .alert-bell{line-height:1}
+#mapAlertBadge{
+  position:absolute; top:-7px; right:-7px; min-width:22px; height:22px;
+  padding:0 6px; border-radius:999px; border:2px solid #fff;
+  background:#ef4444;color:#fff;font-size:11px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.22)
+}
+#mapAlertBtn.has-alert::before{
+  content:""; position:absolute; inset:-5px; border-radius:18px;
+  border:2px solid rgba(239,68,68,.32); animation:tlAlertPulse 1.8s ease-out infinite;
+  pointer-events:none
+}
+@keyframes tlAlertPulse{0%{transform:scale(.92);opacity:.9}70%,100%{transform:scale(1.18);opacity:0}}
+
+#tlAlertSheet{
+  position:absolute; z-index:6500; left:10px; right:10px; bottom:10px;
+  max-height:min(72vh,620px); background:rgba(255,255,255,.97);
+  border:1px solid rgba(214,225,236,.95); border-radius:22px;
+  box-shadow:0 18px 55px rgba(8,42,74,.28); overflow:hidden;
+  backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+}
+#tlAlertSheet[hidden]{display:none!important}
+.tl-alert-grab{width:42px;height:4px;border-radius:999px;background:#cbd5e1;margin:8px auto 2px}
+.tl-alert-head{display:flex;align-items:center;justify-content:space-between;padding:8px 14px 10px}
+.tl-alert-title{display:flex;align-items:center;gap:9px;color:#082a4a;font-size:17px;font-weight:850}
+.tl-alert-title-icon{width:34px;height:34px;border-radius:11px;background:#fef2f2;color:#dc2626;display:grid;place-items:center;font-size:18px}
+#tlAlertClose{width:34px;height:34px;border:0;border-radius:10px;background:#f1f5f9;color:#334155;font-size:22px}
+.tl-alert-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;padding:0 10px 10px}
+.tl-alert-group{border:1px solid #e2e8f0;background:#fff;border-radius:14px;padding:9px 7px;min-height:72px;text-align:left;cursor:pointer;transition:.15s}
+.tl-alert-group:active{transform:scale(.98)}
+.tl-alert-group.active{box-shadow:inset 0 -3px 0 var(--alert-color);border-color:#cbd5e1}
+.tl-alert-group .num{display:block;font-size:21px;font-weight:900;color:var(--alert-color);line-height:1}
+.tl-alert-group .label{display:block;margin-top:6px;font-size:10px;line-height:1.15;font-weight:800;color:#334155}
+.tl-alert-list{max-height:calc(min(72vh,620px) - 190px);overflow:auto;padding:0 10px 12px}
+.tl-alert-list-head{display:flex;align-items:center;justify-content:space-between;padding:5px 3px 8px;color:#082a4a;font-size:13px;font-weight:850}
+.tl-alert-list-head span:last-child{color:#64748b;font-weight:700;font-size:11px}
+.tl-alert-row{width:100%;display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:9px;align-items:center;border:1px solid #e5ebf1;background:#fff;border-radius:14px;padding:9px 8px;margin-bottom:7px;text-align:left;cursor:pointer}
+.tl-alert-icon{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--alert-bg);color:var(--alert-color);font-size:15px;font-weight:900}
+.tl-alert-name{font-size:13px;font-weight:850;color:#0b3153;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-alert-meta{margin-top:3px;font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-alert-diff{font-size:12px;font-weight:900;color:var(--alert-color);white-space:nowrap}
+.tl-alert-empty{padding:24px 12px;text-align:center;color:#64748b;font-size:12px}
+.tl-alert-loading{padding:22px 12px;text-align:center;color:#64748b;font-size:12px}
+.tl-alert-footer{padding:7px 12px;border-top:1px solid #e8eef4;background:#f8fafc;color:#64748b;font-size:9px;text-align:center}
+@media(max-width:700px){
+  #mapAlertBtn{position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 56px);right:8px;width:46px;height:46px;z-index:6200}
+  #tlAlertSheet{position:fixed;left:0;right:0;bottom:0;max-height:min(72dvh,650px);border-radius:22px 22px 0 0;z-index:7000}
+  .tl-alert-list{max-height:calc(min(72dvh,650px) - 190px)}
+}
+</style>
+
 </head>
 <body>
   <header class="header">
@@ -3663,6 +3731,20 @@
           <button id="mapLayerBtn" class="map-floating-btn" type="button" title="Lớp bản đồ">◈</button>
           <button id="mapGpsBtn" class="map-floating-btn map-gps-btn" type="button" title="Vị trí của tôi">➤</button>
           <button id="mapHomeBtn" class="map-floating-btn map-home-btn" type="button" title="Toàn vùng Vu Gia – Thu Bồn">⌂</button>
+          <button id="mapAlertBtn" type="button" title="Cảnh báo hồ chứa" aria-label="Cảnh báo hồ chứa">
+            <span class="alert-bell">🔔</span><span id="mapAlertBadge">—</span>
+          </button>
+          <section id="tlAlertSheet" hidden aria-label="Trung tâm cảnh báo hồ chứa">
+            <div class="tl-alert-grab"></div>
+            <div class="tl-alert-head">
+              <div class="tl-alert-title"><span class="tl-alert-title-icon">🔔</span><span>CẢNH BÁO HỒ CHỨA</span></div>
+              <button id="tlAlertClose" type="button" aria-label="Đóng">×</button>
+            </div>
+            <div id="tlAlertSummary" class="tl-alert-summary"></div>
+            <div id="tlAlertList" class="tl-alert-list"><div class="tl-alert-loading">⏳ Đang đọc dữ liệu hồ chứa…</div></div>
+            <div class="tl-alert-footer">Quy tắc: Gần = khoảng cách đến ngưỡng ≤ 0,5 m • Ưu tiên: MNDGC → MNDBT</div>
+          </section>
+
           <div id="mapLayerPanel" class="map-layer-panel" hidden>
             <div class="map-panel-head"><div><strong>Lớp bản đồ</strong><span>Nền & dữ liệu hiển thị</span></div><button id="mapLayerClose" type="button">×</button></div>
             <div class="map-section-label">NỀN</div>
@@ -3740,6 +3822,17 @@
       const mapSearch = document.getElementById('mapSearch');
       const mapSearchBtn = document.getElementById('mapSearchBtn');
       const searchResults = document.getElementById('searchResults');
+
+      const mapAlertBtn = document.getElementById('mapAlertBtn');
+      const mapAlertBadge = document.getElementById('mapAlertBadge');
+      const tlAlertSheet = document.getElementById('tlAlertSheet');
+      const tlAlertClose = document.getElementById('tlAlertClose');
+      const tlAlertSummary = document.getElementById('tlAlertSummary');
+      const tlAlertList = document.getElementById('tlAlertList');
+      let tlReservoirAlertRecords = [];
+      let tlReservoirAlertsLoaded = false;
+      let tlAlertSelectedGroup = 'all';
+
 
       // =========================================================
       // 1. BIẾN TOÀN CỤC
@@ -5988,6 +6081,126 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         }
       }
 
+
+      // =========================================================
+      // ALERT CENTER — HỒ CHỨA
+      // Không sửa Popup hiện hữu. Chỉ bổ sung lớp cảnh báo.
+      // Quy tắc: Z >= MNDGC -> đỏ; gần MNDGC <= 0,5m -> cam;
+      // sau đó Z >= MNDBT -> vàng; gần MNDBT <= 0,5m -> xanh.
+      // =========================================================
+      const TL_ALERT_DEFS = {
+        above_mndgc: { key:'above_mndgc', label:'Trên MNDGC', short:'Trên MNDGC', color:'#dc2626', bg:'#fef2f2', icon:'▲' },
+        near_mndgc:  { key:'near_mndgc',  label:'Gần MNDGC',  short:'Gần MNDGC',  color:'#ea580c', bg:'#fff7ed', icon:'▲' },
+        above_mndbt: { key:'above_mndbt', label:'Trên MNDBT', short:'Trên MNDBT', color:'#f59e0b', bg:'#fffbeb', icon:'▲' },
+        near_mndbt:  { key:'near_mndbt',  label:'Gần MNDBT',  short:'Gần MNDBT',  color:'#2563eb', bg:'#eff6ff', icon:'▲' }
+      };
+
+      function tlAlertNumber(v, d=2){ const n=Number(v); return Number.isFinite(n) ? n.toFixed(d) : '—'; }
+      function tlAlertType(z, mndbt, mndgc){
+        if (!Number.isFinite(z)) return null;
+        if (Number.isFinite(mndgc) && z >= mndgc) return 'above_mndgc';
+        if (Number.isFinite(mndgc) && z < mndgc && (mndgc-z) <= 0.5) return 'near_mndgc';
+        if (Number.isFinite(mndbt) && z >= mndbt) return 'above_mndbt';
+        if (Number.isFinite(mndbt) && z < mndbt && (mndbt-z) <= 0.5) return 'near_mndbt';
+        return null;
+      }
+      function tlAlertRecordFromData(record, payload){
+        const data = payload?.data || payload || {};
+        const water = data.water_level || {};
+        const limits = data.limits || {};
+        const z = Number(water.value ?? data.water_level_m ?? data.Z);
+        const mndbt = Number(limits.MNDBT ?? record.feature?.properties?.MNDBT ?? record.feature?.properties?.mndbt ?? record.feature?.properties?.MucNuocDBT);
+        const mndgc = Number(limits.MNDGC ?? record.feature?.properties?.MNDGC ?? record.feature?.properties?.mndgc ?? record.feature?.properties?.MucNuocDGC);
+        const kind = tlAlertType(z,mndbt,mndgc);
+        if (!kind) return null;
+        const def=TL_ALERT_DEFS[kind];
+        const ref = kind.includes('mndgc') ? mndgc : mndbt;
+        const diff = Number.isFinite(ref) && Number.isFinite(z) ? z-ref : null;
+        return { record, name:record.name, z, mndbt, mndgc, kind, def, diff, time:water.time||data.updated_label||'' };
+      }
+      function tlAlertRecordsFromGIS(){
+        return (searchIndex||[]).filter(r=>r.type==='ho').map(r=>{
+          const p=r.feature?.properties||{};
+          const z=Number(p.Z ?? p.z ?? p.MucNuoc ?? p.muc_nuoc ?? p.mucNuoc ?? p.water_level ?? p.water_level_m);
+          const mndbt=Number(p.MNDBT ?? p.mndbt ?? p.MucNuocDBT);
+          const mndgc=Number(p.MNDGC ?? p.mndgc ?? p.MucNuocDGC);
+          const kind=tlAlertType(z,mndbt,mndgc);
+          if(!kind) return null;
+          const def=TL_ALERT_DEFS[kind]; const ref=kind.includes('mndgc')?mndgc:mndbt;
+          return {record:r,name:r.name,z,mndbt,mndgc,kind,def,diff:Number.isFinite(ref)&&Number.isFinite(z)?z-ref:null,time:''};
+        }).filter(Boolean);
+      }
+      function tlRenderAlertSummary(){
+        const counts={above_mndgc:0,near_mndgc:0,above_mndbt:0,near_mndbt:0};
+        tlReservoirAlertRecords.forEach(x=>{ if(counts[x.kind]!==undefined) counts[x.kind]++; });
+        const total=Object.values(counts).reduce((a,b)=>a+b,0);
+        mapAlertBadge.textContent=total>99?'99+':String(total);
+        mapAlertBtn.classList.toggle('has-alert', total>0);
+        tlAlertSummary.innerHTML=Object.values(TL_ALERT_DEFS).map(def=>`
+          <button class="tl-alert-group ${tlAlertSelectedGroup===def.key?'active':''}" data-alert-group="${def.key}" style="--alert-color:${def.color}">
+            <span class="num">${counts[def.key]}</span><span class="label">${def.label}</span>
+          </button>`).join('');
+        tlAlertSummary.querySelectorAll('[data-alert-group]').forEach(btn=>btn.addEventListener('click',()=>{
+          tlAlertSelectedGroup=btn.dataset.alertGroup;
+          tlRenderAlertSummary(); tlRenderAlertList();
+        }));
+      }
+      function tlRenderAlertList(){
+        const list=tlAlertSelectedGroup==='all'?tlReservoirAlertRecords:tlReservoirAlertRecords.filter(x=>x.kind===tlAlertSelectedGroup);
+        if(!list.length){tlAlertList.innerHTML='<div class="tl-alert-empty">Không có hồ trong nhóm cảnh báo này.</div>';return;}
+        const def=list[0]?.def;
+        tlAlertList.innerHTML=`<div class="tl-alert-list-head"><span>${def?def.label:'Hồ cảnh báo'}</span><span>${list.length} hồ</span></div>`+
+          list.map((x,i)=>`<button class="tl-alert-row" data-alert-index="${i}" style="--alert-color:${x.def.color};--alert-bg:${x.def.bg}">
+            <span class="tl-alert-icon">${x.def.icon}</span><span><span class="tl-alert-name">${esc(x.name)}</span><span class="tl-alert-meta">Z ${tlAlertNumber(x.z)} m · MNDGC ${Number.isFinite(x.mndgc)?tlAlertNumber(x.mndgc):'—'} · MNDBT ${Number.isFinite(x.mndbt)?tlAlertNumber(x.mndbt):'—'}</span></span><span class="tl-alert-diff">${x.diff==null?'—':(x.diff>=0?'+':'')+tlAlertNumber(x.diff)+' m'} ›</span>
+          </button>`).join('');
+        tlAlertList.querySelectorAll('[data-alert-index]').forEach(btn=>btn.addEventListener('click',()=>{
+          const idx=Number(btn.dataset.alertIndex); const x=list[idx];
+          if(x?.record){ tlCloseAlertSheet(); zoomToFeature(x.record); }
+        }));
+      }
+      function tlOpenAlertSheet(){
+        tlAlertSheet.hidden=false;
+        if(!tlReservoirAlertsLoaded) tlRefreshReservoirAlerts(); else {tlRenderAlertSummary();tlRenderAlertList();}
+      }
+      function tlCloseAlertSheet(){tlAlertSheet.hidden=true;}
+      async function tlRefreshReservoirAlerts(){
+        if(!searchIndex?.length){tlAlertList.innerHTML='<div class="tl-alert-empty">Bản đồ đang tải dữ liệu công trình…</div>';return;}
+        tlAlertList.innerHTML='<div class="tl-alert-loading">⏳ Đang đọc mực nước các hồ…</div>';
+        const reservoirs=searchIndex.filter(r=>r.type==='ho' && r.name);
+        const out=[]; let cursor=0;
+        const worker=async()=>{
+          while(cursor<reservoirs.length){
+            const record=reservoirs[cursor++];
+            try{
+              const p=record.feature?.properties||{};
+              const localZ=Number(p.Z ?? p.z ?? p.MucNuoc ?? p.muc_nuoc ?? p.water_level ?? p.water_level_m);
+              const localMndbt=Number(p.MNDBT ?? p.mndbt ?? p.MucNuocDBT);
+              const localMndgc=Number(p.MNDGC ?? p.mndgc ?? p.MucNuocDGC);
+              let item=tlAlertRecordsFromOneLocal(record,localZ,localMndbt,localMndgc);
+              try{
+                const live=await tlFetchLive(record.name,false);
+                const liveItem=tlAlertRecordFromData(record,live);
+                if(liveItem) item=liveItem; else if(item) item=null;
+              }catch(e){ /* fallback GIS */ }
+              if(item) out.push(item);
+            }catch(e){ console.warn('Alert hồ:',record.name,e); }
+          }
+        };
+        await Promise.all(Array.from({length:Math.min(4,reservoirs.length)},()=>worker()));
+        tlReservoirAlertRecords=out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
+        tlReservoirAlertsLoaded=true;
+        tlAlertSelectedGroup='all';
+        tlRenderAlertSummary();
+        tlAlertList.innerHTML='<div class="tl-alert-empty">Chọn một nhóm phía trên để xem chi tiết hồ.</div>';
+      }
+      function tlAlertRecordsFromOneLocal(record,z,mndbt,mndgc){
+        const kind=tlAlertType(z,mndbt,mndgc); if(!kind) return null;
+        const def=TL_ALERT_DEFS[kind]; const ref=kind.includes('mndgc')?mndgc:mndbt;
+        return {record,name:record.name,z,mndbt,mndgc,kind,def,diff:Number.isFinite(ref)&&Number.isFinite(z)?z-ref:null,time:''};
+      }
+      if(mapAlertBtn) mapAlertBtn.addEventListener('click',tlOpenAlertSheet);
+      if(tlAlertClose) tlAlertClose.addEventListener('click',tlCloseAlertSheet);
+
       async function initAiMap() {
         if (aiMap) {
           setTimeout(function() { aiMap.invalidateSize(); }, 200);
@@ -6154,6 +6367,8 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               }
 
               gisSearchReady = true;
+              tlReservoirAlertRecords = tlAlertRecordsFromGIS();
+              tlRenderAlertSummary();
               console.log('📚 GIS: Search Index', searchIndex.length, 'bản ghi.');
 
               // Nếu người dùng đã gõ từ khóa trong lúc GIS đang tải, tìm ngay.

@@ -115,7 +115,7 @@
        và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
        initAiMap() và prepareImageWithStamp().
        ═════════════════════════════════════════════════════════ -->
-  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=q3EKjLCWrmEmoGW6fveQE5ImSOXg2S60wfODChzKhDeOmkCgPJ8A9YlHX6F9Q2ITYEDb-jIfWgLmy7bq8ycHYUsO1X4mCfXwYkiEnobaIfXExLjhH_7PeuZxOBaR6PbVq_MW9hGVyhnmNRS812b460Tz-BmzyTYH6a4UouOYs2c4jc2QfkpQXHvPbDQrr7n-vmLHXq-5l9cd_jD6nEiywX6wx_LAPZ1Pot772VpAvmsXrfEHots2FEIWv-dy6V6982ehhyn1fTnF2SUIvTpkdemi1W-x4IN8R0IAuLZdfyQpx2rwtRGnz5x8El8xbpmLFEFzTfPnMsSB-L2VifpotQ" charset="UTF-8"></script><style>
+  <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=dDD1HRIbL7UVvddFgqnAM4m4J5jge0H-rgN6pEVX9WI8jEgvmM56sdrSN2QWka3HLa2vKCczz25Frip5h6KAfRKZsh1rkUgRJA-daPZcdZ0i0IPeBeoaNEWW2zBWwloLMB-jQmJN6brosNtNUqbidcwfqBxzoVEEH8xyUx0ufDUr41xeHaM1U5v2c5-B48wVs3REAiPPE0BWNzWdMNIuLVwPrl-mGF7ZT5P_yAdmMG8z86k6NE1kv0OLKgmokKcsSO09BEvoiNmrEp7Y6f0QhHZOAG3MYuNBx8DnWIbUQ2EiuYpd71q6u7d7oMhlCFacxoh8VNXuN6Ww70RmEinfcQ" charset="UTF-8"></script><style>
     /* =========================================================
        CSS GỐC – GIỮ NGUYÊN (đã được copy từ code trước)
        ========================================================= */
@@ -4102,10 +4102,13 @@
       // tại /gis/master.geojson. Không còn phụ thuộc Render cho GIS.
       const GIS_DATA_URL = '/gis/master.geojson';
 
-      // Technical Module chạy độc lập trên Vercel.
-      // Chỉ dùng cho API quan trắc thực tế; không thay đổi GIS API trên Render.
+      // LIVE / AI_DATA:
+      // GIS đã chuyển hoàn toàn sang /gis/master.geojson trên Vercel.
+      // Riêng số liệu quan trắc thực tế vẫn lấy từ backend API hiện hữu.
+      // Giữ endpoint Render làm mặc định vì module /api/live và /api/chart
+      // của bản đồ trước đây chạy trên backend này.
       const TL_TECHNICAL_API_BASE = String(
-        window.THULYLOI_TECHNICAL_API || 'https://thuyloiai-technical-vercel.vercel.app'
+        window.THULYLOI_TECHNICAL_API || 'https://thuyloiai.onrender.com'
       ).replace(/\/$/, '');
 
       window.preparedImageBlob = null;

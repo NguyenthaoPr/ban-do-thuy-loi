@@ -4540,7 +4540,11 @@ if (cameraBtn && imageInput) {
       // LIVE ENGINE – ĐỌC QUAN TRẮC THỰC TẾ TỪ AI_DATA QUA VERCEL
       // BỔ SUNG, KHÔNG THAY ĐỔI GIS / SEARCH / MARKER / KML
       // =========================================================
-      const TL_LIVE_TIMEOUT = 12000;
+      const TL_LIVE_TIMEOUT = 7000;
+      // Cache dữ liệu quan trắc ngắn hạn để mở lại nhanh, vẫn có nút refresh cưỡng bức.
+      const TL_LIVE_CACHE_TTL = 60 * 1000; // 60 giây
+      const TL_LIVE_MEMORY_CACHE = new Map();
+      const TL_LIVE_INFLIGHT = new Map();
 
       function tlLiveFormatNumber(value, digits = 2) {
         const n = Number(value);
@@ -4566,31 +4570,51 @@ if (cameraBtn && imageInput) {
       }
 
       async function tlFetchLive(facility, force = false) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), TL_LIVE_TIMEOUT);
-        try {
-          const url = tlLiveFetchUrl(facility) + (force ? '&fresh=1&ts=' + Date.now() : '&fresh=1');
-          const response = await fetch(url, {
-            method: 'GET',
-            cache: 'no-store',
-            mode: 'cors',
-            headers: { 'Accept': 'application/json' },
-            signal: controller.signal
-          });
+        const key = String(facility || '').trim();
+        if (!key) throw new Error('Thiếu tên công trình.');
 
-          let data = null;
-          try { data = await response.json(); } catch (_) {}
-
-          if (!response.ok || !data || data.ok !== true) {
-            const message = data?.error || ('Technical API HTTP ' + response.status);
-            const err = new Error(message);
-            err.status = response.status;
-            throw err;
-          }
-          return data;
-        } finally {
-          clearTimeout(timer);
+        const now = Date.now();
+        const cached = TL_LIVE_MEMORY_CACHE.get(key);
+        if (!force && cached && (now - cached.timestamp) < TL_LIVE_CACHE_TTL) {
+          return cached.data;
         }
+
+        // Chống gọi trùng cùng một công trình khi Popup + Cảnh báo cùng tải.
+        if (!force && TL_LIVE_INFLIGHT.has(key)) {
+          return TL_LIVE_INFLIGHT.get(key);
+        }
+
+        const promise = (async () => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), TL_LIVE_TIMEOUT);
+          try {
+            const url = tlLiveFetchUrl(key) + (force ? '&fresh=1&ts=' + Date.now() : '');
+            const response = await fetch(url, {
+              method: 'GET',
+              cache: force ? 'no-store' : 'default',
+              mode: 'cors',
+              headers: { 'Accept': 'application/json' },
+              signal: controller.signal
+            });
+
+            let data = null;
+            try { data = await response.json(); } catch (_) {}
+            if (!response.ok || !data || data.ok !== true) {
+              const message = data?.error || ('Technical API HTTP ' + response.status);
+              const err = new Error(message);
+              err.status = response.status;
+              throw err;
+            }
+            TL_LIVE_MEMORY_CACHE.set(key, { timestamp: Date.now(), data });
+            return data;
+          } finally {
+            clearTimeout(timer);
+            TL_LIVE_INFLIGHT.delete(key);
+          }
+        })();
+
+        if (!force) TL_LIVE_INFLIGHT.set(key, promise);
+        return promise;
       }
 
   const TL_CHART_CACHE = new Map();
@@ -6202,12 +6226,32 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             tlAlertList.innerHTML='<div class=\"tl-alert-loading\">⏳ Đang cập nhật mực nước hồ…</div>';
           }
           tlRefreshReservoirAlerts();
-        } else { tlRenderAlertSummary(); tlRenderAlertList(); }
+        } else {
+          tlRenderAlertSummary();
+          tlRenderAlertList();
+          // Nếu dữ liệu cảnh báo đã cũ, cập nhật nền; không khóa panel.
+          const age = Date.now() - (window.__TL_ALERT_LAST_REFRESH || 0);
+          if (age > 60 * 1000) tlRefreshReservoirAlerts(true);
+        }
       }
       function tlCloseAlertSheet(){tlAlertSheet.hidden=true;}
-      async function tlRefreshReservoirAlerts(){
+      async function tlWarmReservoirLiveCache(){
+        try {
+          const reservoirs=(searchIndex||[]).filter(r=>r.type==='ho' && r.name).slice(0, 40);
+          let i=0;
+          const worker=async()=>{
+            while(i<reservoirs.length){
+              const record=reservoirs[i++];
+              try { await tlFetchLive(record.name,false); } catch(e) {}
+            }
+          };
+          await Promise.all(Array.from({length:Math.min(4,reservoirs.length)},()=>worker()));
+        } catch(e) {}
+      }
+
+      async function tlRefreshReservoirAlerts(background = false){
         if(!searchIndex?.length){tlAlertList.innerHTML='<div class="tl-alert-empty">Bản đồ đang tải dữ liệu công trình…</div>';return;}
-        tlAlertList.innerHTML='<div class="tl-alert-loading">⏳ Đang đọc mực nước các hồ…</div>';
+        if(!background) tlAlertList.innerHTML='<div class="tl-alert-loading">⏳ Đang cập nhật mực nước các hồ…</div>';
         const reservoirs=searchIndex.filter(r=>r.type==='ho' && r.name);
         const out=[]; let cursor=0;
         const worker=async()=>{
@@ -6228,13 +6272,15 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             }catch(e){ console.warn('Alert hồ:',record.name,e); }
           }
         };
-        await Promise.all(Array.from({length:Math.min(4,reservoirs.length)},()=>worker()));
+        await Promise.all(Array.from({length:Math.min(8,reservoirs.length)},()=>worker()));
         tlReservoirAlertRecords=out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
         tlReservoirAlertsLoaded=true;
-        tlAlertSelectedGroup='all';
+        window.__TL_ALERT_LAST_REFRESH=Date.now();
+        if(!background) tlAlertSelectedGroup='all';
         tlRenderAlertSheetCompact();
         tlRenderAlertSummary();
-        tlAlertList.innerHTML='<div class="tl-alert-empty">Chọn một nhóm phía trên để xem chi tiết hồ.</div>';
+        if(background && tlAlertSelectedGroup !== 'all') tlRenderAlertList();
+        else tlAlertList.innerHTML='<div class="tl-alert-empty">Chọn một nhóm phía trên để xem chi tiết hồ.</div>';
       }
       function tlAlertRecordsFromOneLocal(record,z,mndbt,mndgc){
         const kind=tlAlertType(z,mndbt,mndgc); if(!kind) return null;
@@ -6243,6 +6289,63 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       }
       if(mapAlertBtn) mapAlertBtn.addEventListener('click',tlOpenAlertSheet);
       if(tlAlertClose) tlAlertClose.addEventListener('click',tlCloseAlertSheet);
+
+      // =========================================================
+      // GIS FAST CACHE – lần mở sau dùng dữ liệu đã tải gần nhất,
+      // đồng thời âm thầm cập nhật nền để không làm người dùng chờ.
+      // =========================================================
+      const TL_GIS_CACHE_NAME = 'thuyloi-gis-v1';
+      const TL_GIS_CACHE_KEY = new Request(GIS_DATA_URL);
+      const TL_GIS_CACHE_TTL = 10 * 60 * 1000; // 10 phút
+
+      async function tlFetchGISFast() {
+        const cacheSupported = 'caches' in window;
+        if (!cacheSupported) {
+          const r = await fetch(GIS_DATA_URL, { method:'GET', cache:'default', mode:'cors', headers:{'Accept':'application/json'} });
+          if (!r.ok) throw new Error('Không thể truy cập /gis/data (' + r.status + ')');
+          return await r.json();
+        }
+
+        const cache = await caches.open(TL_GIS_CACHE_NAME);
+        const cached = await cache.match(TL_GIS_CACHE_KEY);
+        let cachedAge = Infinity;
+        if (cached) {
+          const stamp = Number(cached.headers.get('x-thuyloi-cache-time') || 0);
+          cachedAge = stamp ? Date.now() - stamp : Infinity;
+        }
+
+        const fetchFresh = async () => {
+          const response = await fetch(GIS_DATA_URL, {
+            method:'GET', cache:'no-store', mode:'cors',
+            headers:{'Accept':'application/json','X-ThuyLoi-Cache':'revalidate'}
+          });
+          if (!response.ok) throw new Error('Không thể truy cập /gis/data (' + response.status + ')');
+          const clone = response.clone();
+          try {
+            const h = new Headers(clone.headers);
+            h.set('x-thuyloi-cache-time', String(Date.now()));
+            const body = await clone.blob();
+            await cache.put(TL_GIS_CACHE_KEY, new Response(body, {status:clone.status, statusText:clone.statusText, headers:h}));
+          } catch(e) { /* cache chỉ là tối ưu, không được làm hỏng bản đồ */ }
+          return await response.json();
+        };
+
+        if (cached && cachedAge <= TL_GIS_CACHE_TTL) {
+          // Trả dữ liệu cache ngay; cập nhật nền không chặn giao diện.
+          fetchFresh().catch(e => console.warn('[GIS] Background refresh:', e));
+          return await cached.json();
+        }
+
+        try {
+          return await fetchFresh();
+        } catch (e) {
+          if (cached) {
+            console.warn('[GIS] Dùng cache cũ vì mạng/API chậm:', e);
+            return await cached.json();
+          }
+          throw e;
+        }
+      }
 
       async function initAiMap() {
         if (aiMap) {
@@ -6375,18 +6478,9 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           // GIS API nằm trên Render, còn giao diện có thể chạy trên GitHub Pages/Vercel/preview.
           // Vì vậy phải gọi URL tuyệt đối thay vì fetch('/gis/data').
           console.log('[GIS] Data URL:', GIS_DATA_URL);
-          const response = await fetch(GIS_DATA_URL, {
-            method: 'GET',
-            cache: 'default',
-            mode: 'cors',
-            headers: { 'Accept': 'application/json' }
-          });
-          if (!response.ok) {
-            throw new Error('Không thể truy cập /gis/data (' + response.status + ')');
-          }
-          const result = await response.json();
-          if (!result.success) {
-            throw new Error(result.message || 'API GIS trả về lỗi.');
+          const result = await tlFetchGISFast();
+          if (!result || !result.success) {
+            throw new Error(result?.message || 'API GIS trả về lỗi.');
           }
           const geojson = result.geojson;
           if (!geojson || !Array.isArray(geojson.features)) {
@@ -6412,6 +6506,9 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               gisSearchReady = true;
               tlReservoirAlertRecords = tlAlertRecordsFromGIS();
               tlRenderAlertSummary();
+              // Làm ấm cache mực nước theo đợt nhỏ sau khi bản đồ đã hiện.
+              // Không chặn render bản đồ và không tạo hàng trăm request cùng lúc.
+              tlWarmReservoirLiveCache();
               console.log('📚 GIS: Search Index', searchIndex.length, 'bản ghi.');
 
               // Nếu người dùng đã gõ từ khóa trong lúc GIS đang tải, tìm ngay.

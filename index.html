@@ -4086,6 +4086,17 @@
       let nonPointLayer = null; // Layer đường/vùng; khai báo sớm để tránh lỗi TDZ khi map vừa setView
       let gisSearchReady = false; // chỉ cho tìm kiếm khi GIS data + index đã sẵn sàng
 
+      // Runtime bridge cho Map-only UI: giữ closure thật của bản đồ, không phụ thuộc window sync.
+      window.__TL_MAP_RUNTIME = {
+        get map(){ return aiMap; },
+        get mapLayer(){ return aiMapLayer; },
+        get markerCluster(){ return markerCluster; },
+        get nonPointLayer(){ return nonPointLayer; },
+        get baseLayers(){ return aiBaseLayers; },
+        get activeBaseLayerKey(){ return activeBaseLayerKey; },
+        set activeBaseLayerKey(v){ activeBaseLayerKey = v; }
+      };
+
       // Backend GIS chạy trên Render. Có thể ghi đè bằng window.THULYLOI_GIS_API nếu sau này đổi server.
       const GIS_API_BASE = String(
         window.THULYLOI_GIS_API || 'https://thuyloiai.onrender.com'
@@ -8779,6 +8790,14 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
   });
 })();
 </script>
+
+<style id="tl-map-v8-layer-interaction-fix">
+#mapAiPanel .map-layer-panel{pointer-events:auto!important;}
+#mapAiPanel .map-layer-panel button,
+#mapAiPanel .map-layer-panel label,
+#mapAiPanel .map-layer-panel input{pointer-events:auto!important;touch-action:manipulation!important;}
+#mapAiPanel .map-layer-panel[hidden]{display:none!important;}
+</style>
 </body>
 
 
@@ -9045,22 +9064,19 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
 
     /* Đồng bộ tham chiếu runtime. V6 chỉ đồng bộ mỗi 1,2s; V7 dùng
        thêm nhịp ngắn để thao tác Layer luôn bắt đúng bản đồ hiện tại. */
+    function runtime(){ return window.__TL_MAP_RUNTIME || null; }
     function sync(){
-      try{
-        if(typeof aiMap!=='undefined') window.aiMap=aiMap;
-        if(typeof aiMapLayer!=='undefined') window.aiMapLayer=aiMapLayer;
-        if(typeof markerCluster!=='undefined') window.markerCluster=markerCluster;
-        if(typeof nonPointLayer!=='undefined') window.nonPointLayer=nonPointLayer;
-        if(typeof aiBaseLayers!=='undefined') window.aiBaseLayers=aiBaseLayers;
-        if(typeof activeBaseLayerKey!=='undefined') window.activeBaseLayerKey=activeBaseLayerKey;
-      }catch(e){}
+      const r=runtime();
+      if(!r) return null;
+      // Backward compatibility for any existing handlers.
+      window.aiMap=r.map; window.aiMapLayer=r.mapLayer; window.markerCluster=r.markerCluster;
+      window.nonPointLayer=r.nonPointLayer; window.aiBaseLayers=r.baseLayers;
+      return r;
     }
     sync();
     const syncTimer=setInterval(function(){
-      sync();
-      if(window.aiMap && window.aiMapLayer && window.markerCluster){
-        clearInterval(syncTimer);
-      }
+      const r=sync();
+      if(r && r.map && r.baseLayers){ clearInterval(syncTimer); }
     },250);
 
     function setLayerPanel(open){
@@ -9105,8 +9121,9 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
         e.stopImmediatePropagation();
         sync();
         const key=btn.dataset.basemap;
-        const map=window.aiMap;
-        const layers=window.aiBaseLayers;
+        const r=runtime();
+        const map=r && r.map;
+        const layers=r && r.baseLayers;
         if(!map || !layers || !layers[key]){
           console.warn('[Map V7] Base map chưa sẵn sàng:',key);
           return;
@@ -9115,7 +9132,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
           try{ if(map.hasLayer(layers[k])) map.removeLayer(layers[k]); }catch(err){}
         });
         try{ layers[key].addTo(map); }catch(err){ console.warn('[Map V7] Không đổi được nền:',err); return; }
-        window.activeBaseLayerKey=key;
+        if(r) r.activeBaseLayerKey=key;
         baseButtons.forEach(function(b){b.classList.toggle('active',b===btn);});
       },true);
     });
@@ -9124,14 +9141,15 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
     if(facilityToggle){
       facilityToggle.addEventListener('change',function(){
         sync();
-        const map=window.aiMap;
-        const group=window.markerCluster;
-        if(!map || !group){ console.warn('[Map V7] Marker cluster chưa sẵn sàng'); return; }
+        const r=runtime();
+        const mapLayer=r && r.mapLayer;
+        const group=r && r.markerCluster;
+        if(!mapLayer || !group){ console.warn('[Map V7] Marker cluster chưa sẵn sàng'); return; }
         try{
           if(facilityToggle.checked){
-            if(!map.hasLayer(group)) group.addTo(map);
+            if(!mapLayer.hasLayer(group)) mapLayer.addLayer(group);
           }else{
-            if(map.hasLayer(group)) map.removeLayer(group);
+            if(mapLayer.hasLayer(group)) mapLayer.removeLayer(group);
           }
         }catch(e){ console.warn('[Map V7] Toggle công trình:',e); }
       },true);
@@ -9142,7 +9160,8 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
        remove cả group nữa; thay vào đó ẩn/hiện đúng geometry từng layer. */
     function setNonPointVisibility(){
       sync();
-      const group=window.nonPointLayer;
+      const r=runtime();
+      const group=r && r.nonPointLayer;
       if(!group || typeof group.eachLayer!=='function') return;
       const showChannels=!channelToggle || channelToggle.checked;
       const showAreas=!areaToggle || areaToggle.checked;

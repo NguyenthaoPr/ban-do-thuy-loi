@@ -48,3 +48,10 @@ Google Sheet phải cho phép truy cập dữ liệu phù hợp để trình duy
 - Popup đang mở: **60 giây**.
 - Cảnh báo hồ: **2 phút**.
 - Cache AI_DATA nội bộ: **60 giây**; lần refresh Popup dùng `force=true`.
+
+
+## V10.0.1 — Cloudflare deploy fix
+- `wrangler.toml` explicitly configures Workers Static Assets at `./public`.
+- `npm run build` now creates `public/index.html` and `public/gis/master.geojson`.
+- This fixes Wrangler error: `assets.directory ... /public does not exist`.
+- Deploy command: `npx wrangler deploy`.

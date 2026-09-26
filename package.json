@@ -1,7 +1,7 @@
 {
   "name": "ban-do-thuy-loi",
   "private": true,
-  "version": "10.0.0",
+  "version": "10.0.1",
   "scripts": {
     "build": "node scripts/build-gis.mjs"
   },

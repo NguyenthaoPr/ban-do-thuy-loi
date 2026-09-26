@@ -1,0 +1,5 @@
+name = "ban-do-thuy-loi"
+compatibility_date = "2026-09-26"
+
+[assets]
+directory = "./public"

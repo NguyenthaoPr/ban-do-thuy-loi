@@ -4099,7 +4099,7 @@
 
       // GIS dùng trực tiếp file GeoJSON local trong module mới.
       // Không còn phụ thuộc Render/Vercel cho lớp bản đồ.
-      const GIS_DATA_URL = './gis/master.geojson';
+      const GIS_DATA_URL = new URL('gis/master.geojson', document.baseURI).href;
 
       // AI_DATA: đọc trực tiếp Google Sheets (GViz CSV), không qua Worker/Vercel.
       // Có thể ghi đè URL bằng window.THULYLOI_AI_DATA_URL nếu sau này đổi nguồn.
@@ -6592,7 +6592,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         const cacheSupported = 'caches' in window;
         if (!cacheSupported) {
           const r = await fetch(GIS_DATA_URL, { method:'GET', cache:'default', mode:'cors', headers:{'Accept':'application/json'} });
-          if (!r.ok) throw new Error('Không thể truy cập /gis/data (' + r.status + ')');
+          if (!r.ok) throw new Error('Không thể truy cập GIS (' + r.status + ')');
           return await r.json();
         }
 
@@ -6609,7 +6609,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             method:'GET', cache:'no-store', mode:'cors',
             headers:{'Accept':'application/json','X-ThuyLoi-Cache':'revalidate'}
           });
-          if (!response.ok) throw new Error('Không thể truy cập /gis/data (' + response.status + ')');
+          if (!response.ok) throw new Error('Không thể truy cập GIS (' + response.status + ')');
           const clone = response.clone();
           try {
             const h = new Headers(clone.headers);
@@ -6780,12 +6780,14 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           // Vì vậy phải gọi URL tuyệt đối thay vì fetch('/gis/data').
           console.log('[GIS] Data URL:', GIS_DATA_URL);
           const result = await tlFetchGISFast();
-          if (!result || !result.success) {
-            throw new Error(result?.message || 'API GIS trả về lỗi.');
-          }
-          const geojson = result.geojson;
+
+          // Direct-AI_DATA v10.0.3: GIS là file GeoJSON tĩnh được phục vụ
+          // trực tiếp từ /gis/master.geojson, không còn bọc trong response
+          // {success, geojson} của API GIS cũ.
+          // Hỗ trợ đồng thời cả hai dạng để tránh làm hỏng các bản deploy cũ.
+          const geojson = result?.geojson?.features ? result.geojson : result;
           if (!geojson || !Array.isArray(geojson.features)) {
-            throw new Error('Dữ liệu GeoJSON không hợp lệ.');
+            throw new Error('Dữ liệu GeoJSON không hợp lệ hoặc /gis/master.geojson không tải được.');
           }
 
           // FAST V2: không chặn việc vẽ bản đồ bởi Search Index.

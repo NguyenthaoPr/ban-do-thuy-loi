@@ -85,4 +85,15 @@ const output = JSON.stringify({
 });
 await fs.mkdir(path.dirname(outPath), {recursive:true});
 await fs.writeFile(outPath, output);
+
+// Cloudflare Workers Static Assets expects the configured assets directory.
+// Keep the source files at project root for local development, then mirror
+// the deployable static site into ./public during the build.
+const publicDir = path.join(ROOT, 'public');
+await fs.rm(publicDir, { recursive: true, force: true });
+await fs.mkdir(path.join(publicDir, 'gis'), { recursive: true });
+await fs.copyFile(path.join(ROOT, 'index.html'), path.join(publicDir, 'index.html'));
+await fs.copyFile(outPath, path.join(publicDir, 'gis', 'master.geojson'));
+
 console.log(`GIS build complete: ${geo.features?.length || 0} features -> ${path.relative(ROOT,outPath)}`);
+console.log('Static assets prepared -> public/');

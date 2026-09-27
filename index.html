@@ -3831,6 +3831,22 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
   const searchResults=document.getElementById('searchResults');
   const mapAlertBtn=document.getElementById('mapAlertBtn');
   const mapAlertBadge=document.getElementById('mapAlertBadge');
+
+  // =========================================================
+  // MAP RUNTIME STATE
+  // Khai báo rõ ràng các biến trạng thái mà lõi bản đồ sử dụng.
+  // Không dựa vào biến global sinh tự động từ id của DOM.
+  // =========================================================
+  let aiMap = null;
+  let aiMapLayer = null;
+  let markerCluster = null;
+  let nonPointLayer = null;
+  let markerFeatureMap = null;
+  let aiBaseLayers = {};
+  let activeBaseLayerKey = 'satellite';
+  let aiMapLoaded = false;
+  let gisSearchReady = false;
+  let searchIndex = [];
   const tlAlertSheet=document.getElementById('tlAlertSheet');
   const tlAlertClose=document.getElementById('tlAlertClose');
   const tlAlertSummary=document.getElementById('tlAlertSummary');
@@ -5683,7 +5699,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       // Không thay đổi dữ liệu/API/GIS; chỉ chia nhỏ việc render để
       // điện thoại không bị khóa main-thread khi GeoJSON lớn.
       // =========================================================
-      const TL_IS_MOBILE = window.matchMedia && window.matchMedia('\(max-width: 700px\)').matches;
+      const TL_IS_MOBILE = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
       const TL_MOBILE_POINT_BATCH = 60;
       const TL_DESKTOP_POINT_BATCH = 180;
       const TL_MOBILE_NONPOINT_BATCH = 80;
@@ -6171,6 +6187,16 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               });
             }
           });
+
+          // Runtime dùng chung cho các lớp điều khiển bản đồ mobile.
+          window.__TL_MAP_RUNTIME = {
+            map: aiMap,
+            mapLayer: aiMapLayer,
+            markerCluster: markerCluster,
+            nonPointLayer: nonPointLayer,
+            baseLayers: aiBaseLayers,
+            activeBaseLayerKey: activeBaseLayerKey
+          };
 
          // ============================================================
 // LẤY MÀU GỐC TỪ KML / GEOJSON
@@ -6771,6 +6797,14 @@ if (description) {
           aiMapLayer.addLayer(nonPointLayer);
           aiMapLayer.addLayer(markerCluster);
           aiMapLoaded = true;
+          if (window.__TL_MAP_RUNTIME) {
+            window.__TL_MAP_RUNTIME.map = aiMap;
+            window.__TL_MAP_RUNTIME.mapLayer = aiMapLayer;
+            window.__TL_MAP_RUNTIME.markerCluster = markerCluster;
+            window.__TL_MAP_RUNTIME.nonPointLayer = nonPointLayer;
+            window.__TL_MAP_RUNTIME.baseLayers = aiBaseLayers;
+            window.__TL_MAP_RUNTIME.activeBaseLayerKey = activeBaseLayerKey;
+          }
           aiMap.invalidateSize({ pan: false });
 
           mapAiStatus.textContent = TL_IS_MOBILE

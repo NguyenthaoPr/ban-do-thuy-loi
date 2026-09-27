@@ -49,7 +49,7 @@
     #mapAiPanel .map-ai-header { flex:0 0 auto; }
     #mapAiPanel .map-container { flex:1 1 auto; min-height:0 !important; height:auto !important; }
     #mapAiPanel #aiMap { height:100% !important; min-height:0 !important; }
-    #mapAiPanel .map-ai-status { display:none !important; }
+    #mapAiPanel .map-ai-status { display:none; }
     #mapAiPanel .map-feature-card.hidden { display:none !important; }
     /* Bản đồ độc lập. */
     /* Quick chips vẫn là chức năng tìm kiếm bản đồ, giữ nguyên. */
@@ -3809,10 +3809,32 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
     return p;
   }
   let __tlLeafletPromise=null;
+  async function tlLoadAny(urls, label){
+    let lastError=null;
+    for(const url of urls){
+      try{
+        await tlLoadScript(url);
+        if(label==='leaflet' && window.L) return true;
+        if(label==='cluster' && window.L && L.MarkerClusterGroup) return true;
+      }catch(e){ lastError=e; console.warn('[Leaflet] CDN lỗi:',url,e); }
+    }
+    throw lastError || new Error('Không tải được '+label);
+  }
   window.tlEnsureLeaflet=function(){
     if(__tlLeafletPromise) return __tlLeafletPromise;
-    __tlLeafletPromise=tlLoadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')
-      .then(()=>tlLoadScript('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'));
+    __tlLeafletPromise=(async function(){
+      await tlLoadAny([
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
+        'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+        'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'
+      ],'leaflet');
+      await tlLoadAny([
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js',
+        'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js',
+        'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'
+      ],'cluster');
+      return true;
+    })().catch(function(e){ __tlLeafletPromise=null; throw e; });
     return __tlLeafletPromise;
   };
   const idle=window.requestIdleCallback||function(fn){setTimeout(fn,1200);};
@@ -5982,17 +6004,35 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           aiBaseLayers = {
             satellite: L.tileLayer(
               'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-              { maxZoom: 19, attribution: 'Tiles © Esri' }
+              { maxZoom: 19, attribution: 'Tiles © Esri', crossOrigin: true }
             ),
             street: L.tileLayer(
               'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-              { maxZoom: 19, attribution: 'Tiles © Esri' }
+              { maxZoom: 19, attribution: 'Tiles © Esri', crossOrigin: true }
             ),
             dark: L.tileLayer(
               'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-              { maxZoom: 19, attribution: 'Tiles © Esri' }
+              { maxZoom: 19, attribution: 'Tiles © Esri', crossOrigin: true }
+            ),
+            osmFallback: L.tileLayer(
+              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              { maxZoom: 19, attribution: '© OpenStreetMap contributors' }
             )
           };
+          // Nếu Esri không trả tile, tự chuyển sang OSM để bản đồ không bị màn hình trắng.
+          let __tlSatelliteErrorCount=0;
+          aiBaseLayers.satellite.on('tileerror', function(){
+            __tlSatelliteErrorCount++;
+            if(__tlSatelliteErrorCount >= 3 && aiMap && aiMap.hasLayer(aiBaseLayers.satellite)){
+              console.warn('[Map] Esri Satellite không tải được — chuyển OSM fallback.');
+              aiMap.removeLayer(aiBaseLayers.satellite);
+              aiBaseLayers.osmFallback.addTo(aiMap);
+              activeBaseLayerKey='osmFallback';
+              mapAiStatus.style.display='block';
+              mapAiStatus.textContent='🌐 Nền vệ tinh không phản hồi — đã chuyển sang nền bản đồ dự phòng.';
+              setTimeout(function(){ mapAiStatus.style.display='none'; }, 3500);
+            }
+          });
           activeBaseLayerKey = 'satellite';
           aiBaseLayers.satellite.addTo(aiMap);
           // Đặt tâm khu vực Vu Gia – Thu Bồn ngay lập tức, không chờ GIS.
@@ -6915,6 +6955,7 @@ if (description) {
 
           setTimeout(function() {
             try { aiMap.invalidateSize({ pan: false }); } catch (e) {}
+            mapAiStatus.style.display='none';
           }, TL_IS_MOBILE ? 900 : 300);
 
         } catch (error) {

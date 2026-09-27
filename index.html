@@ -1,43 +1,35 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#08233d">
-  <title>BẢN ĐỒ THỦY LỢI | VU GIA – THU BỒN</title>
-
-  <!-- ═════════════════════════════════════════════════════════
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+<meta content="#08233d" name="theme-color"/>
+<title>BẢN ĐỒ THỦY LỢI | VU GIA – THU BỒN</title>
+<!-- ═════════════════════════════════════════════════════════
        PERF PATCH — RESOURCE HINTS (bổ sung, không đổi logic)
        Kết nối sớm tới các domain hay gọi để giảm độ trễ DNS/TLS
        lần gọi đầu tiên trên di động.
        ═════════════════════════════════════════════════════════ -->
-  <link rel="preconnect" href="https://unpkg.com" crossorigin>
-  <link rel="dns-prefetch" href="https://unpkg.com">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-  <link rel="preconnect" href="https://thuyloiai.onrender.com" crossorigin>
-  <link rel="dns-prefetch" href="https://thuyloiai.onrender.com">
-  <link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
-  <link rel="dns-prefetch" href="https://api.open-meteo.com">
-
-  <!-- ═════════════════════════════════════════════════════════
+<link crossorigin="" href="https://unpkg.com" rel="preconnect"/>
+<link href="https://unpkg.com" rel="dns-prefetch"/>
+<link crossorigin="" href="https://cdnjs.cloudflare.com" rel="preconnect"/>
+<link href="https://cdnjs.cloudflare.com" rel="dns-prefetch"/>
+<link crossorigin="" href="https://api.open-meteo.com" rel="preconnect"/>
+<link href="https://api.open-meteo.com" rel="dns-prefetch"/>
+<!-- ═════════════════════════════════════════════════════════
        PERF PATCH — CSS Leaflet/MarkerCluster: KHÔNG chặn render
        Dùng preload + chuyển thành stylesheet sau khi tải xong.
        Nội dung CSS và hiệu lực cuối cùng giữ nguyên như bản gốc.
        ═════════════════════════════════════════════════════════ -->
-  <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></noscript>
-
-  <!-- MARKER CLUSTER -->
-  <link rel="preload" as="style" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
-        onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"></noscript>
-  <link rel="preload" as="style" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
-        onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"></noscript>
-
-  <!-- ═════════════════════════════════════════════════════════
+<link as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onload="this.onload=null;this.rel='stylesheet'" rel="preload"/>
+<noscript><link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/></noscript>
+<!-- MARKER CLUSTER -->
+<link as="style" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" onload="this.onload=null;this.rel='stylesheet'" rel="preload"/>
+<noscript><link href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" rel="stylesheet"/></noscript>
+<link as="style" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" onload="this.onload=null;this.rel='stylesheet'" rel="preload"/>
+<noscript><link href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" rel="stylesheet"/></noscript>
+<!-- ═════════════════════════════════════════════════════════
        PERF PATCH — Đã bỏ 3 script chặn render tại đây (dạng thẻ
          script có thuộc tính src trỏ tới):
          qrcode.min.js, leaflet.js, leaflet.markercluster.js
@@ -47,32 +39,10 @@
        màn hình bản đồ hiển thị đầu tiên. Xem khối script cuối 
   <style id="map-only-cleanup">
     /* =========================================================
-       BẢN ĐỒ THỦY LỢI — MAP ONLY
-       Chỉ hiển thị trải nghiệm bản đồ; các module Chat AI,
-       Báo cáo hiện trường, QR/Camera và Technical UI không còn
-       xuất hiện trong giao diện.
-       Không thay đổi GIS, Popup, Search, MarkerCluster hay Alert.
+       BẢN ĐỒ THỦY LỢI — GIAO DIỆN ĐỘC LẬP
+       Giữ nguyên GIS, Popup, Search, MarkerCluster và Alert.
        ========================================================= */
     html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden !important; background:#eef3f7; }
-    body > header.header,
-    body > main > .card.chat,
-    body > main > .footer,
-    body > main > .field-report-entry,
-    #fieldReportPanel,
-    #technicalModuleContainer,
-    #reportEditor,
-    #pdfActions,
-    #pdfStatus,
-    #pdfResult,
-    #imagePreview,
-    .ai-action-buttons,
-    .compose,
-    .suggestions,
-    .quick-title,
-    .quick,
-    .hero,
-    .info { display:none !important; }
-
     body > main { width:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; }
     #mapAiPanel.map-ai-panel { display:flex !important; position:fixed !important; inset:0 !important; width:100vw !important; height:100dvh !important; max-width:none !important; margin:0 !important; z-index:9999 !important; background:#fff !important; overflow:hidden !important; }
     #mapAiPanel.map-ai-panel.hidden { display:flex !important; }
@@ -81,8 +51,7 @@
     #mapAiPanel #aiMap { height:100% !important; min-height:0 !important; }
     #mapAiPanel .map-ai-status { display:none !important; }
     #mapAiPanel .map-feature-card.hidden { display:none !important; }
-    /* Bản đồ độc lập: không có nút quay lại Chat AI. */
-    #mapAiPanel #closeMapAi { display:none !important; }
+    /* Bản đồ độc lập. */
     /* Quick chips vẫn là chức năng tìm kiếm bản đồ, giữ nguyên. */
     /* Không cho nội dung cũ vô tình trồi lên khi responsive. */
     @media (max-width:700px) {
@@ -115,7 +84,7 @@
        và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
        initAiMap() và prepareImageWithStamp().
        ═════════════════════════════════════════════════════════ -->
-  <style>
+<style>
     /* =========================================================
        CSS GỐC – GIỮ NGUYÊN (đã được copy từ code trước)
        ========================================================= */
@@ -1513,7 +1482,7 @@
 
     /* =========================================================
        QUAN TRẮC THỰC TẾ AI_DATA – BỔ SUNG, KHÔNG THAY ĐỔI GIS
-       Technical Module chạy trên Vercel
+       Nguồn quan trắc trực tiếp từ AI_DATA
        ========================================================= */
     .tl-live-card {
       margin: 10px 0 12px;
@@ -3111,19 +3080,14 @@
     }
 
 </style>
-  <meta name="viewport"
-      content="width=device-width,
+<meta content="width=device-width,
                initial-scale=1,
                maximum-scale=1,
-               viewport-fit=cover">
-
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="THỦY LỢI AI">
-
-<meta name="theme-color" content="#082a4a">
-
-
+               viewport-fit=cover" name="viewport"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="BẢN ĐỒ THỦY LỢI" name="apple-mobile-web-app-title"/>
+<meta content="#082a4a" name="theme-color"/>
 <style id="map-mobile-alignment-v7">
 /* =========================================================
    THỦY LỢI AI — MOBILE MAP ALIGNMENT V7
@@ -3306,8 +3270,6 @@
   }
 }
 </style>
-
-
 <style id="map-mobile-final-v8">
 /* =========================================================
    THỦY LỢI AI — MOBILE MAP FINAL V8
@@ -3619,8 +3581,6 @@
   }
 }
 </style>
-
-
 <style id="thuyloi-alert-center-v1">
 /* =========================================================
    THỦY LỢI AI — ALERT CENTER V1
@@ -3724,818 +3684,169 @@
   .tl-alert-title{font-size:15px}
 }
 </style>
-
-
-  <style id="map-only-cleanup">
-    /* =========================================================
-       BẢN ĐỒ THỦY LỢI — MAP ONLY
-       Chỉ hiển thị trải nghiệm bản đồ; các module Chat AI,
-       Báo cáo hiện trường, QR/Camera và Technical UI không còn
-       xuất hiện trong giao diện.
-       Không thay đổi GIS, Popup, Search, MarkerCluster hay Alert.
-       ========================================================= */
-    html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden !important; background:#eef3f7; }
-    body > header.header,
-    body > main > .card.chat,
-    body > main > .footer,
-    body > main > .field-report-entry,
-    #fieldReportPanel,
-    #technicalModuleContainer,
-    #reportEditor,
-    #pdfActions,
-    #pdfStatus,
-    #pdfResult,
-    #imagePreview,
-    .ai-action-buttons,
-    .compose,
-    .suggestions,
-    .quick-title,
-    .quick,
-    .hero,
-    .info { display:none !important; }
-
-    body > main { width:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; }
-    #mapAiPanel.map-ai-panel { display:flex !important; position:fixed !important; inset:0 !important; width:100vw !important; height:100dvh !important; max-width:none !important; margin:0 !important; z-index:9999 !important; background:#fff !important; overflow:hidden !important; }
-    #mapAiPanel.map-ai-panel.hidden { display:flex !important; }
-    #mapAiPanel .map-ai-header { flex:0 0 auto; }
-    #mapAiPanel .map-container { flex:1 1 auto; min-height:0 !important; height:auto !important; }
-    #mapAiPanel #aiMap { height:100% !important; min-height:0 !important; }
-    #mapAiPanel .map-ai-status { display:none !important; }
-    #mapAiPanel .map-feature-card.hidden { display:none !important; }
-    /* Bản đồ độc lập: không có nút quay lại Chat AI. */
-    #mapAiPanel #closeMapAi { display:none !important; }
-    /* Quick chips vẫn là chức năng tìm kiếm bản đồ, giữ nguyên. */
-    /* Không cho nội dung cũ vô tình trồi lên khi responsive. */
-    @media (max-width:700px) {
-      #mapAiPanel .map-ai-header { display:none !important; }
-      #mapAiPanel .map-search-wrap { z-index:5100 !important; }
-      #mapAiPanel .map-container { min-height:0 !important; }
-    }
-  </style>
+<style id="map-only-cleanup">
+/* MAP ONLY: lớp bố cục độc lập, giữ nguyên GIS/Popup/Live/Alert */
+html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden!important;background:#eef3f7}
+body>main{width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+#mapAiPanel.map-ai-panel{display:flex!important;position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;margin:0!important;z-index:9999!important;background:#fff!important;overflow:hidden!important}
+#mapAiPanel .map-container{flex:1 1 auto;min-height:0!important;height:auto!important}
+#mapAiPanel #aiMap{height:100%!important;min-height:0!important}
+#mapAiPanel .map-ai-status{display:none!important}
+#mapAiPanel .map-feature-card.hidden{display:none!important}
+@media(max-width:700px){#mapAiPanel .map-ai-header{display:none!important}}
+</style>
 </head>
 <body>
-  <header class="header">
-    <div class="header-inner">
-      <div class="logo">💧</div>
-      <div class="brand">
-        <h1>THỦY LỢI AI</h1>
-        <p>Trợ lý AI chuyên ngành Thủy lợi</p>
-      </div>
-      <div class="status"><span id="dot" class="dot"></span><span id="status">Đang kiểm tra...</span></div>
-    </div>
-  </header>
-
-  <main>
-    <section class="card chat">
-      <div class="chat-title"><span>💬 Trao đổi với THỦY LỢI AI</span><button class="clear" id="clear">Xóa</button></div>
-      <div class="messages" id="messages">
-        <div class="msg assistant">
-          <div class="bubble"><strong>Chào bạn! 🌿</strong>
-            <p>Tôi là trợ lý AI chuyên ngành Thủy lợi. Hãy đặt câu hỏi hoặc gửi ảnh hiện trường để tôi phân tích.</p>
-          </div>
-        </div>
-      </div>
-      <div class="typing" id="typing">⏳ Đang tra cứu hồ sơ và phân tích...</div>
-      <div class="field-report-entry">
-        <div class="ai-action-buttons">
-          <button id="fieldReportBtn" type="button">📋 Báo cáo hiện trường</button>
-          <button id="mapAiBtn" type="button">🗺️ BẢN ĐỒ AI</button>
-           <button id="technicalSpecsBtn" type="button" onclick="openTechnicalModule()">⚙️ Cập nhật vận hành </button>
-        </div>
-      </div>
-     
-      <div id="fieldReportPanel" class="field-report-panel hidden">
-        <div class="field-report-title">
-          <strong>📋 Lập báo cáo hiện trường</strong>
-          <button id="closeFieldReport" type="button">✕</button>
-        </div>
-        <div class="field-report-desc">
-          Chụp ảnh hiện trạng, THỦY LỢI AI sẽ phân tích và tạo dự thảo báo cáo nhanh.
-        </div>
-        <div class="field-report-types">
-          <button type="button" data-report-type="incident">🚨<span>Sự cố công trình</span></button>
-          <button type="button" data-report-type="corridor">⚠️<span>Hành lang thủy lợi</span></button>
-          <button type="button" data-report-type="dry_area">🌾<span>Diện tích khô</span></button>
-          <button type="button" data-report-type="water_level">💧<span>Mực nước</span></button>
-        </div>
-        <input id="fieldReportImage" type="file" accept="image/*" capture="environment" hidden>
-        <button id="fieldReportCamera" class="field-report-camera" type="button">📷 Chụp ảnh hiện trường</button>
-        <div id="fieldReportPreview" class="field-report-preview" hidden></div>
-        <textarea id="fieldReportQuestion" class="field-report-question" placeholder="Ghi chú thêm nếu cần... Ví dụ: kiểm tra khu vực cuối kênh N4"></textarea>
-        <button id="createFieldReport" class="create-field-report" type="button" disabled>📄 Phân tích và lập báo cáo</button>
-        <div id="fieldReportStatus" class="field-report-status" hidden></div>
-        <div id="reportEditor" hidden style="margin-top: 12px;">
-          <label for="reportContent" style="font-weight: 600; font-size: 14px;">📝 Chỉnh sửa nội dung báo cáo</label>
-          <textarea id="reportContent" rows="10" placeholder="Bạn có thể chỉnh sửa toàn bộ nội dung dự thảo báo cáo tại đây..." style="width:100%; height:420px; min-height:300px; max-height:520px; overflow-y:auto; overflow-x:hidden; resize:vertical; box-sizing:border-box; border:1px solid var(--border); border-radius:10px; padding:12px; font-size:14px; line-height:1.6; margin-top:4px;"></textarea>
-          <label for="reviewerName" style="font-weight: 600; font-size: 14px; margin-top: 8px; display: block;">👤 Người kiểm tra</label>
-          <input id="reviewerName" type="text" placeholder="Nhập họ tên người kiểm tra" style="width:100%; border:1px solid var(--border); border-radius:10px; padding:8px; font-size:14px; margin-top:4px;">
-        </div>
-        <div id="pdfActions" class="pdf-actions" hidden>
-          <button id="exportFieldReportPDF" class="pdf-main-button" type="button">📄 XUẤT BÁO CÁO PDF</button>
-          <div id="pdfStatus" class="pdf-status" hidden></div>
-          <div id="pdfResult" class="pdf-result" hidden>
-            <button id="openPDF" type="button">👁️ Xem PDF</button>
-            <button id="downloadPDF" type="button">⬇️ Lưu PDF</button>
-            <button id="sharePDF" type="button">📤 Chia sẻ PDF</button>
-          </div>
-        </div>
-      </div>
-
-     
-      <div class="compose">
-  <div class="row">
-    <!-- Giữ input ảnh ẩn để bảo toàn logic xử lý ảnh -->
-    <input
-      id="imageInput"
-      type="file"
-      accept="image/*"
-      capture="environment"
-      hidden
-      aria-label="Ảnh hiện trường"
-    >
-
-    <textarea
-      id="question"
-      placeholder="Nhập câu hỏi về thủy lợi..."
-    ></textarea>
-
-    <button
-      class="send"
-      id="send"
-      aria-label="Gửi câu hỏi"
-      title="Gửi câu hỏi"
-    >
-      <span aria-hidden="true">➤</span>
-    </button>
-
+<main><div class="map-ai-panel" id="mapAiPanel">
+<div class="map-ai-header">
+<div class="map-brand">
+<div class="map-brand-mark">💧</div>
+<div class="map-brand-copy">
+<strong>THỦY LỢI AI</strong>
+<span>BẢN ĐỒ VẬN HÀNH • VU GIA – THU BỒN</span>
 </div>
-        <div id="imagePreview" class="image-preview" hidden aria-live="polite"></div>
-        <div class="hint">Enter để gửi • Shift + Enter để xuống dòng</div>
-      </div>
-    </section>
-   <div id="mapAiPanel" class="map-ai-panel hidden">
-        <div class="map-ai-header">
-          <div class="map-brand">
-            <div class="map-brand-mark">💧</div>
-            <div class="map-brand-copy">
-              <strong>THỦY LỢI AI</strong>
-              <span>BẢN ĐỒ VẬN HÀNH • VU GIA – THU BỒN</span>
-            </div>
-            <span class="map-live-pill"><i></i> GIS ONLINE</span>
-          </div>
-          <button id="closeMapAi" type="button" class="map-back-btn" title="Đóng bản đồ">
-            ← <span>Chat AI</span>
-          </button>
-        </div>
-
-        <!-- Thanh tìm kiếm hiện đại: tách vùng nhập liệu và nhóm nút chức năng -->
-        <div class="map-search-wrap">
-          <div class="map-search-box">
-            <div class="map-search-main">
-              <span class="map-search-icon">⌕</span>
-              <input id="mapSearch" type="search" placeholder="Tìm trạm bơm, hồ, kênh, cống, đập..." autocomplete="off">
-              <span class="map-search-kbd">⌘ K</span>
-            </div>
-            <div class="map-search-actions" aria-label="Chức năng tìm kiếm">
-              <button id="mapSearchBtn" type="button" title="Tìm kiếm" aria-label="Tìm kiếm">🔎</button>
-              <button id="mapLocateBtn" type="button" title="Vị trí hiện tại" aria-label="Vị trí hiện tại">⌖</button>
-            </div>
-          </div>
-        </div>
-        <div class="map-quick-chips" aria-label="Tìm nhanh">
-          <button type="button" data-map-query="trạm bơm">Trạm bơm</button>
-          <button type="button" data-map-query="hồ">Hồ</button>
-          <button type="button" data-map-query="kênh">Kênh</button>
-          <button type="button" data-map-query="cống">Cống</button>
-          <button type="button" data-map-query="đập">Đập</button>
-        </div>
-        <!-- Kết quả tìm kiếm -->
-        <div id="searchResults"></div>
-
-        <div class="map-container">
-          <div id="aiMap"></div>
-          <div class="map-atmosphere"></div>
-          <button id="mapLayerBtn" class="map-floating-btn" type="button" title="Lớp bản đồ">◈</button>
-          <button id="mapGpsBtn" class="map-floating-btn map-gps-btn" type="button" title="Vị trí của tôi">➤</button>
-          <button id="mapHomeBtn" class="map-floating-btn map-home-btn" type="button" title="Toàn vùng Vu Gia – Thu Bồn">⌂</button>
-          <button id="mapAlertBtn" type="button" title="Cảnh báo hồ chứa" aria-label="Cảnh báo hồ chứa">
-            <span class="alert-bell">🔔</span><span id="mapAlertBadge">—</span>
-          </button>
-          <section id="tlAlertSheet" hidden aria-label="Trung tâm cảnh báo hồ chứa">
-            <div class="tl-alert-grab"></div>
-            <div class="tl-alert-head">
-              <div class="tl-alert-title"><span class="tl-alert-title-icon">🔔</span><span>CẢNH BÁO HỒ CHỨA</span></div>
-              <button id="tlAlertClose" type="button" aria-label="Đóng">×</button>
-            </div>
-            <div id="tlAlertSummary" class="tl-alert-summary"></div>
-            <div id="tlAlertList" class="tl-alert-list"><div class="tl-alert-loading">⏳ Đang đọc dữ liệu hồ chứa…</div></div>
-            <div class="tl-alert-footer">Quy tắc: Gần = khoảng cách đến ngưỡng ≤ 0,5 m • Ưu tiên: MNDGC → MNDBT</div>
-          </section>
-
-          <div id="mapLayerPanel" class="map-layer-panel" hidden>
-            <div class="map-panel-head"><div><strong>Lớp bản đồ</strong><span>Nền & dữ liệu hiển thị</span></div><button id="mapLayerClose" type="button">×</button></div>
-            <div class="map-section-label">NỀN</div>
-            <div class="map-basemap-grid">
-              <button type="button" data-basemap="satellite" class="active"><span class="basemap-thumb satellite"></span><b>Vệ tinh</b></button>
-              <button type="button" data-basemap="street"><span class="basemap-thumb street"></span><b>Đường phố</b></button>
-              <button type="button" data-basemap="dark"><span class="basemap-thumb dark"></span><b>Đêm</b></button>
-            </div>
-            <div class="map-section-label">DỮ LIỆU THỦY LỢI</div>
-            <label class="map-toggle-row"><span><i class="legend-dot facility"></i>Công trình</span><input id="toggleFacilities" type="checkbox" checked><em></em></label>
-            <label class="map-toggle-row"><span><i class="legend-line channel"></i>Tuyến / Kênh</span><input id="toggleChannels" type="checkbox" checked><em></em></label>
-            <label class="map-toggle-row"><span><i class="legend-area irrigation"></i>Khu tưới</span><input id="toggleAreas" type="checkbox" checked><em></em></label>
-          </div>
-        </div>
-
-        <div id="mapHud" class="map-hud">
-          <div class="map-hud-card"><span class="hud-icon blue">◈</span><div><b id="mapStatObjects">—</b><small>Đối tượng GIS</small></div></div>
-          <div class="map-hud-card"><span class="hud-icon cyan">●</span><div><b id="mapStatFacilities">—</b><small>Công trình</small></div></div>
-          <div class="map-hud-card"><span class="hud-icon green">▰</span><div><b id="mapStatAreas">—</b><small>Khu tưới</small></div></div>
-        </div>
-        <div id="mapLegend" class="map-legend">
-          <div class="map-legend-title"><span>CHÚ GIẢI</span><button id="mapLegendToggle" type="button">−</button></div>
-          <div class="map-legend-body"><span><i class="legend-dot facility"></i>Công trình</span><span><i class="legend-line channel"></i>Kênh / tuyến</span><span><i class="legend-area irrigation"></i>Khu tưới</span></div>
-        </div>
-        <div id="mapFeatureCard" class="map-feature-card hidden">
-          <div class="map-feature-top">
-            <div>
-              <div id="mapFeatureType" class="map-feature-type">💧 CÔNG TRÌNH</div>
-              <div id="mapFeatureName" class="map-feature-name">Chưa chọn công trình</div>
-            </div>
-            <button id="mapFeatureClose" type="button">×</button>
-          </div>
-          <div id="mapFeatureSummary" class="map-feature-summary">Chọn một công trình trên bản đồ để xem thông tin.</div>
-          <button id="mapFeatureDetail" class="map-detail-btn" type="button">Xem chi tiết</button>
-        </div>
-        <div id="mapAiStatus" class="map-ai-status">Đang chuẩn bị bản đồ...</div>
-      </div>
-
-    <div class="footer">THỦY LỢI AI • FastAPI • Gemini File Search</div>
-  </main>
-
-  <!-- ═════════════════════════════════════════════════════════
+<span class="map-live-pill"><i></i> GIS ONLINE</span>
+</div>
+</div>
+<!-- Thanh tìm kiếm hiện đại: tách vùng nhập liệu và nhóm nút chức năng -->
+<div class="map-search-wrap">
+<div class="map-search-box">
+<div class="map-search-main">
+<span class="map-search-icon">⌕</span>
+<input autocomplete="off" id="mapSearch" placeholder="Tìm trạm bơm, hồ, kênh, cống, đập..." type="search"/>
+<span class="map-search-kbd">⌘ K</span>
+</div>
+<div aria-label="Chức năng tìm kiếm" class="map-search-actions">
+<button aria-label="Tìm kiếm" id="mapSearchBtn" title="Tìm kiếm" type="button">🔎</button>
+<button aria-label="Vị trí hiện tại" id="mapLocateBtn" title="Vị trí hiện tại" type="button">⌖</button>
+</div>
+</div>
+</div>
+<div aria-label="Tìm nhanh" class="map-quick-chips">
+<button data-map-query="trạm bơm" type="button">Trạm bơm</button>
+<button data-map-query="hồ" type="button">Hồ</button>
+<button data-map-query="kênh" type="button">Kênh</button>
+<button data-map-query="cống" type="button">Cống</button>
+<button data-map-query="đập" type="button">Đập</button>
+</div>
+<!-- Kết quả tìm kiếm -->
+<div id="searchResults"></div>
+<div class="map-container">
+<div id="aiMap"></div>
+<div class="map-atmosphere"></div>
+<button class="map-floating-btn" id="mapLayerBtn" title="Lớp bản đồ" type="button">◈</button>
+<button class="map-floating-btn map-gps-btn" id="mapGpsBtn" title="Vị trí của tôi" type="button">➤</button>
+<button class="map-floating-btn map-home-btn" id="mapHomeBtn" title="Toàn vùng Vu Gia – Thu Bồn" type="button">⌂</button>
+<button aria-label="Cảnh báo hồ chứa" id="mapAlertBtn" title="Cảnh báo hồ chứa" type="button">
+<span class="alert-bell">🔔</span><span id="mapAlertBadge">—</span>
+</button>
+<section aria-label="Trung tâm cảnh báo hồ chứa" hidden="" id="tlAlertSheet">
+<div class="tl-alert-grab"></div>
+<div class="tl-alert-head">
+<div class="tl-alert-title"><span class="tl-alert-title-icon">🔔</span><span>CẢNH BÁO HỒ CHỨA</span></div>
+<button aria-label="Đóng" id="tlAlertClose" type="button">×</button>
+</div>
+<div class="tl-alert-summary" id="tlAlertSummary"></div>
+<div class="tl-alert-list" id="tlAlertList"><div class="tl-alert-loading">⏳ Đang đọc dữ liệu hồ chứa…</div></div>
+<div class="tl-alert-footer">Quy tắc: Gần = khoảng cách đến ngưỡng ≤ 0,5 m • Ưu tiên: MNDGC → MNDBT</div>
+</section>
+<div class="map-layer-panel" hidden="" id="mapLayerPanel">
+<div class="map-panel-head"><div><strong>Lớp bản đồ</strong><span>Nền &amp; dữ liệu hiển thị</span></div><button id="mapLayerClose" type="button">×</button></div>
+<div class="map-section-label">NỀN</div>
+<div class="map-basemap-grid">
+<button class="active" data-basemap="satellite" type="button"><span class="basemap-thumb satellite"></span><b>Vệ tinh</b></button>
+<button data-basemap="street" type="button"><span class="basemap-thumb street"></span><b>Đường phố</b></button>
+<button data-basemap="dark" type="button"><span class="basemap-thumb dark"></span><b>Đêm</b></button>
+</div>
+<div class="map-section-label">DỮ LIỆU THỦY LỢI</div>
+<label class="map-toggle-row"><span><i class="legend-dot facility"></i>Công trình</span><input checked="" id="toggleFacilities" type="checkbox"/><em></em></label>
+<label class="map-toggle-row"><span><i class="legend-line channel"></i>Tuyến / Kênh</span><input checked="" id="toggleChannels" type="checkbox"/><em></em></label>
+<label class="map-toggle-row"><span><i class="legend-area irrigation"></i>Khu tưới</span><input checked="" id="toggleAreas" type="checkbox"/><em></em></label>
+</div>
+</div>
+<div class="map-hud" id="mapHud">
+<div class="map-hud-card"><span class="hud-icon blue">◈</span><div><b id="mapStatObjects">—</b><small>Đối tượng GIS</small></div></div>
+<div class="map-hud-card"><span class="hud-icon cyan">●</span><div><b id="mapStatFacilities">—</b><small>Công trình</small></div></div>
+<div class="map-hud-card"><span class="hud-icon green">▰</span><div><b id="mapStatAreas">—</b><small>Khu tưới</small></div></div>
+</div>
+<div class="map-legend" id="mapLegend">
+<div class="map-legend-title"><span>CHÚ GIẢI</span><button id="mapLegendToggle" type="button">−</button></div>
+<div class="map-legend-body"><span><i class="legend-dot facility"></i>Công trình</span><span><i class="legend-line channel"></i>Kênh / tuyến</span><span><i class="legend-area irrigation"></i>Khu tưới</span></div>
+</div>
+<div class="map-feature-card hidden" id="mapFeatureCard">
+<div class="map-feature-top">
+<div>
+<div class="map-feature-type" id="mapFeatureType">💧 CÔNG TRÌNH</div>
+<div class="map-feature-name" id="mapFeatureName">Chưa chọn công trình</div>
+</div>
+<button id="mapFeatureClose" type="button">×</button>
+</div>
+<div class="map-feature-summary" id="mapFeatureSummary">Chọn một công trình trên bản đồ để xem thông tin.</div>
+<button class="map-detail-btn" id="mapFeatureDetail" type="button">Xem chi tiết</button>
+</div>
+<div class="map-ai-status" id="mapAiStatus">Đang chuẩn bị bản đồ...</div>
+</div></main>
+<!-- ═════════════════════════════════════════════════════════
        PERF PATCH — LAZY LOADER cho Leaflet/MarkerCluster & QRCode
        BỔ SUNG, không thay đổi logic GIS/AI hiện có.
        Các thư viện chỉ tải khi thực sự cần (mở Bản đồ thủy lợi, chụp ảnh
        để lấy QR), đồng thời được nạp ngầm lúc trình duyệt rảnh để
        không làm chậm màn hình bản đồ hiển thị đầu tiên trên mobile.
        ═════════════════════════════════════════════════════════ -->
-  <script>
-    window.__tlScriptCache = window.__tlScriptCache || {};
-    function tlLoadScript(url) {
-      if (window.__tlScriptCache[url]) return window.__tlScriptCache[url];
-      const p = new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = url;
-        s.async = true;
-        s.onload = () => resolve();
-        s.onerror = () => reject(new Error('Không tải được: ' + url));
-        document.head.appendChild(s);
-      });
-      window.__tlScriptCache[url] = p;
-      return p;
-    }
+<script>
+(function(){
+  window.__tlScriptCache = window.__tlScriptCache || {};
+  function tlLoadScript(url){
+    if(window.__tlScriptCache[url]) return window.__tlScriptCache[url];
+    const p=new Promise((resolve,reject)=>{
+      const s=document.createElement('script');
+      s.src=url; s.async=true;
+      s.onload=resolve;
+      s.onerror=()=>reject(new Error('Không tải được: '+url));
+      document.head.appendChild(s);
+    });
+    window.__tlScriptCache[url]=p;
+    return p;
+  }
+  let __tlLeafletPromise=null;
+  window.tlEnsureLeaflet=function(){
+    if(__tlLeafletPromise) return __tlLeafletPromise;
+    __tlLeafletPromise=tlLoadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')
+      .then(()=>tlLoadScript('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'));
+    return __tlLeafletPromise;
+  };
+  const idle=window.requestIdleCallback||function(fn){setTimeout(fn,1200);};
+  idle(function(){window.tlEnsureLeaflet().catch(e=>console.warn('[Leaflet] warm-up:',e));},{timeout:3000});
+})();
+</script>
+<script>(function(){
+  'use strict';
 
-    let __tlLeafletPromise = null;
-    window.tlEnsureLeaflet = function () {
-      if (__tlLeafletPromise) return __tlLeafletPromise;
-      __tlLeafletPromise = tlLoadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')
-        .then(() => tlLoadScript('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'));
-      return __tlLeafletPromise;
-    };
+  // ===== MAP DOM refs =====
+  const mapAiPanel=document.getElementById('mapAiPanel');
+  const aiMapElement=document.getElementById('aiMap');
+  const mapAiStatus=document.getElementById('mapAiStatus');
+  const mapSearch=document.getElementById('mapSearch');
+  const mapSearchBtn=document.getElementById('mapSearchBtn');
+  const searchResults=document.getElementById('searchResults');
+  const mapAlertBtn=document.getElementById('mapAlertBtn');
+  const mapAlertBadge=document.getElementById('mapAlertBadge');
+  const tlAlertSheet=document.getElementById('tlAlertSheet');
+  const tlAlertClose=document.getElementById('tlAlertClose');
+  const tlAlertSummary=document.getElementById('tlAlertSummary');
+  const tlAlertList=document.getElementById('tlAlertList');
+  let tlReservoirAlertRecords=[];
+  let tlReservoirAlertsLoaded=false;
+  let tlAlertSelectedGroup='all';
+  let tlAlertRefreshPromise=null;
+  let tlAlertRefreshStarted=false;
 
-    let __tlQrPromise = null;
-    window.tlEnsureQRCode = function () {
-      if (__tlQrPromise) return __tlQrPromise;
-      __tlQrPromise = tlLoadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
-      return __tlQrPromise;
-    };
-
-    // Nạp ngầm lúc trình duyệt rảnh (không chặn hiển thị chat) để khi
-    // người dùng bấm "BẢN ĐỒ AI" hoặc chụp ảnh thì thư viện đã sẵn sàng.
-    (function tlWarmUpLibs() {
-      const idle = window.requestIdleCallback || function (fn) { setTimeout(fn, 2500); };
-      idle(function () {
-        window.tlEnsureLeaflet().catch(function (e) { console.warn('[Lazy] Leaflet warm-up:', e); });
-        window.tlEnsureQRCode().catch(function (e) { console.warn('[Lazy] QRCode warm-up:', e); });
-      }, { timeout: 4000 });
-    })();
-  </script>
-
-  <script>
-    (function() {
-      'use strict';
-
-      // ===== DOM refs =====
-      const messages = document.getElementById('messages');
-      const typing = document.getElementById('typing');
-      const question = document.getElementById('question');
-      const sendBtn = document.getElementById('send');
-      const clearBtn = document.getElementById('clear');
-      const cameraBtn = document.getElementById('cameraBtn');
-      const imageInput = document.getElementById('imageInput');
-      const imagePreview = document.getElementById('imagePreview');
-
-      const dot = document.getElementById('dot');
-      const statusEl = document.getElementById('status');
-
-      const fieldReportBtn = document.getElementById('fieldReportBtn');
-      const fieldReportPanel = document.getElementById('fieldReportPanel');
-      const closeFieldReport = document.getElementById('closeFieldReport');
-      const fieldReportImage = document.getElementById('fieldReportImage');
-      const fieldReportCamera = document.getElementById('fieldReportCamera');
-      const fieldReportPreview = document.getElementById('fieldReportPreview');
-      const fieldReportQuestion = document.getElementById('fieldReportQuestion');
-      const createFieldReport = document.getElementById('createFieldReport');
-      const fieldReportStatus = document.getElementById('fieldReportStatus');
-      const reportTypeButtons = document.querySelectorAll('[data-report-type]');
-
-      const mapAiBtn = document.getElementById('mapAiBtn');
-      const mapAiPanel = document.getElementById('mapAiPanel');
-      const closeMapAi = document.getElementById('closeMapAi');
-      const aiMapElement = document.getElementById('aiMap');
-      const mapAiStatus = document.getElementById('mapAiStatus');
-      const mapSearch = document.getElementById('mapSearch');
-      const mapSearchBtn = document.getElementById('mapSearchBtn');
-      const searchResults = document.getElementById('searchResults');
-
-      const mapAlertBtn = document.getElementById('mapAlertBtn');
-      const mapAlertBadge = document.getElementById('mapAlertBadge');
-      const tlAlertSheet = document.getElementById('tlAlertSheet');
-      const tlAlertClose = document.getElementById('tlAlertClose');
-      const tlAlertSummary = document.getElementById('tlAlertSummary');
-      const tlAlertList = document.getElementById('tlAlertList');
-      let tlReservoirAlertRecords = [];
-      let tlReservoirAlertsLoaded = false;
-      let tlAlertSelectedGroup = 'all';
-      let tlAlertRefreshPromise = null;
-      let tlAlertRefreshStarted = false;
-
-
-      // =========================================================
-      // 1. BIẾN TOÀN CỤC
-      // =========================================================
-      let aiMap = null;
-      let aiMapLayer = null;
-      let aiMapLoaded = false;
-      let searchIndex = []; // Mảng chứa tất cả đối tượng tìm kiếm
-      let markerCluster = null; // Tham chiếu đến cluster để zoom tới marker
-      let markerFeatureMap = new WeakMap();
-      let aiBaseLayers = {};
-      let activeBaseLayerKey = 'satellite'; // feature -> marker, giúp search zoom/popup nhanh
-      let nonPointLayer = null; // Layer đường/vùng; khai báo sớm để tránh lỗi TDZ khi map vừa setView
-      let gisSearchReady = false; // chỉ cho tìm kiếm khi GIS data + index đã sẵn sàng
-
-      // Runtime bridge cho Map-only UI: giữ closure thật của bản đồ, không phụ thuộc window sync.
-      window.__TL_MAP_RUNTIME = {
-        get map(){ return aiMap; },
-        get mapLayer(){ return aiMapLayer; },
-        get markerCluster(){ return markerCluster; },
-        get nonPointLayer(){ return nonPointLayer; },
-        get baseLayers(){ return aiBaseLayers; },
-        get activeBaseLayerKey(){ return activeBaseLayerKey; },
-        set activeBaseLayerKey(v){ activeBaseLayerKey = v; }
-      };
-
-      // GIS: dùng GeoJSON local được build trực tiếp từ KMZ.
-      // Giữ nguyên toàn bộ renderer/popup/marker của bản đồ cũ.
-      const GIS_DATA_URL = new URL('gis/master.geojson', document.baseURI).href;
-
-      // AI_DATA: nguồn quan trắc trực tiếp. Không dùng Technical/Vercel cho LIVE.
-      const TL_AI_DATA_URL = String(
-        window.THULYLOI_AI_DATA_URL || 'https://docs.google.com/spreadsheets/d/1SJU9aCRZGWeAeHw6UfY_08HK8-A34kIlnrEiPJNEnko/gviz/tq?tqx=out:csv&gid=1866404435&tq=select%20*'
-      );
-
-      window.preparedImageBlob = null;
-      window.preparedImageName = 'image.jpg';
-      window.reportTitle = '';
-      window.reportAnswer = '';
-      window.captureTimestamp = null;
-
-      let isCooldown = false;
-      let currentLocation = null;
-      let currentAddress = '';
-      let qrAvailable = false;
-
-      // =========================================================
-      // 2. CÁC HÀM CHUẨN HÓA, TIỀN XỬ LÝ
-      // =========================================================
       function esc(s) {
         return String(s ?? '').replace(/[&<>"']/g, function(c) {
           return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
         });
       }
 
-      function cleanText(s) {
-        s = String(s ?? '');
-        s = s.replace(/\\text\s*\{([^{}]*)\}/g, '$1');
-        s = s.replace(/\\mathrm\s*\{([^{}]*)\}/g, '$1');
-        s = s.replace(/\\operatorname\s*\{([^{}]*)\}/g, '$1');
-        s = s.replace(/\\varnothing/g, 'Ø').replace(/\\emptyset/g, 'Ø');
-        s = s.replace(/\\times/g, '×').replace(/\\cdot/g, '·');
-        s = s.replace(/\\pm/g, '±').replace(/\\leq/g, '≤').replace(/\\geq/g, '≥');
-        s = s.replace(/\\approx/g, '≈').replace(/\\Delta/g, 'Δ');
-        s = s.replace(/\\%/g, '%');
-        s = s.replace(/m\s*\^\s*3/g, 'm³').replace(/m3\b/gi, 'm³');
-        s = s.replace(/m\s*\^\s*2/g, 'm²');
-        s = s.replace(/\\left|\\right/g, '');
-        s = s.replace(/\$\$([\s\S]*?)\$\$/g, '$1').replace(/\$([^$\n]+)\$/g, '$1');
-        s = s.replace(/\\([A-Za-z]+)\s*\{([^{}]*)\}/g, '$2');
-        s = s.replace(/\\([A-Za-z]+)/g, '$1');
-        return s;
-      }
-
-      function md(s) {
-        s = esc(cleanText(s));
-        s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-        s = s.replace(/^[-•]\s+(.+)$/gm, '• $1');
-        s = s.replace(/\n/g, '<br>');
-        return s;
-      }
-
-      function addUser(text) {
-        const m = document.createElement('div');
-        m.className = 'msg user';
-        const b = document.createElement('div');
-        b.className = 'bubble';
-        b.textContent = text;
-        m.appendChild(b);
-        messages.appendChild(m);
-        messages.scrollTop = messages.scrollHeight;
-      }
-
-      function addAI(text, citations) {
-        const m = document.createElement('div');
-        m.className = 'msg assistant';
-        const b = document.createElement('div');
-        b.className = 'bubble';
-        b.innerHTML = md(text || 'Không có câu trả lời.');
-        if (Array.isArray(citations) && citations.length) {
-          const box = document.createElement('div');
-          box.className = 'source';
-          box.innerHTML = '<b>📚 Nguồn hồ sơ</b>';
-          const seen = new Set();
-          citations.forEach(function(c) {
-            const name = c?.file_name || c?.title || c?.display_name || c?.name;
-            if (name && !seen.has(name)) {
-              seen.add(name);
-              const line = document.createElement('div');
-              line.textContent = '• ' + name;
-              box.appendChild(line);
-            }
-          });
-          if (seen.size) b.appendChild(box);
-        }
-        m.appendChild(b);
-        messages.appendChild(m);
-        messages.scrollTop = messages.scrollHeight;
-      }
-
-      async function fetchJSON(url, options, timeout) {
-        timeout = timeout || 40000;
-        const controller = new AbortController();
-        const timer = setTimeout(function() { controller.abort(); }, timeout);
-        try {
-          const r = await fetch(url, { ...options, signal: controller.signal, cache: 'no-store' });
-          const text = await r.text();
-          let data = {};
-          try { data = text ? JSON.parse(text) : {}; } catch (_) { throw new Error('Server trả về dữ liệu không hợp lệ.'); }
-          if (!r.ok) throw new Error(data.detail || data.error || ('HTTP ' + r.status));
-          return data;
-        } finally {
-          clearTimeout(timer);
-        }
-      }
-
-      async function sha256Hex(blob) {
-        const buffer = await blob.arrayBuffer();
-        const digest = await crypto.subtle.digest('SHA-256', buffer);
-        return Array.from(new Uint8Array(digest)).map(function(b) {
-          return b.toString(16).padStart(2, '0');
-        }).join('');
-      }
-
-      function getLocation() {
-        return new Promise((resolve) => {
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              (pos) => {
-                const { latitude, longitude } = pos.coords;
-                resolve({ lat: latitude, lng: longitude });
-              },
-              (err) => {
-                console.warn('Geolocation error:', err.message);
-                resolve(null);
-              }, { timeout: 10000, maximumAge: 60000 }
-            );
-          } else {
-            resolve(null);
-          }
-        });
-      }
-
-      async function getFreshLocation() {
-        if (!navigator.geolocation) {
-          return null;
-        }
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            const position = await new Promise((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(
-                resolve,
-                reject, {
-                  enableHighAccuracy: true,
-                  maximumAge: 0,
-                  timeout: 20000
-                }
-              );
-            });
-            return {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              accuracy: position.coords.accuracy
-            };
-          } catch (error) {
-            console.warn(`GPS attempt ${attempt}/3 failed:`, error.message);
-            if (attempt === 3) {
-              return null;
-            }
-          }
-        }
-        return null;
-      }
-
-      async function checkGpsAgainstKml(locationOverride = null) {
-        try {
-          const location = locationOverride || await getLocation();
-          if (!location) {
-            return { success: false, message: "Không lấy được vị trí GPS." };
-          }
-          const { lat, lng } = location;
-          const response = await fetch(`/kml-gps-test?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lng)}`);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          const data = await response.json();
-          if (!data.success) {
-            return { success: false, message: data.message || "Không kiểm tra được GPS với tuyến." };
-          }
-          return data;
-        } catch (error) {
-          console.error("KML GPS ERROR:", error);
-          return { success: false, message: "Lỗi kiểm tra GPS với tuyến." };
-        }
-      }
-
-      async function reverseGeocode(lat, lng) {
-        try {
-          const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-          const response = await fetch(url, { headers: { 'User-Agent': 'ThuyLoiAI/1.0' } });
-          if (!response.ok) return '';
-          const data = await response.json();
-          if (data && data.display_name) {
-            return data.display_name;
-          }
-          return '';
-        } catch (e) {
-          console.warn('Reverse geocode error:', e);
-          return '';
-        }
-      }
-
-      function generateQRCanvas(text, size) {
-        return new Promise((resolve) => {
-          const canvas = document.createElement('canvas');
-          canvas.width = size;
-          canvas.height = size;
-          try {
-            const qr = new QRCode(canvas, {
-              text: text,
-              width: size,
-              height: size,
-              colorDark: '#000000',
-              colorLight: '#ffffff',
-              correctLevel: QRCode.CorrectLevel.H
-            });
-            setTimeout(() => resolve(canvas), 200);
-          } catch (e) {
-            console.error('QR generation error:', e);
-            resolve(null);
-          }
-        });
-      }
-
-      async function prepareImageWithStamp(file) {
-        const img = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const image = new Image();
-            image.onload = () => resolve(image);
-            image.onerror = reject;
-            image.src = e.target.result;
-          };
-          reader.readAsDataURL(file);
-        });
-
-        let width = img.naturalWidth;
-        let height = img.naturalHeight;
-        const maxSide = 1600;
-        if (Math.max(width, height) > maxSide) {
-          const scale = maxSide / Math.max(width, height);
-          width = Math.round(width * scale);
-          height = Math.round(height * scale);
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const location = await getFreshLocation();
-        let address = '';
-        let kmlGpsResult = null;
-
-        if (location) {
-          currentLocation = location;
-          window.currentLocation = location;
-          window.gpsAccuracy = location.accuracy;
-          address = await reverseGeocode(location.lat, location.lng);
-          currentAddress = address;
-          qrAvailable = true;
-          kmlGpsResult = await checkGpsAgainstKml(location);
-          window.kmlGpsResult = kmlGpsResult;
-        } else {
-          currentLocation = null;
-          window.currentLocation = null;
-          currentAddress = '';
-          qrAvailable = false;
-          window.kmlGpsResult = { success: false, message: "Không có GPS để kiểm tra tuyến." };
-        }
-
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-        const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const dayOfWeek = new Intl.DateTimeFormat('vi-VN', { weekday: 'long' }).format(now);
-        const lat = location ? location.lat : null;
-        const lng = location ? location.lng : null;
-
-        window.captureTimestamp = timeStr + ' ' + dateStr;
-
-        const baseFontSize = Math.max(14, Math.min(20, width / 40));
-        const lineHeight = baseFontSize * 1.5;
-        const paddingX = 20;
-        const paddingY = 16;
-        const accentWidth = 6;
-
-        const stampLines = [
-          { text: '📍 THỦY LỢI AI • 100% Chân thực', size: baseFontSize * 1.1, weight: 'bold', color: '#0F2742' },
-          { text: timeStr, size: baseFontSize, weight: 'bold', color: '#1E293B' },
-          { text: dateStr, size: baseFontSize, weight: 'bold', color: '#1E293B' },
-          { text: dayOfWeek, size: baseFontSize * 0.9, weight: 'normal', color: '#475569' },
-          { text: address || 'Đang cập nhật địa điểm', size: baseFontSize * 0.9, weight: 'normal', color: '#1E293B' },
-          { text: 'THỦY LỢI AI', size: baseFontSize * 0.9, weight: 'bold', color: '#0F2742' },
-          { text: (lat && lng) ? `Tọa độ: ${lat.toFixed(6)}°N, ${lng.toFixed(6)}°E` : 'Tọa độ: Chưa xác định', size: baseFontSize *
-              0.85, weight: 'normal', color: '#64748B' },
-          { text: '© THỦY LỢI AI • Xác thực', size: baseFontSize * 0.75, weight: 'normal', color: '#94A3B8' },
-        ];
-
-        let maxLineWidth = 0;
-        for (const line of stampLines) {
-          ctx.font = `${line.weight} ${line.size}px sans-serif`;
-          const metrics = ctx.measureText(line.text);
-          if (metrics.width > maxLineWidth) maxLineWidth = metrics.width;
-        }
-
-        const qrSize = (location) ? Math.min(80, width * 0.06) : 0;
-        const extraWidth = qrSize + 12;
-
-        const boxWidth = Math.min(maxLineWidth + paddingX * 2 + extraWidth, width * 0.75);
-        const boxHeight = stampLines.length * lineHeight + paddingY * 2;
-
-        const posX = width - boxWidth - 20;
-        const posY = height - boxHeight - 20;
-
-        ctx.shadowColor = 'rgba(0,0,0,0.15)';
-        ctx.shadowBlur = 20;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-        ctx.beginPath();
-        ctx.roundRect(posX, posY, boxWidth, boxHeight, 12);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(posX, posY, boxWidth, boxHeight, 12);
-        ctx.stroke();
-
-        ctx.fillStyle = '#2563EB';
-        ctx.beginPath();
-        ctx.roundRect(posX + 6, posY + 8, accentWidth, boxHeight - 16, 6);
-        ctx.fill();
-
-        ctx.textBaseline = 'top';
-        let textY = posY + paddingY;
-        for (let i = 0; i < stampLines.length - 1; i++) {
-          const line = stampLines[i];
-          ctx.font = `${line.weight} ${line.size}px sans-serif`;
-          ctx.fillStyle = line.color;
-          ctx.textAlign = 'left';
-          ctx.fillText(line.text, posX + paddingX + 10, textY);
-          textY += lineHeight;
-        }
-
-        const lastLine = stampLines[stampLines.length - 1];
-        ctx.font = `${lastLine.weight} ${lastLine.size}px sans-serif`;
-        ctx.fillStyle = lastLine.color;
-        ctx.textAlign = 'left';
-        ctx.fillText(lastLine.text, posX + paddingX + 10, textY);
-
-        if (location && qrSize > 0) {
-          const qrUrl = `https://www.google.com/maps?q=${lat},${lng}`;
-          try {
-            // PERF PATCH: QRCode được nạp lười; đảm bảo đã sẵn sàng trước khi dùng.
-            await window.tlEnsureQRCode();
-            const qrCanvas = await generateQRCanvas(qrUrl, qrSize);
-            if (qrCanvas) {
-              const qrX = posX + boxWidth - qrSize - 12;
-              const qrY = posY + boxHeight - qrSize - 12;
-              ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
-              console.log('✅ QR đã vẽ');
-            }
-          } catch (e) {
-            console.error('QR draw error:', e);
-          }
-        }
-
-        return new Promise((resolve) => {
-          canvas.toBlob((blob) => {
-            resolve({ blob, w: width, h: height });
-          }, 'image/jpeg', 0.85);
-        });
-      }
-
-      CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
-        if (w < 2 * r) r = w / 2;
-        if (h < 2 * r) r = h / 2;
-        this.moveTo(x + r, y);
-        this.lineTo(x + w - r, y);
-        this.quadraticCurveTo(x + w, y, x + w, y + r);
-        this.lineTo(x + w, y + h - r);
-        this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-        this.lineTo(x + r, y + h);
-        this.quadraticCurveTo(x, y + h, x, y + h - r);
-        this.lineTo(x, y + r);
-        this.quadraticCurveTo(x, y, x + r, y);
-        this.closePath();
-        return this;
-      };
-
-     // =========================================================
-// 3. CAMERA & ẢNH
-// Camera đã bỏ khỏi giao diện Chat AI.
-// Giữ nguyên logic xử lý ảnh để không ảnh hưởng
-// đến Báo cáo hiện trường.
-// =========================================================
-if (cameraBtn && imageInput) {
-  cameraBtn.addEventListener('click', function() {
-    imageInput.click();
-  });
-}
-
-      imageInput.addEventListener('change', async function() {
-        const file = imageInput.files?.[0];
-        if (!file) return;
-        imagePreview.hidden = false;
-        imagePreview.innerHTML = '📷 Đang chuẩn bị ảnh (lấy GPS & đóng dấu + QR)...';
-        window.preparedImageBlob = null;
-        try {
-          const result = await prepareImageWithStamp(file);
-          window.preparedImageBlob = result.blob;
-          window.preparedImageName = (file.name || 'image.jpg').replace(/\.[^.]+$/, '') + '.jpg';
-          const hash = await sha256Hex(result.blob);
-          const sizeKB = Math.round(result.blob.size / 1024);
-          const originalKB = Math.round(file.size / 1024);
-          const thumbUrl = URL.createObjectURL(result.blob);
-          imagePreview.innerHTML =
-            '<img class="thumb" src="' + thumbUrl + '" alt="Ảnh đã đóng dấu + QR">' +
-            '<strong>✅ Ảnh xác thực hiện trường</strong><br>' +
-            'JPEG · ' + result.w + '×' + result.h +
-            ' · ' + sizeKB + ' KB' +
-            ' · gốc ' + originalKB + ' KB' +
-            '<br>🕐 ' + new Date().toLocaleString('vi-VN') +
-            (currentLocation ? ' · 📍 ' + currentLocation.lat.toFixed(6) + ', ' + currentLocation.lng.toFixed(6) : '') +
-            (currentAddress ? ' · 📌 ' + currentAddress.substring(0, 60) : '') +
-            (qrAvailable ? '<br>📱 Có mã QR – quét để định vị' : '<br>⚠️ Không có GPS – không tạo QR') +
-            '<br><span>💡 Gửi câu hỏi để THỦY LỢI AI phân tích.</span>';
-        } catch (err) {
-          window.preparedImageBlob = null;
-          imagePreview.hidden = false;
-          imagePreview.textContent = '⚠️ ' + (err.message || 'Không xử lý được ảnh.');
-        }
-      });
 
       // =========================================================
       // 4. HÀM XỬ LÝ CÔNG TRÌNH (phân loại, nhãn, icon)
@@ -5166,7 +4477,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         body.innerHTML = `
           <div class="tl-live-error">
             ${notFound ? 'ℹ️ Chưa có số liệu quan trắc cho công trình này trong AI_DATA.' : '⚠️ Chưa lấy được số liệu quan trắc thực tế.'}
-            ${!notFound ? '<br><span style="font-size:9px;">' + esc(error?.message || 'Technical API không phản hồi.') + '</span>' : ''}
+            ${!notFound ? '<br><span style="font-size:9px;">' + esc(error?.message || 'AI_DATA không phản hồi.') + '</span>' : ''}
             <button type="button" class="tl-live-refresh">🔄 Thử lại</button>
           </div>
         `;
@@ -7616,467 +6927,11 @@ if (description) {
         });
       }
 
-      // =========================================================
-      // 15. SỰ KIỆN MỞ/ĐÓNG BẢN ĐỒ, FIELD REPORT (giữ nguyên)
-      // =========================================================
-      if (mapAiBtn) mapAiBtn.addEventListener('click', async function() {
-    mapAiPanel.classList.remove('hidden');
 
-    // Khóa cuộn giao diện Chat AI khi mở Bản đồ thủy lợi
-    document.body.style.overflow = 'hidden';
-
-    await initAiMap();
-
-    // Tự động đưa con trỏ vào ô tìm kiếm
-    if (mapSearch) {
-        setTimeout(function() {
-            mapSearch.focus();
-        }, 500);
-    }
-});
-
-if (closeMapAi) closeMapAi.addEventListener('click', function() {
-    mapAiPanel.classList.add('hidden');
-
-    // Trả lại khả năng cuộn cho giao diện Chat AI
-    document.body.style.overflow = '';
-});
-
-      // Field report (giữ nguyên)
-      (function() {
-        let selectedReportType = '';
-        let fieldReportFile = null;
-
-        function updateFieldReportButton() {
-          createFieldReport.disabled = !selectedReportType || !fieldReportFile;
-        }
-
-        function showFieldReportStatus(text, error) {
-          fieldReportStatus.hidden = false;
-          fieldReportStatus.textContent = text;
-          fieldReportStatus.classList.toggle('error', !!error);
-        }
-
-        function getReportTypeName(type) {
-          var names = {
-            incident: '🚨 Sự cố công trình',
-            corridor: '⚠️ Vi phạm hành lang thủy lợi',
-            dry_area: '🌾 Diện tích khô',
-            water_level: '💧 Mực nước'
-          };
-          return names[type] || '📋 Báo cáo hiện trường';
-        }
-
-        fieldReportBtn.addEventListener('click', function() {
-          fieldReportPanel.classList.remove('hidden');
-          fieldReportPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        });
-
-        closeFieldReport.addEventListener('click', function() {
-          fieldReportPanel.classList.add('hidden');
-        });
-
-        reportTypeButtons.forEach(function(btn) {
-          btn.addEventListener('click', function() {
-            reportTypeButtons.forEach(function(b) { b.classList.remove('selected'); });
-            btn.classList.add('selected');
-            selectedReportType = btn.getAttribute('data-report-type') || '';
-            updateFieldReportButton();
-            showFieldReportStatus('Đã chọn: ' + (btn.querySelector('span')?.textContent || 'Báo cáo'), false);
-          });
-        });
-
-        fieldReportCamera.addEventListener('click', function() {
-          fieldReportImage.click();
-        });
-
-        fieldReportImage.addEventListener('change', async function() {
-          const file = fieldReportImage.files?.[0];
-          if (!file) return;
-          fieldReportFile = null;
-          fieldReportPreview.hidden = false;
-          fieldReportPreview.innerHTML = '📷 Đang chuẩn bị ảnh (lấy GPS & đóng dấu + QR)...';
-          try {
-            const result = await prepareImageWithStamp(file);
-            const filename = (file.name || 'hien-truong.jpg').replace(/\.[^.]+$/, '') + '.jpg';
-            fieldReportFile = new File([result.blob], filename, { type: 'image/jpeg' });
-            window.preparedImageBlob = result.blob;
-            window.preparedImageName = filename;
-            const url = URL.createObjectURL(result.blob);
-            const sizeKB = Math.round(result.blob.size / 1024);
-            fieldReportPreview.innerHTML =
-              '<div class="field-report-preview-inner">' +
-              '<img src="' + url + '" class="thumb" alt="Ảnh hiện trường">' +
-              '<div><strong>✅ Ảnh xác thực hiện trường</strong><br>JPEG · ' + result.w + '×' + result.h + ' · ' + sizeKB +
-              ' KB<br>' +
-              '🕐 ' + new Date().toLocaleString('vi-VN') +
-              (currentLocation ? ' · 📍 ' + currentLocation.lat.toFixed(6) + ', ' + currentLocation.lng.toFixed(6) : '') +
-              (currentAddress ? ' · 📌 ' + currentAddress.substring(0, 60) : '') +
-              (qrAvailable ? '<br>📱 Có mã QR – quét để định vị' : '<br>⚠️ Không có GPS – không tạo QR') +
-              '</div></div>';
-            updateFieldReportButton();
-          } catch (err) {
-            fieldReportFile = null;
-            window.preparedImageBlob = null;
-            fieldReportPreview.hidden = false;
-            fieldReportPreview.textContent = '⚠️ ' + (err.message || 'Không xử lý được ảnh.');
-            updateFieldReportButton();
-          }
-        });
-
-        fieldReportQuestion.addEventListener('input', updateFieldReportButton);
-
-        createFieldReport.addEventListener('click', async function() {
-          if (!selectedReportType) {
-            showFieldReportStatus('⚠️ Vui lòng chọn loại báo cáo.', true);
-            return;
-          }
-          if (!fieldReportFile) {
-            showFieldReportStatus('⚠️ Vui lòng chụp hoặc chọn ảnh hiện trường.', true);
-            return;
-          }
-          createFieldReport.disabled = true;
-          showFieldReportStatus('🤖 THỦY LỢI AI đang phân tích hiện trường...');
-          try {
-            const formData = new FormData();
-            formData.append('file', fieldReportFile, fieldReportFile.name);
-            formData.append('report_type', selectedReportType);
-            formData.append('question', (fieldReportQuestion.value || '').trim());
-            if (window.kmlGpsResult) {
-              formData.append('kml_context', JSON.stringify(window.kmlGpsResult));
-            }
-            const result = await fetchJSON('/field-report', { method: 'POST', body: formData }, 90000);
-            if (!result.success) {
-              throw new Error(result.error || 'Không tạo được báo cáo.');
-            }
-            const reportTitle = result.report_title || getReportTypeName(selectedReportType);
-            const answer = result.answer || 'THỦY LỢI AI chưa tạo được nội dung báo cáo.';
-            const irrelevantKeywords = ['không liên quan', 'không phải công trình', 'không thể hiện', 'ảnh không chứa'];
-            const isIrrelevant = irrelevantKeywords.some(kw => answer.toLowerCase().includes(kw));
-            if (isIrrelevant) {
-              const userConfirm = confirm(
-                '⚠️ Ảnh bạn gửi có thể không liên quan đến công trình thủy lợi.\n\n' +
-                'THỦY LỢI AI vẫn có thể tạo báo cáo dựa trên ảnh này.\n' +
-                'Bạn có muốn tiếp tục không?'
-              );
-              if (!userConfirm) {
-                showFieldReportStatus('Đã hủy tạo báo cáo.', true);
-                createFieldReport.disabled = false;
-                return;
-              }
-            }
-            window.reportTitle = reportTitle;
-            window.reportAnswer = answer;
-            addUser('📋 ' + reportTitle);
-            addAI(answer, result.sources || []);
-            const editor = document.getElementById('reportEditor');
-            editor.hidden = false;
-            document.getElementById('reportContent').value = answer;
-            showFieldReportStatus('✅ Đã tạo dự thảo báo cáo hiện trường.');
-            const pdfActions = document.getElementById('pdfActions');
-            if (pdfActions) pdfActions.hidden = false;
-            if (result.next_step) {
-              const nextBox = document.createElement('div');
-              nextBox.className = 'msg assistant';
-              const bubble = document.createElement('div');
-              bubble.className = 'bubble';
-              bubble.innerHTML = '<strong>📌 Bước tiếp theo</strong><br>' + md(result.next_step);
-              nextBox.appendChild(bubble);
-              messages.appendChild(nextBox);
-              messages.scrollTop = messages.scrollHeight;
-            }
-            setTimeout(function() {
-              fieldReportPanel.classList.add('hidden');
-            }, 1200);
-          } catch (err) {
-            console.error('FIELD REPORT ERROR:', err);
-            showFieldReportStatus('❌ ' + (err.message || 'Không thể tạo báo cáo.'), true);
-          } finally {
-            updateFieldReportButton();
-          }
-        });
-
-        updateFieldReportButton();
-      })();
-
-      // =========================================================
-      // 16. HEALTH CHECK VÀ CÁC HÀM KHÁC (giữ nguyên)
-      // =========================================================
-      async function health() {
-        try {
-          statusEl.textContent = 'Đang kiểm tra...';
-          const d = await fetchJSON('/health?t=' + Date.now(), { method: 'GET', headers: { 'Accept': 'application/json',
-              'Cache-Control': 'no-cache' } }, 15000);
-          const ok = d && d.status === 'ok' && d.gemini_configured === true && d.file_search_configured === true;
-          if (ok) {
-            dot.className = 'dot ok';
-            statusEl.textContent = 'Đã kết nối';
-          } else {
-            dot.className = 'dot bad';
-            statusEl.textContent = 'Chưa sẵn sàng';
-          }
-        } catch (e) {
-          console.error('HEALTH ERROR:', e);
-          dot.className = 'dot bad';
-          statusEl.textContent = 'Không kết nối';
-        }
-      }
-
-      function startCooldown(seconds) {
-        isCooldown = true;
-        sendBtn.disabled = true;
-        question.disabled = true;
-        if (cameraBtn) cameraBtn.disabled = true;
-        let left = Math.ceil(seconds || 30);
-        sendBtn.textContent = left + 's';
-        const timer = setInterval(function() {
-          left--;
-          if (left < 0) {
-            clearInterval(timer);
-            isCooldown = false;
-            sendBtn.disabled = false;
-            question.disabled = false;
-            if (cameraBtn) cameraBtn.disabled = true;
-            sendBtn.innerHTML = '<span aria-hidden="true">➤</span>';
-            question.focus();
-          } else {
-            sendBtn.textContent = left + 's';
-          }
-        }, 1000);
-      }
-
-      async function ask() {
-        const q = question.value.trim();
-        if ((!q && !window.preparedImageBlob) || sendBtn.disabled || isCooldown) return;
-        const finalQuestion = q || 'Hãy phân tích hình ảnh này trong bối cảnh chuyên ngành thủy lợi.';
-        addUser(window.preparedImageBlob ? '📷 ' + finalQuestion : finalQuestion);
-        question.value = '';
-        sendBtn.disabled = true;
-        question.disabled = true;
-        if (cameraBtn) cameraBtn.disabled = true;
-        typing.classList.add('show');
-        try {
-          let d;
-          if (window.preparedImageBlob) {
-            const formData = new FormData();
-            formData.append('file', window.preparedImageBlob, window.preparedImageName);
-            const url = '/image-analyze?question=' + encodeURIComponent(finalQuestion);
-            d = await fetchJSON(url, { method: 'POST', body: formData }, 60000);
-            addAI(d.answer || d.message || 'Gemini không trả về nội dung phân tích ảnh.', d.sources || d.citations || []);
-            window.preparedImageBlob = null;
-            window.preparedImageName = 'image.jpg';
-            imageInput.value = '';
-            imagePreview.hidden = true;
-            imagePreview.innerHTML = '';
-          } else {
-            d = await fetchJSON('https://thuyloi-cache.thaotltb.workers.dev/ask', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-              body: JSON.stringify({ question: finalQuestion })
-            }, 55000);
-            addAI(d.answer || d.message || 'Không có câu trả lời.', d.sources || d.citations || []);
-            if (d.status === 'rate_limited' && d.retry_after) {
-              startCooldown(d.retry_after);
-            }
-          }
-        } catch (e) {
-          addAI('⚠️ ' + (e.message || 'Không thể xử lý yêu cầu.'), []);
-        } finally {
-          if (!isCooldown) {
-            sendBtn.disabled = false;
-            question.disabled = false;
-            if (cameraBtn) cameraBtn.disabled = true;
-            sendBtn.innerHTML = '<span aria-hidden="true">➤</span>';
-            question.focus();
-          }
-          typing.classList.remove('show');
-        }
-      }
-
-      sendBtn.addEventListener('click', ask);
-      question.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          ask();
-        }
-      });
-      clearBtn.addEventListener('click', function() {
-        messages.innerHTML =
-          '<div class="msg assistant"><div class="bubble"><strong>Đã xóa cuộc trò chuyện. 🌿</strong><p>Hãy đặt câu hỏi mới.</p></div></div>';
-      });
-
-      document.querySelectorAll('.quick button').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          question.value = btn.getAttribute('data-q') || '';
-          question.focus();
-        });
-      });
-
-      health();
-      setInterval(health, 30000);
-
-    })();
-  </script>
-
-  <!-- ===== SCRIPT XỬ LÝ PDF (giữ nguyên) ===== -->
-  <script>
-    (function() {
-      "use strict";
-      let pdfBlob = null;
-      let pdfUrl = null;
-
-      function getReportTitle() {
-        return window.reportTitle || "BÁO CÁO NHANH HIỆN TRƯỜNG";
-      }
-
-      function getReportAnswer() {
-        const editor = document.getElementById('reportContent');
-        if (editor && !editor.hidden) {
-          return editor.value || window.reportAnswer || '';
-        }
-        return window.reportAnswer || '';
-      }
-
-      function getReviewer() {
-        const inp = document.getElementById('reviewerName');
-        return inp ? inp.value.trim() : '';
-      }
-
-      function updatePDFButton() {
-        const answer = getReportAnswer();
-        const pdfActions = document.getElementById('pdfActions');
-        if (!pdfActions) return;
-        pdfActions.hidden = !answer || answer.length < 20;
-      }
-
-      async function exportPDF() {
-        const button = document.getElementById('exportFieldReportPDF');
-        const status = document.getElementById('pdfStatus');
-        const result = document.getElementById('pdfResult');
-        const answer = getReportAnswer();
-        if (!answer) {
-          alert("Chưa có nội dung báo cáo để xuất PDF.");
-          return;
-        }
-        if (!window.preparedImageBlob) {
-          alert("⚠️ Chưa có ảnh hiện trường. Vui lòng chụp hoặc tải ảnh trước khi xuất PDF.");
-          return;
-        }
-        button.disabled = true;
-        status.hidden = false;
-        result.hidden = true;
-        status.innerText = "⏳ Đang tạo báo cáo PDF...";
-        try {
-          const formData = new FormData();
-          formData.append("report_title", getReportTitle());
-          formData.append("answer", answer);
-          const reviewer = getReviewer();
-          if (reviewer) formData.append("reviewer", reviewer);
-          if (window.captureTimestamp) {
-            formData.append("capture_time", window.captureTimestamp);
-          }
-          if (window.currentLocation) {
-            formData.append("latitude", String(window.currentLocation.lat));
-            formData.append("longitude", String(window.currentLocation.lng));
-          }
-          const filename = window.preparedImageName || "image.jpg";
-          const file = new File([window.preparedImageBlob], filename, { type: 'image/jpeg' });
-          formData.append("image", file);
-          console.log('📤 Gửi ảnh lên server:', { name: file.name, size: file.size + ' bytes', type: file.type });
-
-          const response = await fetch("/field-report-pdf", { method: "POST", body: formData });
-          if (!response.ok) throw new Error("Máy chủ không tạo được PDF.");
-          const blob = await response.blob();
-          if (!blob || blob.size === 0) throw new Error("File PDF rỗng.");
-          if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-          pdfBlob = blob;
-          pdfUrl = URL.createObjectURL(blob);
-          status.innerText = "✅ PDF đã sẵn sàng.";
-          result.hidden = false;
-          if (blob.size < 10000 && window.preparedImageBlob.size > 50000) {
-            status.innerText = "⚠️ PDF có dung lượng nhỏ. Có thể ảnh không được chèn. Hãy kiểm tra server log.";
-          }
-        } catch (error) {
-          console.error("PDF ERROR:", error);
-          status.innerText = "❌ Không thể tạo PDF. Vui lòng thử lại.";
-        } finally {
-          button.disabled = false;
-        }
-      }
-
-      function openPDF() {
-        if (!pdfBlob || !pdfUrl) { alert("Chưa có file PDF.");
-          return; }
-        window.open(pdfUrl, "_blank");
-      }
-
-      async function downloadPDF() {
-        if (!pdfBlob || !pdfUrl) { alert("Chưa có file PDF.");
-          return; }
-        const link = document.createElement("a");
-        link.href = pdfUrl;
-        link.download = "bao-cao-hien-truong.pdf";
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      }
-
-      async function sharePDF() {
-        if (!pdfBlob) { alert("Chưa có file PDF.");
-          return; }
-        if (navigator.share && navigator.canShare) {
-          try {
-            const file = new File([pdfBlob], "bao-cao-hien-truong.pdf", { type: "application/pdf" });
-            await navigator.share({ title: "Báo cáo nhanh hiện trường", text: "Báo cáo nhanh hiện trường - THỦY LỢI AI",
-              files: [file] });
-            return;
-          } catch (e) { if (e.name === "AbortError") return; }
-        }
-        alert("Chia sẻ không khả dụng. Bạn có thể tải file về.");
-        downloadPDF();
-      }
-
-      document.addEventListener("DOMContentLoaded", function() {
-        const exportBtn = document.getElementById("exportFieldReportPDF");
-        const openBtn = document.getElementById("openPDF");
-        const downloadBtn = document.getElementById("downloadPDF");
-        const shareBtn = document.getElementById("sharePDF");
-        if (exportBtn) exportBtn.addEventListener("click", exportPDF);
-        if (openBtn) openBtn.addEventListener("click", openPDF);
-        if (downloadBtn) downloadBtn.addEventListener("click", downloadPDF);
-        if (shareBtn) shareBtn.addEventListener("click", sharePDF);
-        updatePDFButton();
-        const rev = document.getElementById('reviewerName');
-        if (rev) rev.addEventListener('input', updatePDFButton);
-      });
-    })();
-  </script>
- <!-- ===== THỦY LỢI AI - TECHNICAL MODULE | ADD ONLY ===== -->
-
-<div id="technicalModuleContainer" class="technical-module-hidden">
-
-    <div class="technical-module-header">
-        <button
-            type="button"
-            class="technical-module-back"
-            onclick="closeTechnicalModule()">
-            ← Quay lại THỦY LỢI AI
-        </button>
-    </div>
-
-    <!-- PERF PATCH: dùng data-src thay vì src để KHÔNG tải app Vercel này
-         ngay khi mở trang; chỉ tải khi người dùng thực sự bấm mở (xem
-         openTechnicalModule() bên dưới). Không đổi URL/nội dung iframe. -->
-    <iframe
-        id="technicalModuleFrame"
-        data-src="https://thuyloiai-technical-vercel.vercel.app"
-        title="Thông tin cập nhật"
-        loading="lazy">
-    </iframe>
-
-</div>
-
+})();
+</script>
+<!-- ===== SCRIPT XỬ LÝ PDF (giữ nguyên) ===== -->
+<!-- ===== THỦY LỢI AI - TECHNICAL MODULE | ADD ONLY ===== -->
 <style>
     #technicalModuleContainer {
         position: fixed;
@@ -8469,50 +7324,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
 }
 
 </style>
-
-<script>
-    function openTechnicalModule() {
-
-        const container =
-            document.getElementById("technicalModuleContainer");
-
-        if (!container) {
-            console.error("Không tìm thấy Technical Module.");
-            return;
-        }
-
-        // PERF PATCH: chỉ gán src (bắt đầu tải iframe) ở lần mở đầu tiên.
-        const frame = document.getElementById("technicalModuleFrame");
-        if (frame && !frame.src && frame.dataset.src) {
-            frame.src = frame.dataset.src;
-        }
-
-        container.classList.remove(
-            "technical-module-hidden"
-        );
-
-        document.body.style.overflow = "hidden";
-    }
-
-    function closeTechnicalModule() {
-
-        const container =
-            document.getElementById("technicalModuleContainer");
-
-        if (!container) {
-            return;
-        }
-
-        container.classList.add(
-            "technical-module-hidden"
-        );
-
-        document.body.style.overflow = "";
-    }
-</script>
-
 <!-- ===== END TECHNICAL MODULE | ADD ONLY ===== -->
-
 <style>
 /* =========================================================
    THỦY LỢI AI — MODERN MAP UI V5
@@ -8699,7 +7511,6 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
 }
 
 </style>
-
 <script>
 (function(){
   'use strict';
@@ -8804,7 +7615,6 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
   });
 })();
 </script>
-
 <style id="tl-map-v8-layer-interaction-fix">
 #mapAiPanel .map-layer-panel{pointer-events:auto!important;}
 #mapAiPanel .map-layer-panel button,
@@ -8813,8 +7623,6 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
 #mapAiPanel .map-layer-panel[hidden]{display:none!important;}
 </style>
 </body>
-
-
 <!-- =========================================================
      THỦY LỢI AI — MAP CLEAN UI V1
      CHỈ THAY ĐỔI HIỂN THỊ UI; KHÔNG ĐỤNG DATA / GIS / JS
@@ -8861,9 +7669,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
     }
   }
 </style>
-
 </html>
-
 <!-- =========================================================
      THỦY LỢI AI — BẢN ĐỒ THỦY LỢI STANDALONE
      Bản sao độc lập từ App gốc.
@@ -8924,7 +7730,7 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
     min-height: 100% !important;
   }
 
-  /* Bản đồ độc lập không cần nút quay lại Chat AI. DOM vẫn được giữ nguyên. */
+  /* Bản đồ độc lập. */
   #closeMapAi {
     display: none !important;
   }
@@ -8940,7 +7746,6 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
     z-index: 10000 !important;
   }
 </style>
-
 <script id="standalone-map-bootstrap">
 (function () {
   'use strict';
@@ -8982,7 +7787,6 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
   }
 })();
 </script>
-
 <!-- =========================================================
      THUY LOI MAP V7 — MOBILE CONTROL STACK + LAYER FIX
      Patch only: không thay Popup/GIS/Search/Alert logic hiện hữu.
@@ -9057,7 +7861,6 @@ if (closeMapAi) closeMapAi.addEventListener('click', function() {
   #mapAiPanel #tlAlertSheet{z-index:9000!important;}
 }
 </style>
-
 <script id="tl-map-v7-mobile-fix-js">
 (function(){
   'use strict';

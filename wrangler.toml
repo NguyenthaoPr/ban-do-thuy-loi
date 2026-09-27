@@ -1,5 +1,5 @@
 name = "ban-do"
-compatibility_date = "2026-09-26"
+compatibility_date = "2026-09-28"
 
 [assets]
 directory = "."

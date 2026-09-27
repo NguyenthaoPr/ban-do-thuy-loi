@@ -7068,6 +7068,11 @@ if (description) {
         }
       }
 
+      // Expose the real map initializer to the standalone bootstrap.
+      // The function lives in this script scope; without this bridge the
+      // bootstrap cannot call it and the screen shows controls over a blank map.
+      window.initAiMap = initAiMap;
+
       // =========================================================
       // 13. TÌM KIẾM (gọi từ giao diện)
       // =========================================================

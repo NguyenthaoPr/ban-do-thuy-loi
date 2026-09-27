@@ -1,25 +1,34 @@
-# BẢN ĐỒ THỦY LỢI — VERCEL
+# Bản đồ Thủy lợi — V12
 
-Đây là bản sao độc lập từ `ThuyLoiAI-main(2)`.
+## Mục tiêu
+- Giữ nguyên giao diện và logic Bản đồ Thủy lợi hiện có.
+- GIS chạy độc lập từ `gis/master.geojson`, không phụ thuộc Render/Technical API.
+- Không dùng Cache API cho GIS để tránh giữ bản GeoJSON cũ khi debug/deploy.
+- Sửa lỗi `MultiPoint`.
+- Hiển thị đầy đủ Placemark từ `master.kmz`, gồm Point, LineString, Polygon và MultiGeometry.
 
-## Nguyên tắc
-- Không thay đổi logic GIS, Search, Popup, Technical, AI và dữ liệu của App gốc.
-- Phần giao diện Chat AI được ẩn bằng CSS; DOM và JS gốc vẫn được giữ lại để không phá kiến trúc.
-- Bản đồ được mở tự động khi truy cập website.
-- GIS vẫn lấy dữ liệu từ Render backend hiện tại.
-- Technical API vẫn sử dụng Vercel Technical backend hiện tại.
+## Dữ liệu GIS
+Nguồn `gis_master/master.kmz` có 15.197 Placemark. V12 chuyển trực tiếp từng Placemark thành một GeoJSON Feature, giữ cả 9 Polygon và 4 GeometryCollection.
 
-## Deploy
-1. Tạo một repository GitHub mới.
-2. Upload toàn bộ 2 file `index.html` và `vercel.json`.
-3. Vào Vercel → Add New Project → Import repository.
-4. Framework Preset: `Other`.
-5. Build Command: để trống.
-6. Output Directory: `.`.
-7. Deploy.
+## Cloudflare Workers Static Assets
+`wrangler.toml` dùng:
 
-## Backend hiện tại
-- GIS: `https://thuyloiai.onrender.com`
-- Technical: `https://thuyloiai-technical-vercel.vercel.app`
+```toml
+[assets]
+directory = "."
+not_found_handling = "single-page-application"
+```
 
-Nếu đổi backend sau này, chỉnh các URL/API ở đầu phần JavaScript gốc trong `index.html`.
+Không tạo thư mục `public/`. Khi deploy phải có ít nhất:
+- `index.html`
+- `gis/master.geojson`
+
+## Build lại GIS
+Nếu thay `gis_master/master.kmz`, chạy:
+
+```bash
+npm install
+npm run build
+```
+
+Sau đó kiểm tra `gis/master.geojson` có khoảng 15.197 features trước khi deploy.

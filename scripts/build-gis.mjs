@@ -62,11 +62,31 @@ const doc = new DOMParser().parseFromString(xml, 'text/xml');
 const styles = styleTable(doc);
 const geo = kml(doc);
 
+// KMZ thường dùng StyleMap -> Pair -> Style. Resolve normal style để
+// giữ màu đường/vùng/icon nguyên bản khi chuyển sang GeoJSON.
+const styleMaps = new Map();
+const styleMapNodes = doc.getElementsByTagName('StyleMap');
+for (let i = 0; i < styleMapNodes.length; i++) {
+  const sm = styleMapNodes[i];
+  const id = sm.getAttribute('id');
+  if (!id) continue;
+  const pairs = sm.getElementsByTagName('Pair');
+  let normal = '';
+  for (let j = 0; j < pairs.length; j++) {
+    const key = text(pairs[j], 'key');
+    const url = text(pairs[j], 'styleUrl');
+    if (key === 'normal' && url) { normal = url; break; }
+    if (!normal && url) normal = url;
+  }
+  if (normal) styleMaps.set('#' + id, normal);
+}
+
 for (const f of geo.features || []) {
   f.properties = f.properties || {};
   const p = f.properties;
   const styleUrl = p.styleUrl || p.styleurl || '';
-  const style = styles.get(styleUrl);
+  const resolvedStyleUrl = styleMaps.get(styleUrl) || styleUrl;
+  const style = styles.get(resolvedStyleUrl);
   if (style) Object.assign(p, style);
   if (p.name == null && f.id) p.name = f.id;
   // Normalize common KML fields used by the map/search layer.
@@ -85,15 +105,4 @@ const output = JSON.stringify({
 });
 await fs.mkdir(path.dirname(outPath), {recursive:true});
 await fs.writeFile(outPath, output);
-
-// Cloudflare Workers Static Assets expects the configured assets directory.
-// Keep the source files at project root for local development, then mirror
-// the deployable static site into ./public during the build.
-const publicDir = path.join(ROOT, 'public');
-await fs.rm(publicDir, { recursive: true, force: true });
-await fs.mkdir(path.join(publicDir, 'gis'), { recursive: true });
-await fs.copyFile(path.join(ROOT, 'index.html'), path.join(publicDir, 'index.html'));
-await fs.copyFile(outPath, path.join(publicDir, 'gis', 'master.geojson'));
-
 console.log(`GIS build complete: ${geo.features?.length || 0} features -> ${path.relative(ROOT,outPath)}`);
-console.log('Static assets prepared -> public/');

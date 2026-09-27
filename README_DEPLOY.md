@@ -1,34 +1,8 @@
-# Bản đồ Thủy lợi — V12
+# Bản đồ Thủy lợi V12.3
 
-## Mục tiêu
-- Giữ nguyên giao diện và logic Bản đồ Thủy lợi hiện có.
-- GIS chạy độc lập từ `gis/master.geojson`, không phụ thuộc Render/Technical API.
-- Không dùng Cache API cho GIS để tránh giữ bản GeoJSON cũ khi debug/deploy.
-- Sửa lỗi `MultiPoint`.
-- Hiển thị đầy đủ Placemark từ `master.kmz`, gồm Point, LineString, Polygon và MultiGeometry.
-
-## Dữ liệu GIS
-Nguồn `gis_master/master.kmz` có 15.197 Placemark. V12 chuyển trực tiếp từng Placemark thành một GeoJSON Feature, giữ cả 9 Polygon và 4 GeometryCollection.
-
-## Cloudflare Workers Static Assets
-`wrangler.toml` dùng:
-
-```toml
-[assets]
-directory = "."
-not_found_handling = "single-page-application"
-```
-
-Không tạo thư mục `public/`. Khi deploy phải có ít nhất:
-- `index.html`
-- `gis/master.geojson`
-
-## Build lại GIS
-Nếu thay `gis_master/master.kmz`, chạy:
-
-```bash
-npm install
-npm run build
-```
-
-Sau đó kiểm tra `gis/master.geojson` có khoảng 15.197 features trước khi deploy.
+## Điểm sửa cuối
+- Giữ nguyên lõi bản đồ V12.x và GIS 15.197 đối tượng.
+- Sửa lỗi nghiêm trọng: standalone bootstrap không gọi được `initAiMap()` vì hàm chưa được expose ra `window`. V12.3 thêm `window.initAiMap = initAiMap`.
+- Chỉ dùng `wrangler.toml`; loại bỏ `wrangler.jsonc` xung đột.
+- Static Assets dùng thư mục gốc `.`; không dùng `public/`.
+- Runtime GIS: `/gis/master.geojson`.

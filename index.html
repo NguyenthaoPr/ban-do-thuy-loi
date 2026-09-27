@@ -3854,6 +3854,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       window.getCongTrinhType = function(properties, geometry) {
         const p = properties || {};
         const text = [p.name, p.description].filter(Boolean).join(' ').toLowerCase();
+        const textNoDiacritics = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const geometryType = geometry?.type || p.geometry_type || '';
         if (text.includes('cống') || text.includes('cong ') || text.includes('cống tưới') || text.includes('cống tiêu'))
           return 'cong';
@@ -3867,6 +3868,22 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         if (text.includes('tràn') || text.includes('tran ')) return 'tran';
         if (text.includes('cầu ') || text.startsWith('cầu')) return 'cau';
         if (text.includes('ống') || text.includes('ong ')) return 'ong';
+
+        // GIS có thể lưu tên không dấu (ví dụ: HO PHU NINH).
+        // Chỉ dùng dạng không dấu như lớp nhận diện bổ sung, giữ nguyên toàn bộ
+        // các điều kiện phân loại hiện hữu ở phía trên.
+        if (textNoDiacritics.includes('cong ') || textNoDiacritics.includes('cong tuoi') || textNoDiacritics.includes('cong tieu'))
+          return 'cong';
+        if (textNoDiacritics.includes('tram bom') || textNoDiacritics.includes('tb ')) return 'tram_bom';
+        if (textNoDiacritics.includes('ho ') || textNoDiacritics.startsWith('ho') || textNoDiacritics.includes('ho chua'))
+          return 'ho';
+        if (textNoDiacritics.includes('dap ') || textNoDiacritics.startsWith('dap')) return 'dap';
+        if (textNoDiacritics.includes('kenh ') || textNoDiacritics.includes('kenh chinh') || textNoDiacritics.includes('kenh nhanh'))
+          return 'kenh';
+        if (textNoDiacritics.includes('khu tuoi')) return 'khu_tuoi';
+        if (textNoDiacritics.includes('tran ')) return 'tran';
+        if (textNoDiacritics.includes('cau ') || textNoDiacritics.startsWith('cau')) return 'cau';
+        if (textNoDiacritics.includes('ong ')) return 'ong';
         if (geometryType === 'LineString') return 'kenh';
         return 'khac';
       };

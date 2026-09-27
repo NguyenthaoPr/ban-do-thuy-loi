@@ -6010,7 +6010,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 
             let lineWeight, lineOpacity;
 
-            if (zoom <= 8) {
+            if (zoom <= 7) {
               lineWeight = 1;
               lineOpacity = 0.00;
             } else if (zoom <= 10) {
@@ -6025,13 +6025,13 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             }
 
             // Zoom-based rendering: toàn cảnh ưu tiên cụm điểm;
-            // tuyến/vùng chỉ hiện rõ khi zoom gần.
+            // tuyến/vùng KMZ vẫn hiển thị từ zoom 8 để không tạo cảm giác mất GIS.
             if (nonPointLayer) {
               nonPointLayer.eachLayer(function(layer) {
                 if (!layer || !layer.setStyle) return;
                 const gt = layer.feature?.geometry?.type || '';
                 const isArea = gt === 'Polygon' || gt === 'MultiPolygon';
-                if (zoom <= 8) {
+                if (zoom <= 7) {
                   layer.setStyle({ weight: 0.8, opacity: 0, fillOpacity: 0 });
                   if (layer.closeTooltip) layer.closeTooltip();
                 } else {
@@ -6749,10 +6749,9 @@ if (description) {
             const feature = features[i];
             const geomType = feature?.geometry?.type;
             if (geomType === 'Point' || geomType === 'MultiPoint') {
-              const type = getCongTrinhType(feature.properties, feature.geometry);
-              if (["ho", "tram_bom", "dap"].includes(type)) {
-                pointFeatures.push(feature);
-              }
+              // KMZ master chứa toàn bộ điểm công trình; không giới hạn chỉ hồ/trạm bơm/đập.
+              // MarkerCluster + batch render giữ giao diện mobile ổn định.
+              pointFeatures.push(feature);
             } else if (feature?.geometry) {
               nonPointFeatures.push(feature);
             }
@@ -6775,7 +6774,7 @@ if (description) {
           aiMap.invalidateSize({ pan: false });
 
           mapAiStatus.textContent = TL_IS_MOBILE
-            ? '🗺️ Bản đồ nền đã sẵn sàng — đang tải dữ liệu theo từng phần...'
+            ? '🗺️ Bản đồ nền đã sẵn sàng — đang tải toàn bộ dữ liệu KMZ theo từng phần...'
             : '🗺️ Tuyến/khu tưới đang hiển thị — đang tải công trình...';
 
           let nonPointCursor = 0;

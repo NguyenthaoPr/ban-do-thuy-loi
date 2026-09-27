@@ -4075,6 +4075,9 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       // Chỉ thay nguồn dữ liệu LIVE/CHART; giữ nguyên Popup, UI,
       // marker, search, alert và toàn bộ logic bản đồ cũ.
       // =========================================================
+      // Direct AI_DATA source: same spreadsheet and GID used by api/ai-data.js.
+      // This keeps the live engine independent from a separate backend route.
+      const TL_AI_DATA_URL = 'https://docs.google.com/spreadsheets/d/1SJU9aCRZGWeAeHw6UfY_08HK8-A34kIlnrEiPJNEnko/gviz/tq?gid=1866404435&tqx=out:csv&tq=select%20*';
       const TL_LIVE_TIMEOUT = 7000;
       const TL_LIVE_CACHE_TTL = 60 * 1000;
       const TL_LIVE_MEMORY_CACHE = new Map();
@@ -5871,16 +5874,29 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       // GIS FAST CACHE – lần mở sau dùng dữ liệu đã tải gần nhất,
       // đồng thời âm thầm cập nhật nền để không làm người dùng chờ.
       // =========================================================
+      // Direct local GIS asset: the standalone map serves its own GeoJSON.
+      // No Render/Technical GIS API is required.
+      const GIS_DATA_URL = new URL('gis/master.geojson', document.baseURI).href;
+
       const TL_GIS_CACHE_NAME = 'thuyloi-gis-v1';
       const TL_GIS_CACHE_KEY = new Request(GIS_DATA_URL);
       const TL_GIS_CACHE_TTL = 10 * 60 * 1000; // 10 phút
+
+      function tlNormalizeGISPayload(payload) {
+        // Accept both the legacy API envelope and the direct GeoJSON asset.
+        if (payload && payload.success && payload.geojson) return payload;
+        if (payload && payload.type === 'FeatureCollection' && Array.isArray(payload.features)) {
+          return { success: true, geojson: payload };
+        }
+        throw new Error('Dữ liệu GeoJSON không hợp lệ.');
+      }
 
       async function tlFetchGISFast() {
         const cacheSupported = 'caches' in window;
         if (!cacheSupported) {
           const r = await fetch(GIS_DATA_URL, { method:'GET', cache:'default', mode:'cors', headers:{'Accept':'application/json'} });
-          if (!r.ok) throw new Error('Không thể truy cập /gis/data (' + r.status + ')');
-          return await r.json();
+          if (!r.ok) throw new Error('Không thể truy cập ' + GIS_DATA_URL + ' (' + r.status + ')');
+          return tlNormalizeGISPayload(await r.json());
         }
 
         const cache = await caches.open(TL_GIS_CACHE_NAME);
@@ -5896,7 +5912,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             method:'GET', cache:'no-store', mode:'cors',
             headers:{'Accept':'application/json','X-ThuyLoi-Cache':'revalidate'}
           });
-          if (!response.ok) throw new Error('Không thể truy cập /gis/data (' + response.status + ')');
+          if (!response.ok) throw new Error('Không thể truy cập ' + GIS_DATA_URL + ' (' + response.status + ')');
           const clone = response.clone();
           try {
             const h = new Headers(clone.headers);
@@ -5904,13 +5920,12 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             const body = await clone.blob();
             await cache.put(TL_GIS_CACHE_KEY, new Response(body, {status:clone.status, statusText:clone.statusText, headers:h}));
           } catch(e) { /* cache chỉ là tối ưu, không được làm hỏng bản đồ */ }
-          return await response.json();
+          return tlNormalizeGISPayload(await response.json());
         };
 
         if (cached && cachedAge <= TL_GIS_CACHE_TTL) {
-          // Trả dữ liệu cache ngay; cập nhật nền không chặn giao diện.
           fetchFresh().catch(e => console.warn('[GIS] Background refresh:', e));
-          return await cached.json();
+          return tlNormalizeGISPayload(await cached.json());
         }
 
         try {
@@ -5918,7 +5933,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         } catch (e) {
           if (cached) {
             console.warn('[GIS] Dùng cache cũ vì mạng/API chậm:', e);
-            return await cached.json();
+            return tlNormalizeGISPayload(await cached.json());
           }
           throw e;
         }
@@ -6063,14 +6078,10 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           gisSearchReady = false;
           searchIndex = [];
 
-          // GIS API nằm trên Render, còn giao diện có thể chạy trên GitHub Pages/Vercel/preview.
-          // Vì vậy phải gọi URL tuyệt đối thay vì fetch('/gis/data').
+          // Bản đồ độc lập: GIS được phục vụ trực tiếp từ /gis/master.geojson.
           console.log('[GIS] Data URL:', GIS_DATA_URL);
           const result = await tlFetchGISFast();
-          if (!result || !result.success) {
-            throw new Error(result?.message || 'API GIS trả về lỗi.');
-          }
-          const geojson = result.geojson;
+          const geojson = result?.geojson;
           if (!geojson || !Array.isArray(geojson.features)) {
             throw new Error('Dữ liệu GeoJSON không hợp lệ.');
           }
@@ -7589,6 +7600,9 @@ if (description) {
     legendBody.style.display=hidden?'flex':'none';
     legendToggle.textContent=hidden?'−':'+';
   });
+
+  // expose the existing map initializer to the standalone bootstrap
+  window.initAiMap=initAiMap;
 
   // expose references for the UI without changing the existing map logic
   const syncGlobals=function(){

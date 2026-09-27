@@ -5904,19 +5904,14 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       if(tlAlertClose) tlAlertClose.addEventListener('click',tlCloseAlertSheet);
 
       // =========================================================
-      // GIS FAST CACHE – lần mở sau dùng dữ liệu đã tải gần nhất,
-      // đồng thời âm thầm cập nhật nền để không làm người dùng chờ.
+      // GIS V12 — DIRECT ASSET / NO STALE CACHE
+      // Nguồn duy nhất: /gis/master.geojson được phát hành cùng repository.
+      // Không phụ thuộc Render, Technical API hay Cache API của trình duyệt.
       // =========================================================
-      // Direct local GIS asset: the standalone map serves its own GeoJSON.
-      // No Render/Technical GIS API is required.
-      const GIS_DATA_URL = new URL('gis/master.geojson', document.baseURI).href;
-
-      const TL_GIS_CACHE_NAME = 'thuyloi-gis-v1';
-      const TL_GIS_CACHE_KEY = new Request(GIS_DATA_URL);
-      const TL_GIS_CACHE_TTL = 10 * 60 * 1000; // 10 phút
+      const GIS_DATA_URL = new URL('/gis/master.geojson', window.location.origin).href;
+      const GIS_EXPECTED_MIN_FEATURES = 15000;
 
       function tlNormalizeGISPayload(payload) {
-        // Accept both the legacy API envelope and the direct GeoJSON asset.
         if (payload && payload.success && payload.geojson) return payload;
         if (payload && payload.type === 'FeatureCollection' && Array.isArray(payload.features)) {
           return { success: true, geojson: payload };
@@ -5925,50 +5920,36 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       }
 
       async function tlFetchGISFast() {
-        const cacheSupported = 'caches' in window;
-        if (!cacheSupported) {
-          const r = await fetch(GIS_DATA_URL, { method:'GET', cache:'default', mode:'cors', headers:{'Accept':'application/json'} });
-          if (!r.ok) throw new Error('Không thể truy cập ' + GIS_DATA_URL + ' (' + r.status + ')');
-          return tlNormalizeGISPayload(await r.json());
-        }
-
-        const cache = await caches.open(TL_GIS_CACHE_NAME);
-        const cached = await cache.match(TL_GIS_CACHE_KEY);
-        let cachedAge = Infinity;
-        if (cached) {
-          const stamp = Number(cached.headers.get('x-thuyloi-cache-time') || 0);
-          cachedAge = stamp ? Date.now() - stamp : Infinity;
-        }
-
-        const fetchFresh = async () => {
-          const response = await fetch(GIS_DATA_URL, {
-            method:'GET', cache:'no-store', mode:'cors',
-            headers:{'Accept':'application/json','X-ThuyLoi-Cache':'revalidate'}
-          });
-          if (!response.ok) throw new Error('Không thể truy cập ' + GIS_DATA_URL + ' (' + response.status + ')');
-          const clone = response.clone();
-          try {
-            const h = new Headers(clone.headers);
-            h.set('x-thuyloi-cache-time', String(Date.now()));
-            const body = await clone.blob();
-            await cache.put(TL_GIS_CACHE_KEY, new Response(body, {status:clone.status, statusText:clone.statusText, headers:h}));
-          } catch(e) { /* cache chỉ là tối ưu, không được làm hỏng bản đồ */ }
-          return tlNormalizeGISPayload(await response.json());
-        };
-
-        if (cached && cachedAge <= TL_GIS_CACHE_TTL) {
-          fetchFresh().catch(e => console.warn('[GIS] Background refresh:', e));
-          return tlNormalizeGISPayload(await cached.json());
-        }
-
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 60000);
         try {
-          return await fetchFresh();
-        } catch (e) {
-          if (cached) {
-            console.warn('[GIS] Dùng cache cũ vì mạng/API chậm:', e);
-            return tlNormalizeGISPayload(await cached.json());
+          mapAiStatus.style.display = 'block';
+          mapAiStatus.textContent = '⏳ Đang tải dữ liệu GIS thủy lợi...';
+          const response = await fetch(GIS_DATA_URL + '?v=12', {
+            method: 'GET',
+            cache: 'no-store',
+            mode: 'cors',
+            headers: { 'Accept': 'application/geo+json, application/json' },
+            signal: controller.signal
+          });
+          if (!response.ok) throw new Error('HTTP ' + response.status + ' khi tải ' + GIS_DATA_URL);
+          const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+          const text = await response.text();
+          if (!text.trim().startsWith('{')) {
+            throw new Error('URL GIS không trả về JSON. Content-Type=' + contentType);
           }
-          throw e;
+          let payload;
+          try { payload = JSON.parse(text); }
+          catch (e) { throw new Error('GeoJSON không parse được: ' + e.message); }
+          const result = tlNormalizeGISPayload(payload);
+          const count = result.geojson.features.length;
+          if (count < GIS_EXPECTED_MIN_FEATURES) {
+            throw new Error('GeoJSON thiếu dữ liệu: chỉ có ' + count.toLocaleString('vi-VN') + ' đối tượng, cần tối thiểu ' + GIS_EXPECTED_MIN_FEATURES.toLocaleString('vi-VN') + '.');
+          }
+          console.log('[GIS V12] Loaded:', { url: GIS_DATA_URL, contentType, bytes: text.length, features: count });
+          return result;
+        } finally {
+          clearTimeout(timeout);
         }
       }
 
@@ -5980,6 +5961,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         // PERF PATCH: Leaflet/MarkerCluster giờ được nạp lười (xem loader
         // cuối trang). Đợi nạp xong trước khi dùng L — không đổi logic bản đồ.
         if (typeof L === 'undefined') {
+          mapAiStatus.style.display = 'block';
           mapAiStatus.textContent = '⏳ Đang tải thư viện bản đồ...';
           try {
             await window.tlEnsureLeaflet();
@@ -5993,6 +5975,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           return;
         }
         try {
+          mapAiStatus.style.display = 'block';
           mapAiStatus.textContent = '⏳ Đang khởi tạo bản đồ...';
           aiMap = L.map('aiMap', { zoomControl: true, preferCanvas: true });
           // Bộ nền bản đồ — chuyển lớp tức thời, không cần khởi tạo lại Leaflet.
@@ -6774,10 +6757,24 @@ if (description) {
           for (let i = 0; i < features.length; i++) {
             const feature = features[i];
             const geomType = feature?.geometry?.type;
-            if (geomType === 'Point' || geomType === 'MultiPoint') {
+            if (geomType === 'Point') {
               // KMZ master chứa toàn bộ điểm công trình; không giới hạn chỉ hồ/trạm bơm/đập.
-              // MarkerCluster + batch render giữ giao diện mobile ổn định.
               pointFeatures.push(feature);
+            } else if (geomType === 'MultiPoint') {
+              // GeoJSON MultiPoint phải được tách thành các Point marker; tránh lỗi
+              // latLng([ [lon,lat], ... ]) trên mobile và vẫn giữ nguyên properties.
+              const coordsList = Array.isArray(feature.geometry.coordinates) ? feature.geometry.coordinates : [];
+              for (let m = 0; m < coordsList.length; m++) {
+                const c = coordsList[m];
+                if (Array.isArray(c) && c.length >= 2) {
+                  pointFeatures.push({
+                    type: 'Feature',
+                    properties: feature.properties || {},
+                    geometry: { type: 'Point', coordinates: c },
+                    _tlSourceFeature: feature
+                  });
+                }
+              }
             } else if (feature?.geometry) {
               nonPointFeatures.push(feature);
             }
@@ -6898,6 +6895,7 @@ if (description) {
               mapAiStatus.textContent =
                 '✅ Bản đồ đã hiển thị ' + features.length.toLocaleString('vi-VN') +
                 ' đối tượng.';
+              setTimeout(function(){ mapAiStatus.style.display = 'none'; }, 1800);
 
               // Search Index tuyệt đối không được tranh CPU với lần render đầu.
               // Mobile chờ lâu hơn; dữ liệu bản đồ vẫn dùng được trong thời gian này.
@@ -6924,8 +6922,9 @@ if (description) {
           gisSearchReady = false;
           searchIndex = [];
           if (searchResults) searchResults.style.display = 'none';
+          mapAiStatus.style.display = 'block';
           mapAiStatus.textContent =
-            '⚠️ Bản đồ nền đã mở nhưng chưa tải được dữ liệu thủy lợi. Kiểm tra kết nối GIS.';
+            '⚠️ Không tải được GIS: ' + (error?.message || 'lỗi không xác định');
           console.error('[GIS] Không tải được dữ liệu:', { url: GIS_DATA_URL, error: error });
         }
       }
@@ -7700,9 +7699,25 @@ if (description) {
   /* Các thành phần chỉ là lớp trình bày, không xóa DOM để không ảnh hưởng JS */
   #mapAiPanel .map-quick-chips,
   #mapAiPanel #mapHud,
-  #mapAiPanel #mapLegend,
-  #mapAiPanel #mapAiStatus {
+  #mapAiPanel #mapLegend {
     display: none !important;
+  }
+  #mapAiPanel #mapAiStatus {
+    display: none;
+    position: fixed;
+    left: 50%;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 9500;
+    max-width: min(92vw, 520px);
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(8,20,35,.88);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.25;
+    box-shadow: 0 8px 28px rgba(0,0,0,.22);
+    pointer-events: none;
   }
 
   /* Khi bỏ chip, đưa cụm điều khiển nổi lên gần thanh tìm kiếm */

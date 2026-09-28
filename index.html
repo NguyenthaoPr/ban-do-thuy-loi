@@ -4261,7 +4261,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 
         TL_AI_DATA_INFLIGHT = (async () => {
           try {
-            const proxyUrl = TL_AI_DATA_URL + (TL_AI_DATA_URL.includes('?') ? '&' : '?') + '_ts=' + Date.now();
+            const proxyUrl = TL_AI_DATA_URL + (TL_AI_DATA_URL.includes('?') ? '&' : '?') + (force ? 'force=1' : 'v=1');
             try {
               const rows = await fetchCsv(proxyUrl);
               TL_AI_DATA_ROWS_CACHE = rows;
@@ -4354,14 +4354,14 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       }
       function tlAiParameterCode(name) {
         const n=tlAiNorm(name);
-        if(['h','h m','muc nuoc','muc nuoc ht','muc nuoc hien tai'].includes(n)) return 'WATER_LEVEL';
-        if(['htl','htl m','muc nuoc thuong luu'].includes(n)||n.startsWith('htl ')) return 'WATER_LEVEL_UPSTREAM';
-        if(['hhl','hhl m','muc nuoc ha luu'].includes(n)||n.startsWith('hhl ')) return 'WATER_LEVEL_DOWNSTREAM';
-        if(['x','x mm','luong mua','mua','rainfall'].includes(n)) return 'RAINFALL';
-        if(['x t1','x t1 mm'].includes(n)) return 'RAINFALL_T1';
-        if(['x c24','x c24 mm'].includes(n)) return 'RAINFALL_C24';
-        if(['q','q m3 s','q m3s','luu luong','flow','discharge'].includes(n)) return 'FLOW';
-        if(['do man','doman','salinity','man','s'].includes(n)) return 'SALINITY';
+        if(/(^| )(htl|muc nuoc thuong luu|muc nuoc thuong luu m|water level upstream|waterlevel upstream)( |$)/.test(n)) return 'WATER_LEVEL_UPSTREAM';
+        if(/(^| )(hhl|muc nuoc ha luu|muc nuoc ha luu m|water level downstream|waterlevel downstream)( |$)/.test(n)) return 'WATER_LEVEL_DOWNSTREAM';
+        if(/(^| )(h|h m|muc nuoc|muc nuoc ho|muc nuoc ht|muc nuoc hien tai|water level|waterlevel|level|z)( |$)/.test(n)) return 'WATER_LEVEL';
+        if(/(^| )(x c24|x c24 mm|rainfall c24|rainfall c24 mm|mua c24|mua 24h)( |$)/.test(n)) return 'RAINFALL_C24';
+        if(/(^| )(x t1|x t1 mm|rainfall t1|rainfall t1 mm|mua t1)( |$)/.test(n)) return 'RAINFALL_T1';
+        if(/(^| )(x|x mm|luong mua|luong mua mm|mua|rainfall|rain|precipitation)( |$)/.test(n)) return 'RAINFALL';
+        if(/(^| )(q|q m3 s|q m3s|luu luong|luu luong m3 s|flow|discharge)( |$)/.test(n)) return 'FLOW';
+        if(/(^| )(do man|do man per mille|doman|salinity|man|s)( |$)/.test(n)) return 'SALINITY';
         return null;
       }
       function tlAiFacilityKey(v) {
@@ -4382,14 +4382,124 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
           return fk && n && (n===fk || n.includes(fk) || fk.includes(n));
         });
       }
+      function tlAiWideDateTime(row) {
+        const rawDate = tlAiField(row, ['ngay','date','ngay quan trac','ngay do']);
+        const rawTime = tlAiField(row, ['gio','time','thoi gian','thoigian','ngay gio','ngaygio']);
+        if (rawDate == null && rawTime == null) return null;
+        if (rawDate != null && rawTime != null) {
+          const d = tlAiDateTimeParts(rawDate, rawTime);
+          if (d) return d;
+        }
+        return tlAiDate(rawDate ?? rawTime);
+      }
+      function tlAiDateTimeParts(rawDate, rawTime) {
+        if (rawDate == null || rawDate === '') return tlAiDate(rawTime);
+        const d = tlAiDate(rawDate);
+        if (!d) return null;
+        if (rawTime != null && String(rawTime).trim() !== '') {
+          const t = String(rawTime).trim();
+          let hour = 0, minute = 0, second = 0;
+          const hm = t.match(/(\d{1,2})[:h](\d{1,2})(?::(\d{1,2}))?/i);
+          if (hm) {
+            hour = Number(hm[1]) || 0;
+            minute = Number(hm[2]) || 0;
+            second = Number(hm[3]) || 0;
+          } else {
+            const hn = Number(t.replace(',', '.'));
+            if (Number.isFinite(hn)) {
+              hour = Math.floor(hn);
+              minute = Math.round((hn - hour) * 60);
+            }
+          }
+          d.setHours(Math.max(0, Math.min(23, hour)), Math.max(0, Math.min(59, minute)), Math.max(0, Math.min(59, second)), 0);
+        }
+        return d;
+      }
+
+      // Chuyển mọi kiểu AI_DATA (long hoặc wide) về cùng một cấu trúc quan trắc.
+      // Đây là lớp tương thích dữ liệu; không thay đổi Popup/GIS/marker/search.
+      function tlAiObservations(rows) {
+        const data = Array.isArray(rows) ? rows : [];
+        const long = tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || data);
+        const out = [];
+        if (long) {
+          for (const row of data) {
+            const facility = String(tlAiLongCell(row, 4) || '').trim();
+            const parameter = String(tlAiLongCell(row, 6) || '').trim();
+            const unit = String(tlAiLongCell(row, 7) || '').trim();
+            const value = tlAiLongCell(row, 8);
+            const dt = tlAiDateTime(row);
+            if (!facility || !parameter || !dt || !Number.isFinite(tlAiNum(value))) continue;
+            out.push({
+              row,
+              facility,
+              code: String(tlAiField(row, TL_AI_FIELDS.code) || '').trim(),
+              parameter,
+              unit,
+              value,
+              dt,
+              parameterCode: tlAiParameterCode(parameter)
+            });
+          }
+          return out;
+        }
+
+        // Wide format: một dòng có thể chứa đồng thời WATER_LEVEL, RAINFALL,
+        // FLOW, SALINITY... Trước đây adapter chỉ tìm cột "Thông số/Giá trị"
+        // nên các dòng wide bị coi như không có dữ liệu.
+        const parameterColumns = [
+          { code:'WATER_LEVEL_UPSTREAM', aliases:TL_AI_FIELDS.water.filter(x => /upstream|thuong luu|htl|water.?level.?upstream/i.test(x)) , unit:'m' },
+          { code:'WATER_LEVEL_DOWNSTREAM', aliases:TL_AI_FIELDS.water.filter(x => /downstream|ha luu|hhl|water.?level.?downstream/i.test(x)) , unit:'m' },
+          { code:'WATER_LEVEL', aliases:['water_level','water level','muc nuoc','mucnuoc','muc nuoc ht','muc nuoc hien tai','h','z','level','waterlevel'], unit:'m' },
+          { code:'RAINFALL_T1', aliases:['rainfall_t1','rainfall t1','x t1','x_t1','mua t1'], unit:'mm' },
+          { code:'RAINFALL_C24', aliases:['rainfall_c24','rainfall c24','x c24','x_c24','mua c24','mua 24h'], unit:'mm' },
+          { code:'RAINFALL', aliases:['rainfall','rain','precipitation','luong mua','luongmua','mua','x'], unit:'mm' },
+          { code:'FLOW', aliases:['flow','discharge','luu luong','luuluong','q','q m3 s','q m3s'], unit:'m³/s' },
+          { code:'SALINITY', aliases:['salinity','do man','doman','man','s'], unit:'‰' }
+        ];
+        for (const row of data) {
+          const facility = String(tlAiField(row, TL_AI_FIELDS.facility) || '').trim();
+          if (!facility) continue;
+          const code = String(tlAiField(row, TL_AI_FIELDS.code) || '').trim();
+          const dt = tlAiWideDateTime(row);
+          if (!dt) continue;
+          for (const spec of parameterColumns) {
+            const value = tlAiField(row, spec.aliases);
+            if (value == null || value === '' || !Number.isFinite(tlAiNum(value))) continue;
+            const unit = String(tlAiField(row, [
+              ...spec.aliases.map(a => `${a} unit`),
+              ...spec.aliases.map(a => `${a} don vi`),
+              'don vi','don vi do','unit'
+            ]) || spec.unit).trim();
+            out.push({
+              row,
+              facility,
+              code,
+              parameter: spec.code,
+              unit,
+              value,
+              dt,
+              parameterCode: spec.code
+            });
+          }
+        }
+        return out;
+      }
+
       function tlAiLatestByParameter(rows,codes){
         const map=new Map();
-        for(const r of rows||[]){
-          const parameter=String(tlAiParameter(r)||'').trim();
-          const code=tlAiParameterCode(parameter);
-          const dt=tlAiDateTime(r); const value=tlAiNum(tlAiValue(r));
-          if(!dt||!Number.isFinite(value)||!codes.includes(code))continue;
-          const old=map.get(code); if(!old||dt>old.dt) map.set(code,{r,parameter,code,dt,value,unit:tlAiUnit(r)});
+        for(const item of tlAiObservations(rows)){
+          const code=item.parameterCode || tlAiParameterCode(item.parameter);
+          if(!item.dt || !Number.isFinite(tlAiNum(item.value)) || !codes.includes(code)) continue;
+          const old=map.get(code);
+          if(!old || item.dt>old.dt) map.set(code, {
+            r:item.row,
+            parameter:item.parameter,
+            code,
+            dt:item.dt,
+            value:tlAiNum(item.value),
+            unit:item.unit
+          });
         }
         return map;
       }
@@ -4402,7 +4512,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         const rain=rainMap.get('RAINFALL')||rainMap.get('RAINFALL_T1')||rainMap.get('RAINFALL_C24')||null;
         const flow=flowMap.get('FLOW')||null;
         const sal=salMap.get('SALINITY')||null;
-        if(!water&&!rain&&!flow&&!sal) throw Object.assign(new Error(`Công trình "${facility}" đã khớp tên nhưng chưa có bản ghi quan trắc hợp lệ.`),{status:404});
+        if(!water&&!rain&&!flow&&!sal) throw Object.assign(new Error(`Công trình "${facility}" đã khớp tên nhưng chưa có bản ghi quan trắc hợp lệ.`),{status:404,code:'NO_VALID_DATA'});
         return {ok:true,data:{
           water_level:water?{value:water.value,unit:water.unit||'m',parameter:water.parameter,time:water.dt.toISOString()}:null,
           flow:flow?{value:flow.value,unit:flow.unit||'m³/s',parameter:flow.parameter,time:flow.dt.toISOString()}:null,
@@ -4421,7 +4531,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         const promise=(async()=>{
           const rows=await tlLoadAIData(force);
           const matched=tlAiMatchRows(rows,key,code);
-          if(!matched.length)throw Object.assign(new Error(`Không tìm thấy công trình "${key}" trong AI_DATA.`),{status:404});
+          if(!matched.length)throw Object.assign(new Error(`Không tìm thấy công trình "${key}" trong AI_DATA.`),{status:404,code:'NO_MATCH'});
           const data=tlAiPayload(matched,key); TL_LIVE_MEMORY_CACHE.set(key,{timestamp:Date.now(),data}); return data;
         })();
         TL_LIVE_INFLIGHT.set(key,promise);try{return await promise;}finally{TL_LIVE_INFLIGHT.delete(key);}
@@ -4430,9 +4540,9 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       async function tlFetchChartHistory(facilityName,code){
         const key=String(facilityName||'')+'|'+String(code||''); const cached=TL_CHART_CACHE.get(key); if(cached&&Date.now()-cached.timestamp<TL_CHART_CACHE_TTL)return cached.points;
         try{
-          const rows=await tlLoadAIData(false),matched=tlAiMatchRows(rows,facilityName,code),water=matched.map(r=>({t:tlAiDateTime(r),parameter:String(tlAiParameter(r)||''),v:tlAiNum(tlAiValue(r))})).filter(x=>x.t&&Number.isFinite(x.v)&&['WATER_LEVEL','WATER_LEVEL_UPSTREAM','WATER_LEVEL_DOWNSTREAM'].includes(tlAiParameterCode(x.parameter)));
-          const preferred=water.find(x=>tlAiParameterCode(x.parameter)==='WATER_LEVEL_UPSTREAM')?.parameter||water.find(x=>tlAiParameterCode(x.parameter)==='WATER_LEVEL')?.parameter||water[0]?.parameter;
-          const points=water.filter(x=>x.parameter===preferred).sort((a,b)=>a.t-b.t).slice(-1000).map(x=>({t:x.t.toISOString(),v:x.v}));
+          const rows=await tlLoadAIData(false),matched=tlAiMatchRows(rows,facilityName,code),water=tlAiObservations(matched).filter(x=>['WATER_LEVEL','WATER_LEVEL_UPSTREAM','WATER_LEVEL_DOWNSTREAM'].includes(x.parameterCode)).map(x=>({t:x.dt,parameter:x.parameterCode,v:tlAiNum(x.value)})).filter(x=>x.t&&Number.isFinite(x.v));
+          const preferredCode=water.find(x=>x.parameter==='WATER_LEVEL_UPSTREAM')?.parameter||water.find(x=>x.parameter==='WATER_LEVEL')?.parameter||water[0]?.parameter;
+          const points=water.filter(x=>x.parameter===preferredCode).sort((a,b)=>a.t-b.t).slice(-1000).map(x=>({t:x.t.toISOString(),v:x.v}));
           if(points.length)TL_CHART_CACHE.set(key,{timestamp:Date.now(),points}); return points;
         }catch(e){console.warn('📈 AI_DATA chart error',facilityName,e);return[];}
       }
@@ -4704,14 +4814,16 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 
         const status = Number(error?.status);
         const notFound = status === 404;
+        const noMatch = notFound && error?.code === 'NO_MATCH';
+        const noValid = notFound && error?.code === 'NO_VALID_DATA';
         body.innerHTML = `
           <div class="tl-live-error">
-            ${notFound ? 'ℹ️ Chưa có số liệu quan trắc cho công trình này trong AI_DATA.' : '⚠️ Chưa lấy được số liệu quan trắc thực tế.'}
-            ${!notFound ? '<br><span style="font-size:9px;">' + esc(error?.message || 'AI_DATA không phản hồi.') + '</span>' : ''}
+            ${noMatch ? 'ℹ️ Đã đọc AI_DATA nhưng chưa khớp tên/mã công trình.' : noValid ? 'ℹ️ Đã khớp công trình nhưng chưa nhận diện được thông số quan trắc hợp lệ.' : notFound ? 'ℹ️ Chưa có số liệu quan trắc cho công trình này trong AI_DATA.' : '⚠️ Chưa lấy được số liệu quan trắc thực tế.'}
+            ${error?.message ? '<br><span style="font-size:9px;">' + esc(error.message) + '</span>' : ''}
             <button type="button" class="tl-live-refresh">🔄 Thử lại</button>
           </div>
         `;
-        if (updated) updated.textContent = notFound ? 'Chưa có dữ liệu' : 'Tạm thời lỗi';
+        if (updated) updated.textContent = notFound ? (noValid ? 'Có công trình • thiếu thông số' : 'Chưa khớp dữ liệu') : 'Tạm thời lỗi';
         card.dataset.tlLive = 'error';
 
         const refresh = body.querySelector('.tl-live-refresh');

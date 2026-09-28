@@ -4173,7 +4173,8 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       // =========================================================
       // Direct AI_DATA source: same spreadsheet and GID used by api/ai-data.js.
       // This keeps the live engine independent from a separate backend route.
-      const TL_AI_DATA_URL = 'https://docs.google.com/spreadsheets/d/1SJU9aCRZGWeAeHw6UfY_08HK8-A34kIlnrEiPJNEnko/gviz/tq?gid=1866404435&tqx=out:csv&tq=select%20*';
+      const TL_AI_DATA_URL = (window.location.origin || '') + '/api/ai-data';
+      const TL_AI_DATA_DIRECT_URL = 'https://docs.google.com/spreadsheets/d/1SJU9aCRZGWeAeHw6UfY_08HK8-A34kIlnrEiPJNEnko/gviz/tq?gid=1866404435&tqx=out:csv&tq=select%20*';
       const TL_LIVE_TIMEOUT = 7000;
       const TL_LIVE_CACHE_TTL = 60 * 1000;
       const TL_LIVE_MEMORY_CACHE = new Map();
@@ -4257,10 +4258,25 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         TL_AI_DATA_INFLIGHT=(async()=>{
           const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),TL_LIVE_TIMEOUT);
           try{
-            const u=TL_AI_DATA_URL+(TL_AI_DATA_URL.includes('?')?'&':'?')+'_ts='+Date.now();
-            const r=await fetch(u,{cache:'no-store',mode:'cors',headers:{Accept:'text/csv,text/plain,*/*'},signal:controller.signal});
-            if(!r.ok)throw new Error('AI_DATA HTTP '+r.status);
-            const rows=tlAiCsv(await r.text()); if(!rows.length)throw new Error('AI_DATA không có dữ liệu');
+            const urls = [
+              TL_AI_DATA_URL,
+              TL_AI_DATA_DIRECT_URL
+            ].filter(Boolean);
+            let lastError = null;
+            let rows = [];
+            for (const baseUrl of urls) {
+              try {
+                const u=baseUrl+(baseUrl.includes('?')?'&':'?')+'_ts='+Date.now();
+                const r=await fetch(u,{cache:'no-store',mode:'cors',headers:{Accept:'text/csv,text/plain,*/*'},signal:controller.signal});
+                if(!r.ok) throw new Error('AI_DATA HTTP '+r.status);
+                rows=tlAiCsv(await r.text());
+                if(rows.length) break;
+                throw new Error('AI_DATA không có dữ liệu');
+              } catch (err) {
+                lastError = err;
+              }
+            }
+            if(!rows.length) throw (lastError || new Error('AI_DATA không có dữ liệu'));
             TL_AI_DATA_ROWS_CACHE=rows; TL_AI_DATA_CACHE_TIME=Date.now();
             try{sessionStorage.setItem('TL_AI_DATA_LAST_OK_V2',JSON.stringify({time:Date.now(),rows}));}catch(_){ }
             return rows;
@@ -4287,7 +4303,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
           rainfall:(val(TL_AI_FIELDS.rain)==null?null:{value:val(TL_AI_FIELDS.rain),unit:'mm',parameter:'Lượng mưa',time}),
           salinity:(val(TL_AI_FIELDS.salinity)==null?null:{value:val(TL_AI_FIELDS.salinity),unit:'‰',parameter:'Độ mặn',time}),
           limits:{MNDBT:val(TL_AI_FIELDS.mndbt),MNDGC:val(TL_AI_FIELDS.mndgc)},
-          status:{level:'info',label:'AI_DATA'},updated_label:time?tlLiveTimeLabel(time):'AI_DATA',source:'AI_DATA trực tiếp'
+          status:{level:'info',label:'AI_DATA'},updated_label:time?tlLiveTimeLabel(time):'AI_DATA',source:'AI_DATA qua Cloudflare /api/ai-data'
         }};
       }
       async function tlFetchLive(facility,force=false){
@@ -4638,6 +4654,27 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         if (card.dataset.tlLiveBound !== '1') {
           card.dataset.tlLiveBound = '1';
           tlLoadLiveForPopup(card, facility, false);
+
+          // Tự cập nhật popup đang mở mỗi 60 giây; đóng popup thì dừng timer.
+          if (!layer._tlLiveAutoRefreshBound) {
+            layer._tlLiveAutoRefreshBound = true;
+            layer._tlLiveAutoRefreshTimer = null;
+            layer.on('popupopen', function() {
+              if (layer._tlLiveAutoRefreshTimer) clearInterval(layer._tlLiveAutoRefreshTimer);
+              layer._tlLiveAutoRefreshTimer = setInterval(function() {
+                const currentPopup = layer.getPopup()?.getElement?.();
+                const currentCard = currentPopup?.querySelector('.tl-live-card');
+                if (!currentCard) return;
+                tlLoadLiveForPopup(currentCard, currentCard.dataset.tlLiveFacility || facility, true);
+              }, 60000);
+            });
+            layer.on('popupclose', function() {
+              if (layer._tlLiveAutoRefreshTimer) {
+                clearInterval(layer._tlLiveAutoRefreshTimer);
+                layer._tlLiveAutoRefreshTimer = null;
+              }
+            });
+          }
         }
       }
 
@@ -6120,14 +6157,14 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               lineWeight = 1;
               lineOpacity = 0.00;
             } else if (zoom <= 10) {
-              lineWeight = 1.1;
-              lineOpacity = 0.28;
-            } else if (zoom <= 12) {
               lineWeight = 1.8;
-              lineOpacity = 0.62;
+              lineOpacity = 0.72;
+            } else if (zoom <= 12) {
+              lineWeight = 2.2;
+              lineOpacity = 0.82;
             } else {
               lineWeight = 3;
-              lineOpacity = 0.90;
+              lineOpacity = 0.95;
             }
 
             // Zoom-based rendering: toàn cảnh ưu tiên cụm điểm;
@@ -6164,7 +6201,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             // ======================================================
             if (!nonPointLayer) return;
 
-            const showLabels = zoom >= 12;
+            const showLabels = zoom >= 11;
             const mapBounds = aiMap.getBounds();
 
             nonPointLayer.eachLayer(function(layer) {
@@ -6424,9 +6461,12 @@ function getGISFeatureColor(feature) {
 
   const p = feature?.properties || {};
 
+  // KML dùng AABBGGRR; phải chuyển sang CSS #RRGGBB.
+  // Nếu đã là màu CSS thì giữ nguyên.
+  const kmlColor = getKMLColor(feature);
+  if (kmlColor) return kmlColor;
+
   return (
-    p.kmlColor ||
-    p.KMLColor ||
     p.styleColor ||
     p.StyleColor ||
     p.color ||

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>THỦY LỢI VIEW 3D – Vu Gia Thu Bồn</title>
+<link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css">
+<style>
+html,body,#map{width:100%;height:100%;margin:0;overflow:hidden;background:#06111c;font-family:system-ui}
+.panel{position:absolute;z-index:5;top:12px;left:12px;width:min(390px,calc(100% - 24px));padding:14px;border-radius:18px;background:rgba(5,18,30,.88);color:#fff;border:1px solid #24505a;backdrop-filter:blur(12px)}
+h2{margin:0;font-size:18px}.sub{color:#9eb2bb;font-size:12px;margin:4px 0 10px}
+.row{display:flex;gap:7px;margin:7px 0}.row input{flex:1;padding:10px;border-radius:10px;border:1px solid #31515a;background:#102431;color:#fff}
+button{padding:9px 11px;border-radius:10px;border:1px solid #347f82;background:#123c42;color:#dff; font-weight:700}
+#status{font-size:12px;line-height:1.45;color:#bcd0d6}.ok{color:#71f0bc!important}.err{color:#ff9a9a!important}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.stat{background:#102431;padding:8px;border-radius:9px;text-align:center}.n{font-weight:800;font-size:16px}.l{font-size:9px;color:#8da3ab}
+.hint{font-size:10px;color:#8298a2;margin-top:8px}
+#mode{position:absolute;z-index:5;bottom:16px;left:50%;transform:translateX(-50%);padding:9px 14px;border-radius:99px;background:rgba(5,18,30,.86);color:#dff;border:1px solid #24505a;font-size:11px}
+@media(max-width:600px){h2{font-size:16px}}
+</style></head>
+<body>
+<div id="map"></div>
+<div class="panel">
+<h2>🌐 THỦY LỢI VIEW — 3D</h2><div class="sub">VU GIA – THU BỒN · thử nghiệm thật</div>
+<div class="row"><input id="token" type="password" placeholder="Cesium Ion Access Token"><button id="start">Khởi động</button></div>
+<div class="row"><button id="fly">📍 Vu Gia–Thu Bồn</button><button id="load">🗺️ Nạp GIS</button></div>
+<div id="status">Đang khởi tạo…</div>
+<div class="stats"><div class="stat"><div id="fc" class="n">—</div><div class="l">GIS</div></div><div class="stat"><div id="pc" class="n">—</div><div class="l">ĐIỂM</div></div><div class="stat"><div id="lc" class="n">—</div><div class="l">ĐƯỜNG/VÙNG</div></div></div>
+<div class="hint">Nguồn GIS: <b>gis/master.geojson</b>. Đặt file này cùng dự án hiện tại để nạp chính dữ liệu thủy lợi.</div>
+</div>
+<div id="mode">3D TERRAIN · GOD'S EYE VIEW</div>
+
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+<script>
+let viewer=null,source=null;
+const HOME=[108.2506,15.8801,42000], GIS_URL='gis/master.geojson';
+const $=x=>document.getElementById(x);
+function msg(t,c=''){ $('status').className=c; $('status').innerHTML=t; }
+function fly(){if(!viewer)return;viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(...HOME),orientation:{heading:Cesium.Math.toRadians(8),pitch:Cesium.Math.toRadians(-42),roll:0},duration:2});}
+function style(e){
+ if(e.polyline){e.polyline.width=3;e.polyline.clampToGround=true;e.polyline.material=Cesium.Color.CYAN.withAlpha(.9)}
+ if(e.polygon){e.polygon.outline=true;e.polygon.outlineColor=Cesium.Color.CYAN;e.polygon.material=Cesium.Color.CYAN.withAlpha(.1)}
+ if(e.point){e.point.pixelSize=9;e.point.outlineWidth=2;e.point.color=Cesium.Color.fromCssColorString('#43e6d0');e.point.outlineColor=Cesium.Color.WHITE}
+}
+async function loadGIS(){
+ if(!viewer)return;
+ try{
+  msg('⏳ Đang tải <b>gis/master.geojson</b>…');
+  const r=await fetch(GIS_URL,{cache:'no-store'}); if(!r.ok)throw Error('HTTP '+r.status);
+  const g=await r.json(); if(g.type!=='FeatureCollection')throw Error('Không phải FeatureCollection');
+  if(source)viewer.dataSources.remove(source,true);
+  source=await Cesium.GeoJsonDataSource.load(g,{clampToGround:true,stroke:Cesium.Color.CYAN,strokeWidth:3,fill:Cesium.Color.CYAN.withAlpha(.1),markerColor:Cesium.Color.CYAN,markerSize:9});
+  viewer.dataSources.add(source); source.entities.values.forEach(style);
+  let p=0,l=0;(g.features||[]).forEach(f=>String(f.geometry?.type||'').includes('Point')?p++:l++);
+  $('fc').textContent=(g.features||[]).length.toLocaleString('vi-VN');$('pc').textContent=p.toLocaleString('vi-VN');$('lc').textContent=l.toLocaleString('vi-VN');
+  msg('✅ Đã nạp <b>'+g.features.length.toLocaleString('vi-VN')+'</b> đối tượng GIS lên nền 3D.','ok');fly();
+ }catch(e){msg('❌ Không nạp được GIS: '+e.message+'<br>Kiểm tra <b>gis/master.geojson</b> và chạy qua Vercel/localhost, không mở bằng file://.','err')}
+}
+async function start(){
+ try{
+  const token=$('token').value.trim(); if(token)Cesium.Ion.defaultAccessToken=token;
+  if(viewer)viewer.destroy();
+  viewer=new Cesium.Viewer('map',{terrain:token?Cesium.Terrain.fromWorldTerrain({requestVertexNormals:true,requestWaterMask:true}):undefined,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,animation:false,timeline:false,fullscreenButton:false});
+  viewer.imageryLayers.removeAll();
+  viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',credit:'Esri World Imagery'}));
+  viewer.scene.globe.enableLighting=!!token;viewer.scene.globe.depthTestAgainstTerrain=true;viewer.scene.fog.enabled=true;
+  fly();
+  msg(token?'✅ World Terrain 3D đã bật.':'🟡 Đang dùng địa cầu 3D + Esri Satellite. Nhập Cesium Ion token để bật World Terrain thật.',token?'ok':'');
+  setTimeout(loadGIS,600);
+ }catch(e){msg('❌ '+e.message,'err')}
+}
+$('start').onclick=start;$('fly').onclick=fly;$('load').onclick=loadGIS;$('token').onkeydown=e=>{if(e.key==='Enter')start()};start();
+</script></body></html>

@@ -1,7 +1,9 @@
 {
-  "name": "ban-do-thuy-loi1",
-  "compatibility_date": "2026-09-25",
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ban-do",
+  "compatibility_date": "2026-09-28",
   "assets": {
-    "directory": "public"
+    "directory": ".",
+    "not_found_handling": "single-page-application"
   }
 }

@@ -7126,6 +7126,9 @@ if (description) {
         });
       }
 
+      // Expose the REAL initializer from the same closure.
+      // The standalone bootstrap runs after this script.
+      window.initAiMap = initAiMap;
 
 })();
 </script>
@@ -7789,8 +7792,8 @@ if (description) {
     legendToggle.textContent=hidden?'−':'+';
   });
 
-  // expose the existing map initializer to the standalone bootstrap
-  window.initAiMap=initAiMap;
+  // initAiMap is exposed by the main map closure itself.
+  // Do not reference the closure-local function here.
 
   // expose references for the UI without changing the existing map logic
   const syncGlobals=function(){

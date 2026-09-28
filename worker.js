@@ -140,15 +140,57 @@ async function fetchSheetCsv(force=false) {
 }
 
 function parseCSV(text){const rows=[];let row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);cell='';if(row.some(x=>String(x).trim()!==''))rows.push(row);row=[];}else cell+=c;}if(cell!==''||row.length){row.push(cell);if(row.some(x=>String(x).trim()!==''))rows.push(row);}return rows;}
-function cleanName(v){return String(v??'').replace(/\ufeff/g,'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();}
-function norm(v){return cleanName(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/đ/g,'d').replace(/[()\[\]{}]/g,' ').replace(/\s+/g,' ').trim();}
+function cleanName(v){return String(v??'').replace(/\ufeff/g,'').replace(/[\u00a0\u2007\u202f]/g,' ').replace(/\s+/g,' ').trim();}
+function norm(v){return cleanName(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
+// Dùng riêng cho matching tên công trình: bỏ mã trong (...) / [...] nhưng KHÔNG đổi tên hiển thị.
+function normalizeFacilityName(v){
+  return norm(cleanName(v).replace(/\([^)]*\)/g,' ').replace(/\[[^\]]*\]/g,' '));
+}
 function num(v){if(v==null||v==='')return null;let s=String(v).trim().replace(/\s/g,'').replace('−','-');if(s.includes(',')&&s.includes('.')){if(s.lastIndexOf(',')>s.lastIndexOf('.'))s=s.replace(/\./g,'').replace(',','.');else s=s.replace(/,/g,'');}else if(s.includes(','))s=s.replace(',','.');const m=s.match(/[-+]?\d+(?:\.\d+)?/);return m?Number(m[0]):null;}
 const CODE_RE=/(?:\(|\[)\s*([A-Za-zÀ-ỹĐđ0-9][A-Za-zÀ-ỹĐđ0-9._-]{0,15})\s*(?:\)|\])/i;
 const PREFIXES=['ho chua nuoc','ho chua','ho','tram bom','tram','dap','cong','kenh'];
 function facilityCode(v){const m=CODE_RE.exec(cleanName(v));return m?norm(m[1]):'';}
-function facilityCore(v){let s=cleanName(v).replace(CODE_RE,' ');let n=norm(s);for(const p of PREFIXES){if(n.startsWith(p+' ')){n=n.slice(p.length).trim();break;}}return n.replace(/\s+/g,' ').trim();}
-function facilityScore(req,cand){const a=norm(req),b=norm(cand);if(!a||!b)return 0;if(a===b)return 100;const ac=facilityCode(req),bc=facilityCode(cand);if(ac&&bc&&ac===bc)return 98;const anc=norm(cleanName(req).replace(CODE_RE,' ')),bnc=norm(cleanName(cand).replace(CODE_RE,' '));if(anc===bnc)return 96;const ar=facilityCore(req),br=facilityCore(cand);if(ar&&br&&ar===br)return 90;return 0;}
-function resolveFacilityRows(rows,requested,requestedCode=''){const names=[],seen=new Set();for(const r of rows){const n=cleanName(r[4]);const k=norm(n);if(n&&!seen.has(k)){seen.add(k);names.push(n);}}let best='',score=0;for(const n of names){const s=facilityScore(requested,n);const bonus=requestedCode&&facilityCode(n)===requestedCode?2:0;if(s+bonus>score){score=s+bonus;best=n;}if(s===100)break;}if(!best&&requestedCode)best=names.find(n=>facilityCode(n)===requestedCode)||'';return {rows:best?rows.filter(r=>norm(r[4])===norm(best)):[],canonical:best,method:{100:'exact',98:'code',96:'without_code',90:'core'}[score]||'none',names};}
+function facilityCore(v){
+  let n=normalizeFacilityName(v);
+  for(const p of PREFIXES){if(n.startsWith(p+' ')){n=n.slice(p.length).trim();break;}}
+  return n.replace(/\s+/g,' ').trim();
+}
+function facilityScore(req,cand){
+  const a=normalizeFacilityName(req), b=normalizeFacilityName(cand);
+  if(!a||!b)return 0;
+  // Ưu tiên tên lõi sau khi bỏ mã: Hồ Vĩnh Trinh == Hồ Vĩnh Trinh (H3).
+  if(a===b)return 100;
+  const ac=facilityCode(req), bc=facilityCode(cand);
+  if(ac&&bc&&ac===bc)return 98;
+  const ar=facilityCore(req), br=facilityCore(cand);
+  if(ar&&br&&ar===br)return 90;
+  return 0;
+}
+function resolveFacilityRows(rows,requested,requestedCode=''){
+  const data=Array.isArray(rows)?rows:[];
+  const names=[],seen=new Set();
+  for(const r of data){
+    const n=cleanName(r[4]);
+    const k=normalizeFacilityName(n);
+    if(n&&!seen.has(k)){seen.add(k);names.push(n);}
+  }
+  let best='',score=0;
+  for(const n of names){
+    const s=facilityScore(requested,n);
+    const codeMatch=requestedCode&&facilityCode(n)===requestedCode;
+    const total=s+(codeMatch?2:0);
+    if(total>score){score=total;best=n;}
+  }
+  // Nếu không có tên nhưng có mã công trình, thử mã độc lập.
+  if(!best&&requestedCode){
+    best=names.find(n=>facilityCode(n)===requestedCode)||'';
+    if(best)score=98;
+  }
+  const bestKey=normalizeFacilityName(best);
+  const matched=bestKey?data.filter(r=>normalizeFacilityName(r[4])===bestKey):[];
+  const method=score>=102?'exact+code':score>=100?'exact':score>=98?'code':score>=90?'core':'none';
+  return {rows:matched,canonical:best,method,names,normalized_requested:normalizeFacilityName(requested),normalized_canonical:bestKey,score};
+}
 function parameterName(r){return cleanName(r[7]||r[6]);}
 function classify(p){const n=norm(p);if(/(^|\s)htl(\s|$)/.test(n)||n.includes('muc nuoc thuong luu'))return 'WATER_LEVEL_UPSTREAM';if(/(^|\s)hhl(\s|$)/.test(n)||n.includes('muc nuoc ha luu'))return 'WATER_LEVEL_DOWNSTREAM';if(/(^|\s)(h|muc nuoc|muc nuoc ho|water level|waterlevel|z)(\s|$)/.test(n))return 'WATER_LEVEL';if(/(^|\s)(x c24|mua c24|rainfall c24)(\s|$)/.test(n))return 'RAINFALL_C24';if(/(^|\s)(x t1|mua t1|rainfall t1)(\s|$)/.test(n))return 'RAINFALL_T1';if(/(^|\s)(x|mua|luong mua|rainfall|rain|precipitation)(\s|$)/.test(n))return 'RAINFALL';if(n.includes('luu luong')||n.includes('flow')||n.includes('discharge')||/^q(?:\s|$)/.test(n))return 'FLOW';if(n.includes('do man')||n.includes('salinity')||/^man(?:\s|$)/.test(n))return 'SALINITY';return null;}
 function parseObservation(r,year){const month=num(r[0]),day=num(r[1]),hourRaw=cleanName(r[2]);if(!Number.isFinite(month)||!Number.isFinite(day))return null;let hour=0,minute=0,second=0;const hm=hourRaw.match(/^(\d{1,2})[:h](\d{1,2})(?::(\d{1,2}))?/i);if(hm){hour=Number(hm[1]);minute=Number(hm[2]);second=Number(hm[3]||0);}else{const hn=num(hourRaw);if(Number.isFinite(hn)){hour=Math.floor(hn);minute=Math.round((hn-hour)*60);}}const dt=new Date(year,month-1,day,hour,minute,second);const value=num(r[8]);const parameter=parameterName(r);const code=classify(parameter);if(!Number.isFinite(dt.getTime())||!parameter||!Number.isFinite(value)||!code)return null;return {parameter,code,value,time:dt,unit:extractUnit(parameter)};}

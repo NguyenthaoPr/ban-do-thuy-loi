@@ -4231,6 +4231,56 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         Object.defineProperty(out,'__headers',{value:h,enumerable:false,configurable:true});
         return out;
       }
+      async function tlLoadAIData(force = false) {
+        const now = Date.now();
+        if (!force && TL_AI_DATA_ROWS_CACHE && now - TL_AI_DATA_CACHE_TIME < TL_LIVE_CACHE_TTL) {
+          return TL_AI_DATA_ROWS_CACHE;
+        }
+        if (!force && TL_AI_DATA_INFLIGHT) return TL_AI_DATA_INFLIGHT;
+
+        const fetchCsv = async (url) => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), TL_LIVE_TIMEOUT);
+          try {
+            const response = await fetch(url, {
+              method: 'GET',
+              cache: 'no-store',
+              mode: 'cors',
+              headers: { Accept: 'text/csv,text/plain,*/*' },
+              signal: controller.signal
+            });
+            if (!response.ok) throw new Error('AI_DATA HTTP ' + response.status);
+            const text = await response.text();
+            const rows = tlAiCsv(text);
+            if (!rows.length) throw new Error('AI_DATA không trả dữ liệu.');
+            return rows;
+          } finally {
+            clearTimeout(timer);
+          }
+        };
+
+        TL_AI_DATA_INFLIGHT = (async () => {
+          try {
+            const proxyUrl = TL_AI_DATA_URL + (TL_AI_DATA_URL.includes('?') ? '&' : '?') + '_ts=' + Date.now();
+            try {
+              const rows = await fetchCsv(proxyUrl);
+              TL_AI_DATA_ROWS_CACHE = rows;
+              TL_AI_DATA_CACHE_TIME = Date.now();
+              return rows;
+            } catch (proxyError) {
+              console.warn('📊 AI_DATA qua Worker không đọc được, thử Google GViz:', proxyError);
+              const rows = await fetchCsv(TL_AI_DATA_DIRECT_URL + '&_ts=' + Date.now());
+              TL_AI_DATA_ROWS_CACHE = rows;
+              TL_AI_DATA_CACHE_TIME = Date.now();
+              return rows;
+            }
+          } finally {
+            TL_AI_DATA_INFLIGHT = null;
+          }
+        })();
+        return TL_AI_DATA_INFLIGHT;
+      }
+
       function tlAiIsLongFormat(rows) {
         const h=(rows && rows.__headers || []).map(tlAiNorm);
         return h.length>=6 &&
@@ -4710,7 +4760,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 }
       }
 
-      function tlInitLiveForPopup(layer, facility) {
+      function tlInitLiveForPopup(layer, facility, code='') {
         if (!layer || !String(facility || '').trim()) return;
         const root = layer.getPopup()?.getElement?.();
         if (!root) return;
@@ -4718,7 +4768,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         if (!card) return;
         if (card.dataset.tlLiveBound !== '1') {
           card.dataset.tlLiveBound = '1';
-          tlLoadLiveForPopup(card, facility, false);
+          tlLoadLiveForPopup(card, facility, false, code);
 
           // Tự cập nhật popup đang mở mỗi 60 giây; đóng popup thì dừng timer.
           if (!layer._tlLiveAutoRefreshBound) {
@@ -4730,7 +4780,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
                 const currentPopup = layer.getPopup()?.getElement?.();
                 const currentCard = currentPopup?.querySelector('.tl-live-card');
                 if (!currentCard) return;
-                tlLoadLiveForPopup(currentCard, currentCard.dataset.tlLiveFacility || facility, true);
+                tlLoadLiveForPopup(currentCard, currentCard.dataset.tlLiveFacility || facility, true, currentCard.dataset.tlLiveCode || code);
               }, 60000);
             });
             layer.on('popupclose', function() {
@@ -5377,7 +5427,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           layer._tlLiveBound = true;
           layer.on('popupopen', function() {
             try {
-              tlInitLiveForPopup(layer, name);
+              tlInitLiveForPopup(layer, name, code);
             } catch (livePopupError) {
               console.warn('📊 Technical Live popup error:', livePopupError);
             }

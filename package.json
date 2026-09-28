@@ -1,9 +1,10 @@
 {
   "name": "ban-do-thuy-loi",
   "private": true,
-  "version": "12.3.0",
+  "version": "12.4.0",
   "scripts": {
-    "build": "node scripts/build-gis.mjs"
+    "build": "node scripts/build-gis.mjs",
+    "deploy": "wrangler deploy --config ./wrangler.jsonc"
   },
   "dependencies": {
     "@tmcw/togeojson": "^7.1.2",

@@ -4605,25 +4605,66 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       }
       async function tlFetchLive(facility,force=false,code=''){
         const key=String(facility||'').trim(); if(!key)throw new Error('Thiếu tên công trình.');
-        const cached=TL_LIVE_MEMORY_CACHE.get(key); if(!force&&cached&&Date.now()-cached.timestamp<TL_LIVE_CACHE_TTL)return cached.data;
-        if(!force&&TL_LIVE_INFLIGHT.has(key))return TL_LIVE_INFLIGHT.get(key);
+        const cacheKey=key+'|'+String(code||'');
+        const cached=TL_LIVE_MEMORY_CACHE.get(cacheKey);
+        if(!force&&cached&&Date.now()-cached.timestamp<TL_LIVE_CACHE_TTL)return cached.data;
+        if(!force&&TL_LIVE_INFLIGHT.has(cacheKey))return TL_LIVE_INFLIGHT.get(cacheKey);
         const promise=(async()=>{
-          const rows=await tlLoadAIData(force);
-          const matched=tlAiMatchRows(rows,key,code);
-          if(!matched.length)throw Object.assign(new Error(`Không tìm thấy công trình "${key}" trong AI_DATA.`),{status:404,code:'NO_MATCH'});
-          const data=tlAiPayload(matched,key); TL_LIVE_MEMORY_CACHE.set(key,{timestamp:Date.now(),data}); return data;
+          // Ưu tiên resolver phía Worker: cùng nguyên tắc với Technical Module cũ.
+          try {
+            const params=new URLSearchParams({facility:key});
+            if(code) params.set('code',String(code));
+            if(force) params.set('fresh','1');
+            params.set('year',String(new Date().getFullYear()));
+            const response=await fetch((window.location.origin||'')+'/api/live?'+params.toString(),{
+              method:'GET',cache:'no-store',headers:{Accept:'application/json'}
+            });
+            const payload=await response.json().catch(()=>({}));
+            if(!response.ok || payload?.ok===false){
+              const err=new Error(payload?.error||payload?.message||('AI_DATA /api/live HTTP '+response.status));
+              err.status=response.status; err.code=payload?.code||payload?.error_code||'';
+              err.debug=payload?.debug||null;
+              throw err;
+            }
+            const data=payload?.data || payload;
+            TL_LIVE_MEMORY_CACHE.set(cacheKey,{timestamp:Date.now(),data});
+            return data;
+          } catch(serverError) {
+            // Fallback: giữ nguyên adapter CSV cũ để không làm mất khả năng chạy.
+            if (serverError?.code==='NO_MATCH' || serverError?.code==='NO_VALID_DATA') throw serverError;
+            const rows=await tlLoadAIData(force);
+            const matched=tlAiMatchRows(rows,key,code);
+            if(!matched.length) {
+              const err=Object.assign(new Error(`Không tìm thấy công trình "${key}" trong AI_DATA.`),{status:404,code:'NO_MATCH',debug:{requested:key,source:'client-csv-fallback'}});
+              throw err;
+            }
+            const data=tlAiPayload(matched,key).data;
+            TL_LIVE_MEMORY_CACHE.set(cacheKey,{timestamp:Date.now(),data});
+            return data;
+          }
         })();
-        TL_LIVE_INFLIGHT.set(key,promise);try{return await promise;}finally{TL_LIVE_INFLIGHT.delete(key);}
+        TL_LIVE_INFLIGHT.set(cacheKey,promise);try{return await promise;}finally{TL_LIVE_INFLIGHT.delete(cacheKey);}
       }
       const TL_CHART_CACHE=new Map(); const TL_CHART_CACHE_TTL=5*60*1000;
       async function tlFetchChartHistory(facilityName,code){
         const key=String(facilityName||'')+'|'+String(code||''); const cached=TL_CHART_CACHE.get(key); if(cached&&Date.now()-cached.timestamp<TL_CHART_CACHE_TTL)return cached.points;
         try{
-          const rows=await tlLoadAIData(false),matched=tlAiMatchRows(rows,facilityName,code),water=tlAiObservations(matched).filter(x=>['WATER_LEVEL','WATER_LEVEL_UPSTREAM','WATER_LEVEL_DOWNSTREAM'].includes(x.parameterCode)).map(x=>({t:x.dt,parameter:x.parameterCode,v:tlAiNum(x.value)})).filter(x=>x.t&&Number.isFinite(x.v));
-          const preferredCode=water.find(x=>x.parameter==='WATER_LEVEL_UPSTREAM')?.parameter||water.find(x=>x.parameter==='WATER_LEVEL')?.parameter||water[0]?.parameter;
-          const points=water.filter(x=>x.parameter===preferredCode).sort((a,b)=>a.t-b.t).slice(-1000).map(x=>({t:x.t.toISOString(),v:x.v}));
+          const params=new URLSearchParams({facility:String(facilityName||''),year:String(new Date().getFullYear()),days:'7'});
+          if(code) params.set('code',String(code));
+          const response=await fetch((window.location.origin||'')+'/api/chart?'+params.toString(),{method:'GET',cache:'no-store',headers:{Accept:'application/json'}});
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok || payload?.ok===false) throw new Error(payload?.error||('AI_DATA /api/chart HTTP '+response.status));
+          const raw=payload?.data?.water || payload?.water || [];
+          const points=raw.map(x=>({t:new Date(x.time||x.t),v:Number(x.value??x.v)})).filter(x=>!Number.isNaN(x.t.getTime())&&Number.isFinite(x.v)).sort((a,b)=>a.t-b.t).slice(-1000);
           if(points.length)TL_CHART_CACHE.set(key,{timestamp:Date.now(),points}); return points;
-        }catch(e){console.warn('📈 AI_DATA chart error',facilityName,e);return[];}
+        }catch(e){
+          try{
+            const rows=await tlLoadAIData(false),matched=tlAiMatchRows(rows,facilityName,code),water=tlAiObservations(matched).filter(x=>['WATER_LEVEL','WATER_LEVEL_UPSTREAM','WATER_LEVEL_DOWNSTREAM'].includes(x.parameterCode)).map(x=>({t:x.dt,parameter:x.parameterCode,v:tlAiNum(x.value)})).filter(x=>x.t&&Number.isFinite(x.v));
+            const preferredCode=water.find(x=>x.parameter==='WATER_LEVEL_UPSTREAM')?.parameter||water.find(x=>x.parameter==='WATER_LEVEL')?.parameter||water[0]?.parameter;
+            const points=water.filter(x=>x.parameter===preferredCode).sort((a,b)=>a.t-b.t).slice(-1000).map(x=>({t:x.t,v:x.v}));
+            if(points.length)TL_CHART_CACHE.set(key,{timestamp:Date.now(),points}); return points;
+          }catch(_){console.warn('📈 AI_DATA chart error',facilityName,e);return[];}
+        }
       }
       function tlLiveHistoryKey(facility) {
         return 'TL_LIVE_HISTORY_V1:' + String(facility || '').trim();

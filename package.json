@@ -1,7 +1,7 @@
 {
   "name": "ban-do-thuy-loi",
   "private": true,
-  "version": "12.10.0",
+  "version": "12.11.0",
   "scripts": {
     "build": "node scripts/build-gis.mjs",
     "deploy": "wrangler deploy --config ./wrangler.jsonc"

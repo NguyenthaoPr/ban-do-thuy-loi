@@ -4281,206 +4281,285 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         return TL_AI_DATA_INFLIGHT;
       }
 
+      // =========================================================
+      // AI_DATA ADAPTER — tham chiếu Technical Module đã chạy ổn định
+      // Cấu trúc AI_DATA thực tế: A Tháng | B Ngày | C Giờ | D Đơn vị
+      // E Công trình | F Hạng mục | G Thông số | H Thông số (Đơn vị đo)
+      // I Giá trị | J Cột nguồn | K Nguồn dữ liệu.
+      // =========================================================
       function tlAiIsLongFormat(rows) {
-        const h=(rows && rows.__headers || []).map(tlAiNorm);
-        return h.length>=6 &&
-          h.some(x=>x==='ngay'||x.includes('ngay')) &&
-          h.some(x=>x==='gio'||x.includes('gio')) &&
-          h.some(x=>x==='cong trinh'||x.includes('cong trinh')) &&
-          h.some(x=>x.includes('thong so')) &&
-          h.some(x=>x.includes('gia tri'));
+        const h = (rows && rows.__headers || []).map(tlAiNorm);
+        return h.length >= 6 &&
+          h.some(x => x === 'thang' || x.includes('thang')) &&
+          h.some(x => x === 'ngay' || x.includes('ngay')) &&
+          h.some(x => x === 'gio' || x.includes('gio')) &&
+          h.some(x => x === 'cong trinh' || x.includes('cong trinh')) &&
+          h.some(x => x === 'thong so' || x.includes('thong so')) &&
+          h.some(x => x === 'gia tri' || x.includes('gia tri'));
       }
-      function tlAiLongCell(row,index) {
-        const values=Object.values(row||{});
-        return values[index] ?? '';
+
+      function tlAiHeaderIndex(rows, aliases) {
+        const headers = (rows && rows.__headers || []).map(tlAiNorm);
+        const wanted = (aliases || []).map(tlAiNorm).filter(Boolean);
+        for (const alias of wanted) {
+          const exact = headers.indexOf(alias);
+          if (exact >= 0) return exact;
+        }
+        for (let i = 0; i < headers.length; i++) {
+          if (wanted.some(w => w && (headers[i].includes(w) || w.includes(headers[i])))) return i;
+        }
+        return -1;
       }
+
+      function tlAiLongCell(row, index) {
+        const values = Object.values(row || {});
+        return index >= 0 ? (values[index] ?? '') : '';
+      }
+
+      function tlAiLongCellByHeader(row, aliases) {
+        const rows = TL_AI_DATA_ROWS_CACHE || [];
+        return tlAiLongCell(row, tlAiHeaderIndex(rows, aliases));
+      }
+
       function tlAiFacility(row) {
-        return tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || []) ? tlAiLongCell(row,2) : tlAiField(row,TL_AI_FIELDS.facility);
+        if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
+          return String(tlAiLongCellByHeader(row, ['công trình', 'cong trinh']) || '').trim();
+        }
+        return String(tlAiField(row, TL_AI_FIELDS.facility) || '').trim();
       }
+
       function tlAiParameter(row) {
-        return tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || []) ? tlAiLongCell(row,3) : tlAiField(row,TL_AI_FIELDS.parameter || []);
+        if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
+          // Technical Module dùng cột H = "Thông số (Đơn vị đo)".
+          // Nếu H trống thì fallback sang G = "Thông số".
+          const h = String(tlAiLongCellByHeader(row, [
+            'thông số (đơn vị đo)', 'thong so (don vi do)', 'đơn vị đo', 'don vi do'
+          ]) || '').trim();
+          if (h) return h;
+          return String(tlAiLongCellByHeader(row, ['thông số', 'thong so']) || '').trim();
+        }
+        return String(tlAiField(row, TL_AI_FIELDS.parameter || []) || '').trim();
       }
+
       function tlAiUnit(row) {
-        return tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || []) ? tlAiLongCell(row,4) : tlAiField(row,['don vi','don vi do','unit']);
+        if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
+          const h = String(tlAiLongCellByHeader(row, [
+            'thông số (đơn vị đo)', 'thong so (don vi do)', 'đơn vị đo', 'don vi do'
+          ]) || '').trim();
+          const m = h.match(/\(([^)]+)\)/);
+          return m ? m[1].trim() : '';
+        }
+        return String(tlAiField(row, ['đơn vị', 'đơn vị đo', 'don vi', 'don vi do', 'unit']) || '').trim();
       }
+
       function tlAiValue(row) {
-        return tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || []) ? tlAiLongCell(row,5) : tlAiField(row,['gia tri','value','giatri']);
+        if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
+          return tlAiLongCellByHeader(row, ['giá trị', 'gia tri', 'value', 'giatri']);
+        }
+        return tlAiField(row, ['giá trị', 'gia tri', 'value', 'giatri']);
       }
+
       function tlAiDateTime(row) {
         if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
-          const rawDate=String(tlAiLongCell(row,0)||'').trim();
-          const rawHour=String(tlAiLongCell(row,1)||'').trim();
-          let d=tlAiDate(rawDate);
-          if(!d) return null;
-          let hour=0, minute=0;
-          if(rawHour.includes(':')) {
-            const parts=rawHour.split(':'); hour=Number(parts[0])||0; minute=Number(parts[1])||0;
-          } else {
-            const hn=Number(String(rawHour).replace(',','.'));
-            if(Number.isFinite(hn)){hour=Math.floor(hn);minute=Math.round((hn-hour)*60);}
-          }
-          d.setHours(Math.max(0,Math.min(23,hour)),Math.max(0,Math.min(59,minute)),0,0);
-          return d;
-        }
-        const raw=tlAiField(row,TL_AI_FIELDS.time);
-        return tlAiDate(raw);
-      }
-      function tlAiField(row, aliases) {
-        const entries=Object.entries(row||{}), wanted=(aliases||[]).map(tlAiNorm);
-        for(const [k,v] of entries) if(wanted.includes(tlAiNorm(k)) && String(v).trim()!=='') return v;
-        for(const [k,v] of entries){const nk=tlAiNorm(k);if(wanted.some(w=>w&& (nk.includes(w)||w.includes(nk)))&&String(v).trim()!=='')return v;}
-        return null;
-      }
-      const TL_AI_FIELDS={
-        facility:['cong trinh','congtrinh','ten cong trinh','tencongtrinh','tram','ho','ten ho','facility','name','ten'],
-        code:['ma cong trinh','macongtrinh','ma','code','id'],
-        time:['thoi gian','thoigian','datetime','date time','timestamp','time','ngay gio','ngaygio','date'],
-        parameter:['thong so','thongso','parameter','param'],
-        water:['muc nuoc','mucnuoc','muc nuoc ho','water level','waterlevel','z','muc nuoc ht','muc nuoc hien tai','h','htl','hhl'],
-        flow:['luu luong','luuluong','q','flow','discharge','q m3 s','q m3s'],
-        rain:['luong mua','luongmua','mua','rainfall','rain','precipitation','x','x t1','x c24'],
-        salinity:['do man','doman','salinity','man'],
-        mndbt:['mndbt','muc nuoc dbt','mucnuocdbt'],
-        mndgc:['mndgc','muc nuoc dgc','mucnuocdgc']
-      };
-      function tlAiDate(v){
-        if(v==null||v==='')return null;
-        const s=String(v).trim();
-        const m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-        if(m)return new Date(+m[3],+m[2]-1,+m[1]);
-        const y=s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
-        if(y)return new Date(+y[1],+y[2]-1,+y[3]);
-        const d=new Date(s); return Number.isNaN(d.getTime())?null:d;
-      }
-      function tlAiParameterCode(name) {
-        const n=tlAiNorm(name);
-        if(/(^| )(htl|muc nuoc thuong luu|muc nuoc thuong luu m|water level upstream|waterlevel upstream)( |$)/.test(n)) return 'WATER_LEVEL_UPSTREAM';
-        if(/(^| )(hhl|muc nuoc ha luu|muc nuoc ha luu m|water level downstream|waterlevel downstream)( |$)/.test(n)) return 'WATER_LEVEL_DOWNSTREAM';
-        if(/(^| )(h|h m|muc nuoc|muc nuoc ho|muc nuoc ht|muc nuoc hien tai|water level|waterlevel|level|z)( |$)/.test(n)) return 'WATER_LEVEL';
-        if(/(^| )(x c24|x c24 mm|rainfall c24|rainfall c24 mm|mua c24|mua 24h)( |$)/.test(n)) return 'RAINFALL_C24';
-        if(/(^| )(x t1|x t1 mm|rainfall t1|rainfall t1 mm|mua t1)( |$)/.test(n)) return 'RAINFALL_T1';
-        if(/(^| )(x|x mm|luong mua|luong mua mm|mua|rainfall|rain|precipitation)( |$)/.test(n)) return 'RAINFALL';
-        if(/(^| )(q|q m3 s|q m3s|luu luong|luu luong m3 s|flow|discharge)( |$)/.test(n)) return 'FLOW';
-        if(/(^| )(do man|do man per mille|doman|salinity|man|s)( |$)/.test(n)) return 'SALINITY';
-        return null;
-      }
-      function tlAiFacilityKey(v) {
-        return tlAiNorm(v).replace(/\s*\([^)]*\)\s*/g,' ').replace(/^(ho chua nuoc|ho chua|ho|tram bom|dap)\s+/,'').replace(/\s+/g,' ').trim();
-      }
-      function tlAiMatchRows(rows,facility,code){
-        const fn=tlAiNorm(facility),cn=tlAiNorm(code);
-        if(!fn && !cn) return [];
-        const data=Array.isArray(rows)?rows:[];
-        let exact=data.filter(r=>{
-          const n=tlAiNorm(tlAiFacility(r)), c=tlAiNorm(tlAiField(r,TL_AI_FIELDS.code));
-          return (cn&&c===cn)||(fn&&n===fn);
-        });
-        if(exact.length)return exact;
-        const fk=tlAiFacilityKey(facility);
-        return data.filter(r=>{
-          const n=tlAiFacilityKey(tlAiFacility(r));
-          return fk && n && (n===fk || n.includes(fk) || fk.includes(n));
-        });
-      }
-      function tlAiWideDateTime(row) {
-        const rawDate = tlAiField(row, ['ngay','date','ngay quan trac','ngay do']);
-        const rawTime = tlAiField(row, ['gio','time','thoi gian','thoigian','ngay gio','ngaygio']);
-        if (rawDate == null && rawTime == null) return null;
-        if (rawDate != null && rawTime != null) {
-          const d = tlAiDateTimeParts(rawDate, rawTime);
-          if (d) return d;
-        }
-        return tlAiDate(rawDate ?? rawTime);
-      }
-      function tlAiDateTimeParts(rawDate, rawTime) {
-        if (rawDate == null || rawDate === '') return tlAiDate(rawTime);
-        const d = tlAiDate(rawDate);
-        if (!d) return null;
-        if (rawTime != null && String(rawTime).trim() !== '') {
-          const t = String(rawTime).trim();
+          // AI_DATA thật không có cột năm: A=Tháng, B=Ngày, C=Giờ.
+          const month = tlAiNum(tlAiLongCellByHeader(row, ['tháng', 'thang']));
+          const day = tlAiNum(tlAiLongCellByHeader(row, ['ngày', 'ngay']));
+          const hourRaw = tlAiLongCellByHeader(row, ['giờ', 'gio']);
+          if (!Number.isFinite(month) || !Number.isFinite(day)) return null;
+
           let hour = 0, minute = 0, second = 0;
-          const hm = t.match(/(\d{1,2})[:h](\d{1,2})(?::(\d{1,2}))?/i);
+          const hs = String(hourRaw ?? '').trim();
+          const hm = hs.match(/^(\d{1,2})[:h](\d{1,2})(?::(\d{1,2}))?/i);
           if (hm) {
             hour = Number(hm[1]) || 0;
             minute = Number(hm[2]) || 0;
             second = Number(hm[3]) || 0;
           } else {
-            const hn = Number(t.replace(',', '.'));
+            const hn = tlAiNum(hs);
             if (Number.isFinite(hn)) {
               hour = Math.floor(hn);
               minute = Math.round((hn - hour) * 60);
             }
           }
-          d.setHours(Math.max(0, Math.min(23, hour)), Math.max(0, Math.min(59, minute)), Math.max(0, Math.min(59, second)), 0);
+
+          const year = new Date().getFullYear();
+          const d = new Date(year, Math.round(month) - 1, Math.round(day), hour, minute, second, 0);
+          return Number.isNaN(d.getTime()) ? null : d;
         }
+
+        const raw = tlAiField(row, TL_AI_FIELDS.time);
+        return tlAiDate(raw);
+      }
+
+      function tlAiField(row, aliases) {
+        const entries = Object.entries(row || {}), wanted = (aliases || []).map(tlAiNorm);
+        for (const [k, v] of entries) {
+          if (wanted.includes(tlAiNorm(k)) && String(v).trim() !== '') return v;
+        }
+        for (const [k, v] of entries) {
+          const nk = tlAiNorm(k);
+          if (wanted.some(w => w && (nk.includes(w) || w.includes(nk))) && String(v).trim() !== '') return v;
+        }
+        return null;
+      }
+
+      const TL_AI_FIELDS = {
+        facility: ['công trình','cong trinh','congtrinh','tên công trình','ten cong trinh','tencongtrinh','trạm','trạm bơm','hồ','tên hồ','facility','name','ten'],
+        code: ['mã công trình','ma cong trinh','macongtrinh','mã','ma','code','id'],
+        time: ['thời gian','thoi gian','thoigian','datetime','date time','timestamp','time','ngày giờ','ngay gio','ngaygio','date'],
+        parameter: ['thông số','thong so','thông số (đơn vị đo)','thong so (don vi do)','parameter','param'],
+        water: ['mực nước','muc nuoc','mực nước hồ','water level','waterlevel','z','mực nước ht','mực nước hiện tại','h','htl','hhl'],
+        flow: ['lưu lượng','luu luong','luuluong','q','flow','discharge','q m3 s','q m3s'],
+        rain: ['lượng mưa','luong mua','luongmua','mưa','mua','rainfall','rain','precipitation','x','x t1','x c24'],
+        salinity: ['độ mặn','do man','doman','salinity','mặn','man'],
+        mndbt: ['mndbt','mực nước dâng bình thường','muc nuoc dbt','mucnuocdbt'],
+        mndgc: ['mndgc','mực nước dâng gia cường','muc nuoc dgc','mucnuocdgc']
+      };
+
+      function tlAiDate(v) {
+        if (v == null || v === '') return null;
+        const s = String(v).trim();
+        const m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+        if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+        const y = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+        if (y) return new Date(+y[1], +y[2] - 1, +y[3]);
+        const d = new Date(s);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+
+      function tlAiParameterCode(name) {
+        const n = tlAiNorm(name);
+        if (/(^| )(htl|muc nuoc thuong luu|water level upstream|waterlevel upstream)( |$)/.test(n)) return 'WATER_LEVEL_UPSTREAM';
+        if (/(^| )(hhl|muc nuoc ha luu|water level downstream|waterlevel downstream)( |$)/.test(n)) return 'WATER_LEVEL_DOWNSTREAM';
+        if (/(^| )(h|h m|muc nuoc|muc nuoc ho|muc nuoc ht|muc nuoc hien tai|water level|waterlevel|level|z)( |$)/.test(n)) return 'WATER_LEVEL';
+        if (/(^| )(x c24|x c24 mm|rainfall c24|rainfall c24 mm|mua c24|mua 24h)( |$)/.test(n)) return 'RAINFALL_C24';
+        if (/(^| )(x t1|x t1 mm|rainfall t1|rainfall t1 mm|mua t1)( |$)/.test(n)) return 'RAINFALL_T1';
+        if (/(^| )(x|x mm|luong mua|luong mua mm|mua|rainfall|rain|precipitation)( |$)/.test(n)) return 'RAINFALL';
+        if (/(^| )(q|q m3 s|q m3s|luu luong|luu luong m3 s|flow|discharge)( |$)/.test(n)) return 'FLOW';
+        if (/(^| )(do man|do man per mille|doman|salinity|man)( |$)/.test(n)) return 'SALINITY';
+        return null;
+      }
+
+      // FACILITY NAME RESOLVER — tham khảo trực tiếp technical_module.py.
+      // Hồ Vĩnh Trinh <-> Hồ Vĩnh Trinh (H2)/(...) ; không đổi tên hiển thị GIS.
+      const TL_FACILITY_CODE_RE = /(?:\(|\[)\s*([A-Za-zÀ-ỹĐđ0-9][A-Za-zÀ-ỹĐđ0-9._-]{0,15})\s*(?:\)|\])/i;
+      const TL_FACILITY_PREFIXES = ['ho chua nuoc','ho chua','ho','tram bom','tram','dap','cong','kenh'];
+
+      function tlCleanFacilityName(value) {
+        return String(value ?? '').replace(/\ufeff/g,'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+      }
+      function tlFacilityKey(value) { return tlAiNorm(tlCleanFacilityName(value)); }
+      function tlFacilityCode(value) {
+        const m = TL_FACILITY_CODE_RE.exec(tlCleanFacilityName(value));
+        return m ? tlAiNorm(m[1]) : '';
+      }
+      function tlFacilityCore(value) {
+        let n = tlAiNorm(TL_FACILITY_CODE_RE.test(tlCleanFacilityName(value)) ? tlCleanFacilityName(value).replace(TL_FACILITY_CODE_RE,' ') : tlCleanFacilityName(value));
+        for (const prefix of TL_FACILITY_PREFIXES) {
+          if (n.startsWith(prefix + ' ')) { n = n.slice(prefix.length).trim(); break; }
+        }
+        return n.replace(/\s+/g,' ').trim();
+      }
+      function tlFacilityMatchScore(requested, candidate) {
+        const req = tlFacilityKey(requested), cand = tlFacilityKey(candidate);
+        if (!req || !cand) return 0;
+        if (req === cand) return 100;
+        const rc = tlFacilityCode(requested), cc = tlFacilityCode(candidate);
+        if (rc && cc && rc === cc) return 98;
+        const rnc = tlAiNorm(tlCleanFacilityName(requested).replace(TL_FACILITY_CODE_RE,' '));
+        const cnc = tlAiNorm(tlCleanFacilityName(candidate).replace(TL_FACILITY_CODE_RE,' '));
+        if (rnc === cnc) return 96;
+        const rcore = tlFacilityCore(requested), ccore = tlFacilityCore(candidate);
+        if (rcore && ccore && rcore === ccore) return 90;
+        return 0;
+      }
+      function tlAiMatchRows(rows, facility, code) {
+        const data = Array.isArray(rows) ? rows : [];
+        const requested = tlCleanFacilityName(facility);
+        const requestedCode = tlAiNorm(code);
+        if (!requested && !requestedCode) return [];
+
+        const names = [];
+        const seen = new Set();
+        for (const row of data) {
+          const name = tlAiFacility(row);
+          const key = tlFacilityKey(name);
+          if (name && !seen.has(key)) { seen.add(key); names.push(name); }
+        }
+
+        let bestName = '', bestScore = 0;
+        for (const name of names) {
+          const score = tlFacilityMatchScore(requested, name);
+          const nameCode = tlFacilityCode(name);
+          const codeBonus = requestedCode && nameCode && requestedCode === nameCode ? 2 : 0;
+          const total = score + codeBonus;
+          if (total > bestScore) { bestScore = total; bestName = name; }
+          if (score === 100) break;
+        }
+
+        if (!bestName && requestedCode) {
+          const byCode = names.find(name => tlFacilityCode(name) === requestedCode);
+          if (byCode) bestName = byCode;
+        }
+        if (!bestName) return [];
+
+        return data.filter(row => tlFacilityKey(tlAiFacility(row)) === tlFacilityKey(bestName));
+      }
+
+      function tlAiWideDateTime(row) {
+        const rawDate = tlAiField(row, ['ngày','ngay','date','ngày quan trắc','ngay quan trac','ngày đo','ngay do']);
+        const rawTime = tlAiField(row, ['giờ','gio','time','thời gian','thoi gian','thoigian','ngày giờ','ngay gio','ngaygio']);
+        if (rawDate == null && rawTime == null) return null;
+        if (rawDate != null && rawTime != null) return tlAiDateTimeParts(rawDate, rawTime);
+        return tlAiDate(rawDate ?? rawTime);
+      }
+      function tlAiDateTimeParts(rawDate, rawTime) {
+        if (rawDate == null || rawDate === '') return tlAiDate(rawTime);
+        const d = tlAiDate(rawDate); if (!d) return null;
+        const t = String(rawTime ?? '').trim();
+        let hour = 0, minute = 0, second = 0;
+        const hm = t.match(/(\d{1,2})[:h](\d{1,2})(?::(\d{1,2}))?/i);
+        if (hm) { hour=Number(hm[1])||0; minute=Number(hm[2])||0; second=Number(hm[3])||0; }
+        else { const hn=tlAiNum(t); if(Number.isFinite(hn)){hour=Math.floor(hn);minute=Math.round((hn-hour)*60);} }
+        d.setHours(Math.max(0,Math.min(23,hour)),Math.max(0,Math.min(59,minute)),Math.max(0,Math.min(59,second)),0);
         return d;
       }
 
-      // Chuyển mọi kiểu AI_DATA (long hoặc wide) về cùng một cấu trúc quan trắc.
-      // Đây là lớp tương thích dữ liệu; không thay đổi Popup/GIS/marker/search.
+      // Chuyển AI_DATA Long/Wide về cùng cấu trúc quan trắc.
       function tlAiObservations(rows) {
         const data = Array.isArray(rows) ? rows : [];
         const long = tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || data);
         const out = [];
         if (long) {
           for (const row of data) {
-            const facility = String(tlAiLongCell(row, 4) || '').trim();
-            const parameter = String(tlAiLongCell(row, 6) || '').trim();
-            const unit = String(tlAiLongCell(row, 7) || '').trim();
-            const value = tlAiLongCell(row, 8);
+            const facility = tlAiFacility(row);
+            const parameter = tlAiParameter(row);
+            const unit = tlAiUnit(row);
+            const value = tlAiValue(row);
             const dt = tlAiDateTime(row);
             if (!facility || !parameter || !dt || !Number.isFinite(tlAiNum(value))) continue;
-            out.push({
-              row,
-              facility,
-              code: String(tlAiField(row, TL_AI_FIELDS.code) || '').trim(),
-              parameter,
-              unit,
-              value,
-              dt,
-              parameterCode: tlAiParameterCode(parameter)
-            });
+            out.push({ row, facility, code:String(tlAiField(row, TL_AI_FIELDS.code)||'').trim(), parameter, unit, value, dt, parameterCode:tlAiParameterCode(parameter) });
           }
           return out;
         }
 
-        // Wide format: một dòng có thể chứa đồng thời WATER_LEVEL, RAINFALL,
-        // FLOW, SALINITY... Trước đây adapter chỉ tìm cột "Thông số/Giá trị"
-        // nên các dòng wide bị coi như không có dữ liệu.
         const parameterColumns = [
-          { code:'WATER_LEVEL_UPSTREAM', aliases:TL_AI_FIELDS.water.filter(x => /upstream|thuong luu|htl|water.?level.?upstream/i.test(x)) , unit:'m' },
-          { code:'WATER_LEVEL_DOWNSTREAM', aliases:TL_AI_FIELDS.water.filter(x => /downstream|ha luu|hhl|water.?level.?downstream/i.test(x)) , unit:'m' },
-          { code:'WATER_LEVEL', aliases:['water_level','water level','muc nuoc','mucnuoc','muc nuoc ht','muc nuoc hien tai','h','z','level','waterlevel'], unit:'m' },
-          { code:'RAINFALL_T1', aliases:['rainfall_t1','rainfall t1','x t1','x_t1','mua t1'], unit:'mm' },
-          { code:'RAINFALL_C24', aliases:['rainfall_c24','rainfall c24','x c24','x_c24','mua c24','mua 24h'], unit:'mm' },
-          { code:'RAINFALL', aliases:['rainfall','rain','precipitation','luong mua','luongmua','mua','x'], unit:'mm' },
-          { code:'FLOW', aliases:['flow','discharge','luu luong','luuluong','q','q m3 s','q m3s'], unit:'m³/s' },
-          { code:'SALINITY', aliases:['salinity','do man','doman','man','s'], unit:'‰' }
+          {code:'WATER_LEVEL_UPSTREAM',aliases:['water_level_upstream','water level upstream','muc nuoc thuong luu','htl'],unit:'m'},
+          {code:'WATER_LEVEL_DOWNSTREAM',aliases:['water_level_downstream','water level downstream','muc nuoc ha luu','hhl'],unit:'m'},
+          {code:'WATER_LEVEL',aliases:['water_level','water level','muc nuoc','mucnuoc','muc nuoc hien tai','h','z','level','waterlevel'],unit:'m'},
+          {code:'RAINFALL_T1',aliases:['rainfall_t1','rainfall t1','x t1','x_t1','mua t1'],unit:'mm'},
+          {code:'RAINFALL_C24',aliases:['rainfall_c24','rainfall c24','x c24','x_c24','mua c24','mua 24h'],unit:'mm'},
+          {code:'RAINFALL',aliases:['rainfall','rain','precipitation','luong mua','luongmua','mua','x'],unit:'mm'},
+          {code:'FLOW',aliases:['flow','discharge','luu luong','luuluong','q','q m3 s','q m3s'],unit:'m³/s'},
+          {code:'SALINITY',aliases:['salinity','do man','doman','man','s'],unit:'‰'}
         ];
         for (const row of data) {
-          const facility = String(tlAiField(row, TL_AI_FIELDS.facility) || '').trim();
-          if (!facility) continue;
-          const code = String(tlAiField(row, TL_AI_FIELDS.code) || '').trim();
-          const dt = tlAiWideDateTime(row);
-          if (!dt) continue;
-          for (const spec of parameterColumns) {
-            const value = tlAiField(row, spec.aliases);
-            if (value == null || value === '' || !Number.isFinite(tlAiNum(value))) continue;
-            const unit = String(tlAiField(row, [
-              ...spec.aliases.map(a => `${a} unit`),
-              ...spec.aliases.map(a => `${a} don vi`),
-              'don vi','don vi do','unit'
-            ]) || spec.unit).trim();
-            out.push({
-              row,
-              facility,
-              code,
-              parameter: spec.code,
-              unit,
-              value,
-              dt,
-              parameterCode: spec.code
-            });
+          const facility=String(tlAiField(row,TL_AI_FIELDS.facility)||'').trim(); if(!facility) continue;
+          const code=String(tlAiField(row,TL_AI_FIELDS.code)||'').trim(); const dt=tlAiWideDateTime(row); if(!dt) continue;
+          for(const spec of parameterColumns){
+            const value=tlAiField(row,spec.aliases); if(value==null||value===''||!Number.isFinite(tlAiNum(value))) continue;
+            const unit=String(tlAiField(row,[...spec.aliases.map(a=>`${a} unit`),...spec.aliases.map(a=>`${a} don vi`),'don vi','don vi do','unit'])||spec.unit).trim();
+            out.push({row,facility,code,parameter:spec.code,unit,value,dt,parameterCode:spec.code});
           }
         }
         return out;

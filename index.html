@@ -7028,6 +7028,10 @@ if (description) {
         });
       }
 
+      // Public bridge for the standalone shell: this is INSIDE the original
+      // map IIFE, so the scoped initializer remains accessible safely.
+      window.initAiMap = initAiMap;
+      window.performSearch = performSearch;
 
 })();
 </script>
@@ -7690,24 +7694,6 @@ if (description) {
     legendBody.style.display=hidden?'flex':'none';
     legendToggle.textContent=hidden?'−':'+';
   });
-
-  // expose the existing map initializer to the standalone bootstrap
-  window.initAiMap=initAiMap;
-
-  // expose references for the UI without changing the existing map logic
-  const syncGlobals=function(){
-    try{
-      if(typeof aiMap!=='undefined') window.aiMap=aiMap;
-      if(typeof aiMapLayer!=='undefined') window.aiMapLayer=aiMapLayer;
-      if(typeof markerCluster!=='undefined') window.markerCluster=markerCluster;
-      if(typeof nonPointLayer!=='undefined') window.nonPointLayer=nonPointLayer;
-      if(typeof aiBaseLayers!=='undefined') window.aiBaseLayers=aiBaseLayers;
-      if(typeof activeBaseLayerKey!=='undefined') window.activeBaseLayerKey=activeBaseLayerKey;
-      if(typeof performSearch==='function') window.performSearch=performSearch;
-    }catch(e){}
-  };
-  setInterval(syncGlobals,1200);
-  syncGlobals();
 
   document.addEventListener('keydown',function(e){
     const tag=(document.activeElement&&document.activeElement.tagName)||'';

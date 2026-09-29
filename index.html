@@ -7858,54 +7858,103 @@ function category(f){
  if(/vùng|vung|tưới|tuoi|irrig/.test(t))return 'area';
  return 'other';
 }
+/* ============================================================
+   KMZ COLOR LOCK — GIỮ MÀU GỐC CỦA KML/KMZ
+   - Hỗ trợ KML AABBGGRR
+   - Hỗ trợ #RRGGBB / #RGB / rgb()/rgba()
+   - Hỗ trợ GeoJSON style: stroke/fill + opacity
+   - Không ép màu cyan nếu nguồn đã có màu
+   ============================================================ */
+function firstDefined(p, keys){
+  for(var i=0;i<keys.length;i++){
+    var v=p[keys[i]];
+    if(v!==undefined && v!==null && String(v).trim()!=='') return v;
+  }
+  return null;
+}
 function parseKMLColor(f,poly){
- var p=f&&f.properties||{};
- var raw=poly?(p.kmlPolyColor||p.KMLPolyColor||p.polyColor||p.PolyColor||p.fillColor||p.FillColor):(p.kmlColor||p.KMLColor||p.styleColor||p.StyleColor||p.color||p.Color||p.lineColor||p.LineColor);
- if(raw===null||raw===undefined||raw==='')return null;
- var c=String(raw).trim().replace(/^#/,'');
- // KML: AABBGGRR -> CSS RRGGBB + opacity AA.
- if(/^[0-9a-fA-F]{8}$/.test(c)){
-   var a=parseInt(c.substring(0,2),16)/255;
-   var rr=c.substring(6,8),gg=c.substring(4,6),bb=c.substring(2,4);
-   return {css:'#'+rr+gg+bb,alpha:a,raw:c,format:'kml'};
- }
- // CSS/GeoJSON: RRGGBB
- if(/^[0-9a-fA-F]{6}$/.test(c))return {css:'#'+c,alpha:1,raw:c,format:'css'};
- // CSS shorthand
- if(/^[0-9a-fA-F]{3}$/.test(c))return {css:'#'+c[0]+c[0]+c[1]+c[1]+c[2]+c[2],alpha:1,raw:c,format:'css'};
- return null;
+  var p=f&&f.properties||{};
+  var keys=poly
+    ? ['kmlPolyColor','KMLPolyColor','polyColor','PolyColor','fillColor','FillColor','fill','Fill','polygonColor','PolygonColor','styleFill','StyleFill']
+    : ['kmlColor','KMLColor','lineColor','LineColor','strokeColor','StrokeColor','styleColor','StyleColor','stroke','Stroke','line','Line'];
+  var raw=firstDefined(p,keys);
+  if(raw===null){
+    /* Chỉ dùng color generic như fallback; tránh làm mất stroke/fill rõ ràng. */
+    raw=firstDefined(p,['color','Color']);
+  }
+  if(raw===null)return null;
+  var c=String(raw).trim();
+  var opacity=null;
+
+  /* rgba()/rgb() */
+  var m=c.match(/^rgba?\\(\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*,\\s*([\\d.]+)(?:\\s*,\\s*([\\d.]+))?\\s*\\)$/i);
+  if(m){
+    var r=Math.max(0,Math.min(255,Number(m[1])));
+    var g=Math.max(0,Math.min(255,Number(m[2])));
+    var b=Math.max(0,Math.min(255,Number(m[3])));
+    opacity=m[4]===undefined?1:Math.max(0,Math.min(1,Number(m[4])));
+    return {css:'rgb('+r+','+g+','+b+')',alpha:opacity,raw:c,format:'rgb'};
+  }
+
+  c=c.replace(/^#/,'').replace(/^0x/i,'');
+  if(/^[0-9a-fA-F]{8}$/.test(c)){
+    /* KML chuẩn: AABBGGRR */
+    var a=parseInt(c.substring(0,2),16)/255;
+    var rr=c.substring(6,8),gg=c.substring(4,6),bb=c.substring(2,4);
+    return {css:'#'+rr+gg+bb,alpha:a,raw:c,format:'kml'};
+  }
+  if(/^[0-9a-fA-F]{6}$/.test(c)){
+    return {css:'#'+c,alpha:1,raw:c,format:'hex'};
+  }
+  if(/^[0-9a-fA-F]{3}$/.test(c)){
+    return {css:'#'+c[0]+c[0]+c[1]+c[1]+c[2]+c[2],alpha:1,raw:c,format:'hex3'};
+  }
+  return null;
 }
 function kmlCssColor(f,poly){var c=parseKMLColor(f,poly);return c?c.css:null}
 function kmlCssAlpha(f,poly,def){var c=parseKMLColor(f,poly);return c?c.alpha:(def==null?1:def)}
-function kmlWidth(f){var p=f&&f.properties||{},n=Number(p.kmlWidth||p.KMLWidth||p.lineWidth||p.LineWidth||p.width||p.Width);return Number.isFinite(n)&&n>0?n:2}
-function cesiumColor(hex,alpha){try{return Cesium.Color.fromCssColorString(hex).withAlpha(Math.max(0,Math.min(1,alpha)))}catch(e){return Cesium.Color.WHITE.withAlpha(Math.max(0,Math.min(1,alpha)))}}
+function kmlWidth(f){
+  var p=f&&f.properties||{};
+  var n=Number(firstDefined(p,['kmlWidth','KMLWidth','lineWidth','LineWidth','stroke-width','strokeWidth','width','Width']));
+  return Number.isFinite(n)&&n>0?n:2;
+}
+function cssOpacity(f,poly,def){
+  var p=f&&f.properties||{};
+  var v=firstDefined(p,poly?['kmlPolyOpacity','fill-opacity','fillOpacity','polygonOpacity']:['kmlLineOpacity','stroke-opacity','strokeOpacity','lineOpacity']);
+  var n=Number(v);
+  return Number.isFinite(n)?Math.max(0,Math.min(1,n)):def;
+}
+function cesiumColor(hex,alpha){
+  try{return Cesium.Color.fromCssColorString(hex).withAlpha(Math.max(0,Math.min(1,alpha)))}
+  catch(e){return Cesium.Color.WHITE.withAlpha(Math.max(0,Math.min(1,alpha)))}
+}
 function styleEntity(e,f){
- var c=category(f||{}),line=parseKMLColor(f,false),fill=parseKMLColor(f,true)||line,width=kmlWidth(f);
- var fallbackLine=c==='water'?'#22d3ee':'#55e6c1';
- if(e.polyline){
-   var lc=line?line.css:fallbackLine,la=line?line.alpha:.92;
-   e.polyline.width=Math.max(1,Math.min(width,12));
-   e.polyline.clampToGround=true;
-   e.polyline.material=cesiumColor(lc,la);
- }
- if(e.polygon){
-   var pc=fill?fill.css:(c==='reservoir'?'#38bdf8':'#55e6c1');
-   var pa=fill?fill.alpha:.16;
-   var oc=line?line.css:pc,oa=line?line.alpha:Math.min(1,Math.max(.65,pa));
-   e.polygon.outline=true;
-   e.polygon.outlineColor=cesiumColor(oc,oa);
-   e.polygon.material=cesiumColor(pc,pa);
- }
- if(e.point){
-   var pt=line?line.css:(c==='pump'?'#f59e0b':c==='reservoir'?'#38bdf8':'#43e6d0');
-   var pa2=line?line.alpha:.98;
-   e.point.pixelSize=c==='pump'?11:(c==='reservoir'?10:8);
-   e.point.outlineWidth=1;
-   e.point.color=cesiumColor(pt,pa2);
-   // Không ép viền trắng vì sẽ làm thay đổi màu gốc của KMZ.
-   e.point.outlineColor=cesiumColor(pt,pa2);
- }
- /* Không tạo HTML description khổng lồ cho 15k entity. Popup 3D dùng tl3dFeature. */
+  var c=category(f||{}),line=parseKMLColor(f,false),fill=parseKMLColor(f,true),width=kmlWidth(f);
+  var fallbackLine=c==='water'?'#22d3ee':'#55e6c1';
+  if(e.polyline){
+    var lc=line?line.css:fallbackLine;
+    var la=line?line.alpha:cssOpacity(f,false,.92);
+    e.polyline.width=Math.max(1,Math.min(width,16));
+    e.polyline.clampToGround=true;
+    e.polyline.material=cesiumColor(lc,la);
+  }
+  if(e.polygon){
+    var pc=fill?fill.css:(line?line.css:(c==='reservoir'?'#38bdf8':'#55e6c1'));
+    var pa=fill?fill.alpha:(line?Math.min(line.alpha,.35):cssOpacity(f,true,.16));
+    var oc=line?line.css:pc;
+    var oa=line?line.alpha:Math.min(1,Math.max(.65,pa));
+    e.polygon.outline=true;
+    e.polygon.outlineColor=cesiumColor(oc,oa);
+    e.polygon.material=cesiumColor(pc,pa);
+  }
+  if(e.point){
+    var pt=line?line.css:(c==='pump'?'#f59e0b':c==='reservoir'?'#38bdf8':'#43e6d0');
+    var pa2=line?line.alpha:cssOpacity(f,false,.98);
+    e.point.pixelSize=c==='pump'?11:(c==='reservoir'?10:8);
+    e.point.outlineWidth=1;
+    e.point.color=cesiumColor(pt,pa2);
+    e.point.outlineColor=cesiumColor(pt,pa2);
+  }
 }
 function updateCounts(){
  var fs=(featuresCache&&featuresCache.features)||[],p=0,l=0;

@@ -7858,22 +7858,53 @@ function category(f){
  if(/vùng|vung|tưới|tuoi|irrig/.test(t))return 'area';
  return 'other';
 }
-function kmlCssColor(f,poly){
+function parseKMLColor(f,poly){
  var p=f&&f.properties||{};
- var raw=poly?(p.kmlPolyColor||p.KMLPolyColor||p.polyColor||p.PolyColor):(p.kmlColor||p.KMLColor||p.styleColor||p.StyleColor||p.color||p.Color||p.lineColor||p.LineColor);
- if(!raw)return null;
+ var raw=poly?(p.kmlPolyColor||p.KMLPolyColor||p.polyColor||p.PolyColor||p.fillColor||p.FillColor):(p.kmlColor||p.KMLColor||p.styleColor||p.StyleColor||p.color||p.Color||p.lineColor||p.LineColor);
+ if(raw===null||raw===undefined||raw==='')return null;
  var c=String(raw).trim().replace(/^#/,'');
- if(/^[0-9a-fA-F]{8}$/.test(c))return '#'+c.substring(6,8)+c.substring(4,6)+c.substring(2,4);
- if(/^[0-9a-fA-F]{6}$/.test(c))return '#'+c;
+ // KML: AABBGGRR -> CSS RRGGBB + opacity AA.
+ if(/^[0-9a-fA-F]{8}$/.test(c)){
+   var a=parseInt(c.substring(0,2),16)/255;
+   var rr=c.substring(6,8),gg=c.substring(4,6),bb=c.substring(2,4);
+   return {css:'#'+rr+gg+bb,alpha:a,raw:c,format:'kml'};
+ }
+ // CSS/GeoJSON: RRGGBB
+ if(/^[0-9a-fA-F]{6}$/.test(c))return {css:'#'+c,alpha:1,raw:c,format:'css'};
+ // CSS shorthand
+ if(/^[0-9a-fA-F]{3}$/.test(c))return {css:'#'+c[0]+c[0]+c[1]+c[1]+c[2]+c[2],alpha:1,raw:c,format:'css'};
  return null;
 }
+function kmlCssColor(f,poly){var c=parseKMLColor(f,poly);return c?c.css:null}
+function kmlCssAlpha(f,poly,def){var c=parseKMLColor(f,poly);return c?c.alpha:(def==null?1:def)}
 function kmlWidth(f){var p=f&&f.properties||{},n=Number(p.kmlWidth||p.KMLWidth||p.lineWidth||p.LineWidth||p.width||p.Width);return Number.isFinite(n)&&n>0?n:2}
-function cesiumColor(hex,alpha){try{return Cesium.Color.fromCssColorString(hex).withAlpha(alpha)}catch(e){return Cesium.Color.CYAN.withAlpha(alpha)}}
+function cesiumColor(hex,alpha){try{return Cesium.Color.fromCssColorString(hex).withAlpha(Math.max(0,Math.min(1,alpha)))}catch(e){return Cesium.Color.WHITE.withAlpha(Math.max(0,Math.min(1,alpha)))}}
 function styleEntity(e,f){
- var c=category(f||{}),lineColor=kmlCssColor(f,false),fillColor=kmlCssColor(f,true)||lineColor,width=kmlWidth(f);
- if(e.polyline){e.polyline.width=Math.max(1,Math.min(width,12));e.polyline.clampToGround=true;e.polyline.material=cesiumColor(lineColor||(c==='water'?'#22d3ee':'#55e6c1'),.92)}
- if(e.polygon){var pc=fillColor||(c==='reservoir'?'#38bdf8':'#55e6c1');e.polygon.outline=true;e.polygon.outlineColor=cesiumColor(lineColor||pc,.95);e.polygon.material=cesiumColor(pc,.16)}
- if(e.point){var pt=lineColor||(c==='pump'?'#f59e0b':c==='reservoir'?'#38bdf8':'#43e6d0');e.point.pixelSize=c==='pump'?11:(c==='reservoir'?10:8);e.point.outlineWidth=2;e.point.color=cesiumColor(pt,.98);e.point.outlineColor=Cesium.Color.WHITE}
+ var c=category(f||{}),line=parseKMLColor(f,false),fill=parseKMLColor(f,true)||line,width=kmlWidth(f);
+ var fallbackLine=c==='water'?'#22d3ee':'#55e6c1';
+ if(e.polyline){
+   var lc=line?line.css:fallbackLine,la=line?line.alpha:.92;
+   e.polyline.width=Math.max(1,Math.min(width,12));
+   e.polyline.clampToGround=true;
+   e.polyline.material=cesiumColor(lc,la);
+ }
+ if(e.polygon){
+   var pc=fill?fill.css:(c==='reservoir'?'#38bdf8':'#55e6c1');
+   var pa=fill?fill.alpha:.16;
+   var oc=line?line.css:pc,oa=line?line.alpha:Math.min(1,Math.max(.65,pa));
+   e.polygon.outline=true;
+   e.polygon.outlineColor=cesiumColor(oc,oa);
+   e.polygon.material=cesiumColor(pc,pa);
+ }
+ if(e.point){
+   var pt=line?line.css:(c==='pump'?'#f59e0b':c==='reservoir'?'#38bdf8':'#43e6d0');
+   var pa2=line?line.alpha:.98;
+   e.point.pixelSize=c==='pump'?11:(c==='reservoir'?10:8);
+   e.point.outlineWidth=1;
+   e.point.color=cesiumColor(pt,pa2);
+   // Không ép viền trắng vì sẽ làm thay đổi màu gốc của KMZ.
+   e.point.outlineColor=cesiumColor(pt,pa2);
+ }
  /* Không tạo HTML description khổng lồ cho 15k entity. Popup 3D dùng tl3dFeature. */
 }
 function updateCounts(){

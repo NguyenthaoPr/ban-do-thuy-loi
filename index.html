@@ -3745,9 +3745,9 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 <label class="map-toggle-row tl-six-row"><span><i class="legend-dot tl-six-icon ho"></i>🏞️ Hồ chứa</span><input checked="" id="toggleHoChua" data-six-layer="ho" type="checkbox"/><em></em></label>
 <label class="map-toggle-row tl-six-row"><span><i class="legend-dot tl-six-icon tram"></i>🚰 Trạm bơm</span><input checked="" id="toggleTramBom" data-six-layer="tram_bom" type="checkbox"/><em></em></label>
 <label class="map-toggle-row tl-six-row"><span><i class="legend-dot tl-six-icon dap"></i>🏗️ Đập/Bara</span><input checked="" id="toggleDapBara" data-six-layer="dap_bara" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-row"><span><i class="legend-line tl-six-icon-line kenh"></i>💧 Hệ thống kênh</span><input checked="" id="toggleHeThongKenh" data-six-layer="kenh" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-row"><span><i class="legend-dot tl-six-icon cong"></i>⚙️ Công trình trên kênh</span><input checked="" id="toggleCongTrenKenh" data-six-layer="cong_tren_kenh" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-row"><span><i class="legend-area tl-six-icon area"></i>🌾 Khu tưới</span><input checked="" id="toggleKhuTuoi" data-six-layer="khu_tuoi" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-row"><span><i class="legend-line tl-six-icon-line kenh"></i>💧 Hệ thống kênh</span><input id="toggleHeThongKenh" data-six-layer="kenh" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-row"><span><i class="legend-dot tl-six-icon cong"></i>⚙️ Công trình trên kênh</span><input id="toggleCongTrenKenh" data-six-layer="cong_tren_kenh" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-row"><span><i class="legend-area tl-six-icon area"></i>🌾 Khu tưới</span><input id="toggleKhuTuoi" data-six-layer="khu_tuoi" type="checkbox"/><em></em></label>
 </div>
 </div>
 <div class="map-hud" id="mapHud">
@@ -6545,14 +6545,21 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             // tôn trọng trạng thái bật/tắt của 6 lớp bản đồ.
             const sixChannelToggle = document.getElementById('toggleHeThongKenh');
             const sixAreaToggle = document.getElementById('toggleKhuTuoi');
-            const showSixChannels = !sixChannelToggle || sixChannelToggle.checked;
-            const showSixAreas = !sixAreaToggle || sixAreaToggle.checked;
+            const showSixChannels = !!(sixChannelToggle && sixChannelToggle.checked);
+            const showSixAreas = !!(sixAreaToggle && sixAreaToggle.checked);
             if (nonPointLayer) {
               nonPointLayer.eachLayer(function(layer) {
                 if (!layer || !layer.setStyle) return;
                 const gt = layer.feature?.geometry?.type || '';
-                const isArea = gt === 'Polygon' || gt === 'MultiPolygon';
-                const visible = isArea ? showSixAreas : showSixChannels;
+                let key = null;
+                try {
+                  key = (typeof window.__TL_SIX_FEATURE_KEY === 'function')
+                    ? window.__TL_SIX_FEATURE_KEY(layer.feature) : null;
+                } catch(e) {}
+                if (!key) {
+                  key = (gt === 'Polygon' || gt === 'MultiPolygon') ? 'khu_tuoi' : 'kenh';
+                }
+                const visible = key === 'khu_tuoi' ? showSixAreas : key === 'kenh' ? showSixChannels : false;
                 if (!visible || zoom <= 7) {
                   layer.setStyle({ weight: 0.8, opacity: 0, fillOpacity: 0 });
                   if (layer.closeTooltip) layer.closeTooltip();
@@ -6560,7 +6567,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
                   layer.setStyle({
                     weight: lineWeight,
                     opacity: lineOpacity,
-                    fillOpacity: isArea ? (zoom >= 11 ? 0.12 : 0.045) : 0
+                    fillOpacity: (gt === 'Polygon' || gt === 'MultiPolygon') ? (zoom >= 11 ? 0.12 : 0.045) : 0
                   });
                 }
               });
@@ -8772,7 +8779,29 @@ if (description) {
       p.ten_kenh||p.TEN_KENH||p.ten_duong||p.TEN_DUONG||''
     );
 
-    // Những tên này chắc chắn thuộc hệ thống kênh, kể cả khi màu KMZ là đỏ.
+    // Đường màu đỏ là ĐƯỜNG KHU TƯỚI.
+    // Phải kiểm tra MÀU TRƯỚC TÊN, vì trong master.kmz có các tuyến
+    // màu đỏ nhưng tên có thể chứa chữ 'kênh'. Theo yêu cầu phân lớp,
+    // tuyệt đối không đưa đường đỏ vào Hệ thống kênh.
+    let kmlColor='';
+    try{
+      kmlColor=String(getKMLColor(feature)||'').toLowerCase().replace('#','');
+    }catch(e){}
+    const cssColor=String(
+      p.styleColor||p.StyleColor||p.color||p.Color||p.lineColor||p.LineColor||''
+    ).toLowerCase().replace('#','');
+    const rawColor=String(
+      p.kmlColor||p.KMLColor||p.styleColorKML||p.style_color_kml||''
+    ).toLowerCase().replace('#','');
+    const isRedLine =
+      kmlColor==='ff0000' || kmlColor==='ff0000ff' ||
+      rawColor==='ff0000' || rawColor==='ff0000ff' ||
+      cssColor==='ff0000' || cssColor==='ff0000ff' ||
+      cssColor==='rgb(255,0,0)' || cssColor==='rgb(255, 0, 0)';
+
+    if(isRedLine) return 'khu_tuoi';
+
+    // Chỉ sau khi loại toàn bộ đường đỏ mới nhận diện tên tuyến kênh.
     const isChannelName =
       /\bkenh\b/.test(name) ||
       name.includes('tuyen kenh') ||
@@ -8781,20 +8810,6 @@ if (description) {
       /\bmuong\b/.test(name);
 
     if(isChannelName) return 'kenh';
-
-    // Đọc đúng màu LineStyle của KMZ qua hàm hiện có.
-    // ff0000ff = đỏ thuần theo chuẩn AABBGGRR của KML.
-    let kmlColor='';
-    try{
-      kmlColor=String(getKMLColor(feature)||'').toLowerCase().replace('#','');
-    }catch(e){}
-    if(kmlColor==='#ff0000'||kmlColor==='ff0000ff'||kmlColor==='#ff0000ff') return 'khu_tuoi';
-
-    // Một số bản ghi KML có lưu màu thô trong properties.
-    const rawColor=String(
-      p.kmlColor||p.KMLColor||p.styleColorKML||p.style_color_kml||''
-    ).toLowerCase().replace('#','');
-    if(rawColor==='ff0000ff') return 'khu_tuoi';
 
     // Tên có chữ Khu tưới nhưng bị lỗi gõ/Unicode vẫn ưu tiên Khu tưới.
     if(
@@ -8808,6 +8823,9 @@ if (description) {
 
     return 'kenh';
   }
+
+  // Cho bộ render theo zoom dùng chung đúng bộ phân lớp 6 lớp.
+  window.__TL_SIX_FEATURE_KEY = tlFeatureLayerKey;
 
   function lineAreaVisible(key, visible){
     const r=sync(); const g=r&&r.nonPointLayer; if(!g||!g.eachLayer) return;
@@ -8868,6 +8886,15 @@ if (description) {
   }
   function init(){
     bind(); sync();
+    // Trạng thái khởi động: chỉ mở 3 lớp lõi; 3 lớp chi tiết đóng.
+    ['toggleHeThongKenh','toggleCongTrenKenh','toggleKhuTuoi'].forEach(function(id){
+      const el=document.getElementById(id);
+      if(el) el.checked=false;
+    });
+    ['toggleHoChua','toggleTramBom','toggleDapBara'].forEach(function(id){
+      const el=document.getElementById(id);
+      if(el) el.checked=true;
+    });
     const timer=setInterval(function(){
       const r=sync(); bind();
       if(r&&r.sixLayers){

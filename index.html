@@ -85,7 +85,7 @@
        và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
        initAiMap() và prepareImageWithStamp().
        ═════════════════════════════════════════════════════════ -->
-<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=x0Ht0TFypvBr1L2eU2RJagzM5Fy8nSzhknR3NL6-uJVEeNrowwAeTiunDwqiHfi5NiWr5SC23--it3pMc0oLAbWFOwtFiAilHoq413Syc449r6rcwhtkgQR3922WK2fPX7B3vf5rrk7NjkCWRxOu3dz71Vk2PJ69Y2yGhzQyK28nno0XP0rjKWoioqg5nKcu_kr0YkDCZU5_SM4Iu7iVfIzaifuCSWrskwYjE-E7dTE49i2bvumwDUQyw4j6ZnrIGpJy5gi_WLrllKIIB9OFYOIJ2Ups3tbgcR6BvnUE5dcOUwXRBAbRhYXCXbdku3zo4OFklDVnyissg-X3taTC_g" charset="UTF-8"></script><style>
+<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=NZaGzdan1GSAUFkkfQAn5n39FBS-IAzL42eirfKlSShfywiuvA4QRJJDp1qmXyo_CPtKyWimxDYKLg_4F1gmm8Ow5c68NMf85QRdFrgXQJTev-TCkM2YFD96wxKMj0XumWqUw1puD0VIagvbjjAl2K11SUEQml7LnKgy6C4sPkwWoWsVveteohcgOb5AWCKRG2K3OTir35ZvkjpIjBWZvwZXXNPjGnMwGMBpSD5TB9TF_FdCWEiLeZVlOx7TdSlX_gyj8TnWI69dlo67B4x2IoEVFH-jkXPBeKY_pf7DBcNatGGKrCnPLQcdzaUHeAp4kS55IQhF-MMt6ENVWvl2K65Qqn8NnyTcP9Oma7pVJf8" charset="UTF-8"></script><script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=x0Ht0TFypvBr1L2eU2RJagzM5Fy8nSzhknR3NL6-uJVEeNrowwAeTiunDwqiHfi5NiWr5SC23--it3pMc0oLAbWFOwtFiAilHoq413Syc449r6rcwhtkgQR3922WK2fPX7B3vf5rrk7NjkCWRxOu3dz71Vk2PJ69Y2yGhzQyK28nno0XP0rjKWoioqg5nKcu_kr0YkDCZU5_SM4Iu7iVfIzaifuCSWrskwYjE-E7dTE49i2bvumwDUQyw4j6ZnrIGpJy5gi_WLrllKIIB9OFYOIJ2Ups3tbgcR6BvnUE5dcOUwXRBAbRhYXCXbdku3zo4OFklDVnyissg-X3taTC_g" charset="UTF-8"></script><style>
     /* =========================================================
        CSS GỐC – GIỮ NGUYÊN (đã được copy từ code trước)
        ========================================================= */
@@ -4131,6 +4131,11 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       let TL_AI_DATA_ROWS_CACHE = null;
       let TL_AI_DATA_CACHE_TIME = 0;
       let TL_AI_DATA_INFLIGHT = null;
+      // PERFORMANCE V5 — index AI_DATA một lần, không chuẩn hóa/lọc toàn bộ Sheet
+      // lặp lại cho từng hồ/trạm. Giữ nguyên raw rows để tương thích API cũ.
+      let TL_AI_DATA_NORMALIZED_CACHE = null;
+      let TL_AI_DATA_INDEX = null;
+      let TL_AI_DATA_INDEX_TIME = 0;
 
       function tlLiveFormatNumber(value, digits = 2) {
         const n = Number(value);
@@ -4304,18 +4309,73 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
           const time=tlAiRowDate(row);
           const text=[category,parameter,unit].join(' ');
           const cls=tlAiClassifyRow(row);
+          const facilityClean=tlAiFacilityClean(facility);
           return {
-            raw:row,index,facility,facilityClean:tlAiFacilityClean(facility),
+            raw:row,index,facility,facilityClean,facilityNorm:tlAiNorm(facilityClean),
             category,parameter,unit,value,time,kind:cls.kind,
+            codeNorm:tlAiNorm(tlAiField(row,TL_AI_FIELDS.code)),
             MNDBT:tlAiExtractLimit(category,'MNDBT') ?? tlAiExtractLimit(text,'MNDBT'),
             MNDGC:tlAiExtractLimit(parameter,'MNDGC') ?? tlAiExtractLimit(text,'MNDGC')
           };
         }).filter(x=>x.facilityClean);
       }
 
+      function tlAiBuildIndex(rows){
+        const normalized=tlAiNormalizeRows(rows);
+        const byName=new Map(), byCode=new Map();
+        for(const r of normalized){
+          if(r.facilityNorm){
+            const a=byName.get(r.facilityNorm);
+            if(a) a.push(r); else byName.set(r.facilityNorm,[r]);
+          }
+          if(r.codeNorm){
+            const a=byCode.get(r.codeNorm);
+            if(a) a.push(r); else byCode.set(r.codeNorm,[r]);
+          }
+        }
+        TL_AI_DATA_NORMALIZED_CACHE=normalized;
+        TL_AI_DATA_INDEX={normalized,byName,byCode};
+        TL_AI_DATA_INDEX_TIME=Date.now();
+        return TL_AI_DATA_INDEX;
+      }
+
+      function tlAiGetIndex(rows){
+        if(TL_AI_DATA_INDEX && TL_AI_DATA_NORMALIZED_CACHE) return TL_AI_DATA_INDEX;
+        return tlAiBuildIndex(rows||[]);
+      }
+
+      function tlAiFindFacilityRows(index,facility,code){
+        if(!index)return [];
+        const fn=tlAiNorm(tlAiFacilityClean(facility)), cn=tlAiNorm(code);
+        if(cn && index.byCode.has(cn)) return index.byCode.get(cn).slice();
+        if(!fn)return [];
+        const exact=index.byName.get(fn);
+        if(exact?.length) return exact.slice();
+
+        // Contains chỉ duyệt danh sách tên công trình duy nhất, không duyệt toàn bộ rows.
+        for(const [name,arr] of index.byName){
+          if(name.includes(fn)||fn.includes(name)) return arr.slice();
+        }
+
+        // Fuzzy chỉ chạy khi không có exact/contains.
+        let best=0, candidates=[];
+        for(const [name,arr] of index.byName){
+          const score=tlAiMatchScore(name,fn);
+          if(score>=0.72){
+            if(score>best){best=score;candidates=[arr];}
+            else if(score>=Math.max(0.72,best-0.08)) candidates.push(arr);
+          }
+        }
+        const out=[]; for(const arr of candidates) out.push(...arr);
+        return out;
+      }
+
       async function tlLoadAIData(force=false){
         const now=Date.now();
-        if(!force&&TL_AI_DATA_ROWS_CACHE&&now-TL_AI_DATA_CACHE_TIME<TL_LIVE_CACHE_TTL)return TL_AI_DATA_ROWS_CACHE;
+        if(!force&&TL_AI_DATA_ROWS_CACHE&&now-TL_AI_DATA_CACHE_TIME<TL_LIVE_CACHE_TTL){
+          if(!TL_AI_DATA_INDEX) tlAiBuildIndex(TL_AI_DATA_ROWS_CACHE);
+          return TL_AI_DATA_ROWS_CACHE;
+        }
         if(!force&&TL_AI_DATA_INFLIGHT)return TL_AI_DATA_INFLIGHT;
         TL_AI_DATA_INFLIGHT=(async()=>{
           const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),TL_LIVE_TIMEOUT);
@@ -4325,46 +4385,48 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
             if(!r.ok)throw new Error('AI_DATA HTTP '+r.status);
             const rows=tlAiCsv(await r.text()); if(!rows.length)throw new Error('AI_DATA không có dữ liệu');
             TL_AI_DATA_ROWS_CACHE=rows; TL_AI_DATA_CACHE_TIME=Date.now();
+            // Chuẩn hóa + lập index đúng 1 lần sau mỗi lần tải Sheet.
+            const idx=tlAiBuildIndex(rows);
             try{sessionStorage.setItem('TL_AI_DATA_LAST_OK_V4',JSON.stringify({time:Date.now(),rows}));}catch(_){ }
-            // Adapter được chuẩn hóa một lần, nhưng raw rows vẫn giữ nguyên để không phá API cũ.
-            try{window.__TL_AI_DATA_DEBUG__={rawRows:rows.length,headers:Object.keys(rows[0]||{}),normalizedRows:tlAiNormalizeRows(rows).length,loadedAt:new Date().toISOString()};}catch(_){ }
+            try{window.__TL_AI_DATA_DEBUG__={rawRows:rows.length,headers:Object.keys(rows[0]||{}),normalizedRows:idx.normalized.length,indexedFacilities:idx.byName.size,indexedCodes:idx.byCode.size,loadedAt:new Date().toISOString()};}catch(_){ }
             return rows;
           }finally{clearTimeout(timer);}
         })();
         try{return await TL_AI_DATA_INFLIGHT;}
         catch(e){
           if(TL_AI_DATA_ROWS_CACHE?.length)return TL_AI_DATA_ROWS_CACHE;
-          try{const x=JSON.parse(sessionStorage.getItem('TL_AI_DATA_LAST_OK_V4')||'null');if(x?.rows?.length){TL_AI_DATA_ROWS_CACHE=x.rows;return x.rows;}}catch(_){ }
+          try{const x=JSON.parse(sessionStorage.getItem('TL_AI_DATA_LAST_OK_V4')||'null');if(x?.rows?.length){TL_AI_DATA_ROWS_CACHE=x.rows;TL_AI_DATA_CACHE_TIME=x.time||Date.now();tlAiBuildIndex(x.rows);return x.rows;}}catch(_){ }
           throw e;
         }finally{TL_AI_DATA_INFLIGHT=null;}
       }
 
       function tlAiMatchRows(rows,facility,code){
         const raw=Array.isArray(rows)?rows:[];
-        const fn=tlAiNorm(tlAiFacilityClean(facility)),cn=tlAiNorm(code);
-        if(!fn&&!cn)return[];
-        const normalized=tlAiNormalizeRows(raw);
-        // Exact / normalized match trước — nhanh và an toàn.
-        let exact=normalized.filter(r=>{
-          const n=tlAiNorm(r.facilityClean), c=tlAiNorm(tlAiField(r.raw,TL_AI_FIELDS.code));
-          return (cn&&c===cn)||(fn&&n===fn)||(fn&&n.includes(fn))||(fn&&fn.includes(n));
-        });
-        if(exact.length)return exact;
-        // Fuzzy chỉ chạy khi exact không có, tránh ảnh hưởng hiệu năng GIS.
-        const scored=normalized.map(r=>({r,score:tlAiMatchScore(r.facilityClean,facility)}))
-          .filter(x=>x.score>=0.72).sort((a,b)=>b.score-a.score);
-        const best=scored[0]?.score||0;
-        return scored.filter(x=>x.score>=Math.max(0.72,best-0.08)).map(x=>x.r);
+        const index=(TL_AI_DATA_INDEX && TL_AI_DATA_NORMALIZED_CACHE) ? TL_AI_DATA_INDEX : tlAiBuildIndex(raw);
+        return tlAiFindFacilityRows(index,facility,code);
       }
 
       function tlAiLatestOf(rows,kind){
-        return (rows||[]).filter(r=>!kind||r.kind===kind).sort((a,b)=>(b.time?.getTime?.()||0)-(a.time?.getTime?.()||0))[0]||null;
+        let best=null, bestTime=-Infinity;
+        for(const r of (rows||[])){
+          if(kind && r.kind!==kind) continue;
+          const t=r.time?.getTime?.()||0;
+          if(!best || t>bestTime){best=r;bestTime=t;}
+        }
+        return best;
       }
 
       function tlAiPayload(rows,facility){
         const normalized=(rows||[]).length && rows[0]?.kind ? rows : tlAiNormalizeRows(rows);
         if(!normalized.length)return null;
-        const latestAny=[...normalized].sort((a,b)=>(b.time?.getTime?.()||0)-(a.time?.getTime?.()||0))[0];
+        let latestAny=null, latestTime=-Infinity, MNDBT=null, MNDGC=null, limitTime=-Infinity;
+        for(const r of normalized){
+          const t=r.time?.getTime?.()||0;
+          if(t>latestTime){latestTime=t;latestAny=r;}
+          if(r.MNDBT!=null && t>=limitTime){MNDBT=r.MNDBT;}
+          if(r.MNDGC!=null && t>=limitTime){MNDGC=r.MNDGC;}
+          if(r.MNDBT!=null || r.MNDGC!=null) limitTime=Math.max(limitTime,t);
+        }
         const make=(kind,parameter,unit)=>{
           const r=tlAiLatestOf(normalized,kind); if(!r||!Number.isFinite(r.value))return null;
           return {value:r.value,unit:r.unit||unit,parameter:r.parameter||parameter,time:r.time?r.time.toISOString():''};
@@ -4373,13 +4435,9 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         const flow=make('flow','Lưu lượng','m³/s');
         const rainfall=make('rainfall','Lượng mưa','mm');
         const salinity=make('salinity','Độ mặn','‰');
-        const mndbtRows=normalized.filter(r=>r.MNDBT!=null).sort((a,b)=>(b.time?.getTime?.()||0)-(a.time?.getTime?.()||0));
-        const mndgcRows=normalized.filter(r=>r.MNDGC!=null).sort((a,b)=>(b.time?.getTime?.()||0)-(a.time?.getTime?.()||0));
-        const MNDBT=mndbtRows[0]?.MNDBT ?? null;
-        const MNDGC=mndgcRows[0]?.MNDGC ?? null;
         const time=(water?.time||flow?.time||rainfall?.time||salinity?.time||latestAny?.time?.toISOString?.()||'');
         const result={ok:true,data:{water_level:water,flow,rainfall,salinity,limits:{MNDBT,MNDGC},status:{level:'info',label:'AI_DATA'},updated_label:time?tlLiveTimeLabel(time):'AI_DATA',source:'AI_DATA trực tiếp'}};
-        try{window.__TL_AI_DATA_DEBUG__={...(window.__TL_AI_DATA_DEBUG__||{}),facility:facility||normalized[0]?.facility,matchedRows:normalized.length,latest:time,kinds:Object.fromEntries(['water','flow','rainfall','salinity'].map(k=>[k,normalized.filter(r=>r.kind===k).length])),MNDBT,MNDGC};}catch(_){ }
+        try{window.__TL_AI_DATA_DEBUG__={...(window.__TL_AI_DATA_DEBUG__||{}),facility:facility||normalized[0]?.facility,matchedRows:normalized.length,latest:time,kinds:Object.fromEntries(['water','flow','rainfall','salinity'].map(k=>[k,normalized.reduce((n,r)=>n+(r.kind===k?1:0),0)])),MNDBT,MNDGC};}catch(_){ }
         return result;
       }
 
@@ -5987,17 +6045,18 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       }
       function tlCloseAlertSheet(){tlAlertSheet.hidden=true;}
       async function tlWarmReservoirLiveCache(){
-        try {
-          const reservoirs=(searchIndex||[]).filter(r=>r.type==='ho' && r.name).slice(0, 30);
-          let i=0;
-          const worker=async()=>{
-            while(i<reservoirs.length){
-              const record=reservoirs[i++];
-              try { await tlFetchLive(record.name,false); } catch(e) {}
+        // PERFORMANCE V5: không quét/tải hàng loạt ngay khi bản đồ vừa mở.
+        // Popup sẽ đọc từ AI_DATA index O(1) theo công trình. Chỉ làm ấm tối đa 4 hồ
+        // khi trình duyệt rảnh, tránh tranh CPU với GIS/KMZ/MarkerCluster.
+        try{
+          const run=async()=>{
+            const reservoirs=(searchIndex||[]).filter(r=>r.type==='ho'&&r.name).slice(0,4);
+            for(const record of reservoirs){
+              try{ await tlFetchLive(record.name,false); }catch(e){}
             }
           };
-          await Promise.all(Array.from({length:Math.min(8,reservoirs.length)},()=>worker()));
-        } catch(e) {}
+          tlRunWhenIdle(run,5000);
+        }catch(e){}
       }
 
       async function tlRefreshReservoirAlerts(background = false){
@@ -6018,10 +6077,6 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             if(!item) return;
             const existing=out.findIndex(x=>x.name===item.name);
             if(existing>=0) out[existing]=item; else out.push(item);
-            out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
-            tlReservoirAlertRecords=out.slice();
-            tlReservoirAlertsLoaded=false;
-            tlRenderAlertSummary();
           };
           const worker=async()=>{
             while(cursor<reservoirs.length){
@@ -6042,7 +6097,10 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               }catch(e){ console.warn('Alert hồ:',record.name,e); }
             }
           };
-          await Promise.all(Array.from({length:Math.min(12,reservoirs.length)},()=>worker()));
+          await Promise.all(Array.from({length:Math.min(4,reservoirs.length)},()=>worker()));
+          out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
+          tlReservoirAlertRecords=out.slice();
+          tlReservoirAlertsLoaded=false;
           tlReservoirAlertsLoaded=true;
           window.__TL_ALERT_LAST_REFRESH=Date.now();
           mapAlertBtn.classList.remove('is-loading');
@@ -6317,13 +6375,16 @@ const TL_SIX_LAYER_MEMBERS = {
               // Bắt đầu tải cảnh báo ngay khi Search Index sẵn sàng.
               // Nút 🔔 sẽ nhấp nháy trong toàn bộ thời gian chờ dữ liệu LIVE.
               if (!tlAlertRefreshStarted) {
-                tlRefreshReservoirAlerts(true).catch(function(e){
-                  console.warn('[Alert] Refresh:', e);
-                  mapAlertBtn.classList.remove('is-loading');
-                });
+                // Không chạy 12 request/12 bộ lọc ngay lúc GIS vừa vẽ xong.
+                // Chuyển cảnh báo LIVE sang idle, ưu tiên first-paint của bản đồ.
+                tlRunWhenIdle(function(){
+                  tlRefreshReservoirAlerts(true).catch(function(e){
+                    console.warn('[Alert] Refresh:', e);
+                    mapAlertBtn.classList.remove('is-loading');
+                  });
+                },3500);
               }
-              // Làm ấm cache mực nước theo đợt nhỏ sau khi bản đồ đã hiện.
-              // Không chặn render bản đồ và không tạo hàng trăm request cùng lúc.
+              // AI_DATA warm-up cũng chạy khi rảnh, tối đa 4 hồ.
               tlWarmReservoirLiveCache();
               console.log('📚 GIS: Search Index', searchIndex.length, 'bản ghi.');
 

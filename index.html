@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <meta content="#08233d" name="theme-color"/>
-<title>BẢN ĐỒ THỦY LỢI | VU GIA – THU BỒN · 6 LỚP CHÍNH</title>
+<title>BẢN ĐỒ THỦY LỢI | VU GIA – THU BỒN</title>
 <!-- ═════════════════════════════════════════════════════════
        PERF PATCH — RESOURCE HINTS (bổ sung, không đổi logic)
        Kết nối sớm tới các domain hay gọi để giảm độ trễ DNS/TLS
@@ -36,31 +36,18 @@
        Ba thư viện này giờ được nạp lười (lazy) bằng tlLoadScript()
        ngay trước khi cần dùng (mở Bản đồ thủy lợi / chụp ảnh QR), và
        được nạp ngầm lúc rảnh (requestIdleCallback) để không chặn
-       màn hình bản đồ hiển thị đầu tiên. Xem khối script cuối 
-  <style id="map-only-cleanup">
-    /* =========================================================
-       BẢN ĐỒ THỦY LỢI — GIAO DIỆN ĐỘC LẬP
-       Giữ nguyên GIS, Popup, Search, MarkerCluster và Alert.
-       ========================================================= */
-    html, body { width:100%; height:100%; margin:0; padding:0; overflow:hidden !important; background:#eef3f7; }
-    body > main { width:100% !important; max-width:none !important; margin:0 !important; padding:0 !important; }
-    #mapAiPanel.map-ai-panel { display:flex !important; position:fixed !important; inset:0 !important; width:100vw !important; height:100dvh !important; max-width:none !important; margin:0 !important; z-index:9999 !important; background:#fff !important; overflow:hidden !important; }
-    #mapAiPanel.map-ai-panel.hidden { display:flex !important; }
-    #mapAiPanel .map-ai-header { flex:0 0 auto; }
-    #mapAiPanel .map-container { flex:1 1 auto; min-height:0 !important; height:auto !important; }
-    #mapAiPanel #aiMap { height:100% !important; min-height:0 !important; }
-    #mapAiPanel .map-ai-status { display:none !important; }
-    #mapAiPanel .map-feature-card.hidden { display:none !important; }
-    /* Bản đồ độc lập. */
-    /* Quick chips vẫn là chức năng tìm kiếm bản đồ, giữ nguyên. */
-    /* Không cho nội dung cũ vô tình trồi lên khi responsive. */
-    @media (max-width:700px) {
-      #mapAiPanel .map-ai-header { display:none !important; }
-      #mapAiPanel .map-search-wrap { z-index:5100 !important; }
-      #mapAiPanel .map-container { min-height:0 !important; }
-    }
-  </style>
-
+       màn hình bản đồ hiển thị đầu tiên. Xem khối script cuối
+       và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
+       initAiMap() và prepareImageWithStamp().
+       ═════════════════════════════════════════════════════════ -->
+<!-- FIX: khối <style id="map-only-cleanup"> từng nằm ở đây đã bị nuốt vào
+     bên trong comment HTML phía trên (mở </!-- --> ở dòng 32 nhưng không
+     đóng cho tới ngay trước dòng này) nên KHÔNG BAO GIỜ có hiệu lực. May mắn
+     một bản sao giống hệt của nó đã tồn tại độc lập, còn hoạt động, ngay
+     trước thẻ </head> thật sự (id="map-only-cleanup", ~dòng 3687), nên phần
+     hiển thị full-screen của bản đồ không bị ảnh hưởng. Khối
+     "map-only-mobile-alert-final" dưới đây thì KHÔNG có bản sao nào khác —
+     nó đã bị vô hiệu hoá hoàn toàn cho tới khi sửa ở đây. -->
 <style id="map-only-mobile-alert-final">
 @media (max-width:700px){
   #mapAiPanel #tlAlertSheet{
@@ -80,12 +67,7 @@
   #mapAiPanel .tl-alert-footer{font-size:10px !important; padding:8px 14px !important;}
 }
 </style>
-
-</head>
-       và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
-       initAiMap() và prepareImageWithStamp().
-       ═════════════════════════════════════════════════════════ -->
-<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=x0Ht0TFypvBr1L2eU2RJagzM5Fy8nSzhknR3NL6-uJVEeNrowwAeTiunDwqiHfi5NiWr5SC23--it3pMc0oLAbWFOwtFiAilHoq413Syc449r6rcwhtkgQR3922WK2fPX7B3vf5rrk7NjkCWRxOu3dz71Vk2PJ69Y2yGhzQyK28nno0XP0rjKWoioqg5nKcu_kr0YkDCZU5_SM4Iu7iVfIzaifuCSWrskwYjE-E7dTE49i2bvumwDUQyw4j6ZnrIGpJy5gi_WLrllKIIB9OFYOIJ2Ups3tbgcR6BvnUE5dcOUwXRBAbRhYXCXbdku3zo4OFklDVnyissg-X3taTC_g" charset="UTF-8"></script><style>
+<style>
     /* =========================================================
        CSS GỐC – GIỮ NGUYÊN (đã được copy từ code trước)
        ========================================================= */
@@ -3759,16 +3741,13 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 <button data-basemap="street" type="button"><span class="basemap-thumb street"></span><b>Đường phố</b></button>
 <button data-basemap="dark" type="button"><span class="basemap-thumb dark"></span><b>Đêm</b></button>
 </div>
-<div class="map-section-label">6 LỚP CHÍNH THỦY LỢI</div>
-<div class="tl-six-layer-list" id="tlSixLayerList">
-<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon reservoir">🏞️</i><b>Hồ chứa</b></span><input checked id="toggleReservoirs" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon pump">🚰</i><b>Trạm bơm</b></span><input checked id="togglePumps" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon dam">🏗️</i><b>Đập / Bara</b></span><input checked id="toggleDams" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon channel">💧</i><b>Hệ thống kênh</b></span><input id="toggleChannels" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon onchannel">⚙️</i><b>Công trình trên kênh</b></span><input id="toggleOnChannel" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon irrigation">🌾</i><b>Khu tưới</b></span><input id="toggleIrrigation" type="checkbox"/><em></em></label>
-</div>
-<div class="tl-six-layer-note">Bật / tắt độc lập từng lớp · Giữ nguyên dữ liệu GIS Master &amp; màu KMZ</div>
+<div class="map-section-label">6 LỚP DỮ LIỆU THỦY LỢI</div>
+<label class="map-toggle-row tl-six-row"><span><i class="legend-dot tl-six-icon ho"></i>🏞️ Hồ chứa</span><input checked="" id="toggleHoChua" data-six-layer="ho" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-row"><span><i class="legend-dot tl-six-icon tram"></i>🚰 Trạm bơm</span><input checked="" id="toggleTramBom" data-six-layer="tram_bom" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-row"><span><i class="legend-dot tl-six-icon dap"></i>🏗️ Đập/Bara</span><input checked="" id="toggleDapBara" data-six-layer="dap_bara" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-row"><span><i class="legend-line tl-six-icon-line kenh"></i>💧 Hệ thống kênh</span><input id="toggleHeThongKenh" data-six-layer="kenh" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-row"><span><i class="legend-dot tl-six-icon cong"></i>⚙️ Công trình trên kênh</span><input id="toggleCongTrenKenh" data-six-layer="cong_tren_kenh" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-row"><span><i class="legend-area tl-six-icon area"></i>🌾 Khu tưới</span><input id="toggleKhuTuoi" data-six-layer="khu_tuoi" type="checkbox"/><em></em></label>
 </div>
 </div>
 <div class="map-hud" id="mapHud">
@@ -3778,7 +3757,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 </div>
 <div class="map-legend" id="mapLegend">
 <div class="map-legend-title"><span>CHÚ GIẢI</span><button id="mapLegendToggle" type="button">−</button></div>
-<div class="map-legend-body tl-six-legend"><span>🏞️ Hồ chứa</span><span>🚰 Trạm bơm</span><span>🏗️ Đập / Bara</span><span>💧 Hệ thống kênh</span><span>⚙️ Công trình trên kênh</span><span>🌾 Khu tưới</span></div>
+<div class="map-legend-body"><span><i class="legend-dot facility"></i>Công trình</span><span><i class="legend-line channel"></i>Kênh / tuyến</span><span><i class="legend-area irrigation"></i>Khu tưới</span></div>
 </div>
 <div class="map-feature-card hidden" id="mapFeatureCard">
 <div class="map-feature-top">
@@ -3792,13 +3771,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 <button class="map-detail-btn" id="mapFeatureDetail" type="button">Xem chi tiết</button>
 </div>
 <div class="map-ai-status" id="mapAiStatus">Đang chuẩn bị bản đồ...</div>
-</div></div></div><span>GIS</span></div><span>ĐIỂM</span></div><span>ĐƯỜNG/VÙNG</span></div></div>
-      </div>
-    </div></div>
-    </div>
-  </div>
-</div>
-</main>
+</div></main>
 <!-- ═════════════════════════════════════════════════════════
        PERF PATCH — LAZY LOADER cho Leaflet/MarkerCluster & QRCode
        BỔ SUNG, không thay đổi logic GIS/AI hiện có.
@@ -3822,10 +3795,32 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
     return p;
   }
   let __tlLeafletPromise=null;
+  async function tlLoadAny(urls, label){
+    let lastError=null;
+    for(const url of urls){
+      try{
+        await tlLoadScript(url);
+        if(label==='leaflet' && window.L) return true;
+        if(label==='cluster' && window.L && L.MarkerClusterGroup) return true;
+      }catch(e){ lastError=e; console.warn('[Leaflet] CDN lỗi:',url,e); }
+    }
+    throw lastError || new Error('Không tải được '+label);
+  }
   window.tlEnsureLeaflet=function(){
     if(__tlLeafletPromise) return __tlLeafletPromise;
-    __tlLeafletPromise=tlLoadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')
-      .then(()=>tlLoadScript('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'));
+    __tlLeafletPromise=(async function(){
+      await tlLoadAny([
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
+        'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+        'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'
+      ],'leaflet');
+      await tlLoadAny([
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js',
+        'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js',
+        'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js'
+      ],'cluster');
+      return true;
+    })().catch(function(e){ __tlLeafletPromise=null; throw e; });
     return __tlLeafletPromise;
   };
   const idle=window.requestIdleCallback||function(fn){setTimeout(fn,1200);};
@@ -3844,6 +3839,13 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
   const searchResults=document.getElementById('searchResults');
   const mapAlertBtn=document.getElementById('mapAlertBtn');
   const mapAlertBadge=document.getElementById('mapAlertBadge');
+  const mapFeatureCard=document.getElementById('mapFeatureCard');
+  const mapFeatureType=document.getElementById('mapFeatureType');
+  const mapFeatureName=document.getElementById('mapFeatureName');
+  const mapFeatureSummary=document.getElementById('mapFeatureSummary');
+  const mapFeatureDetail=document.getElementById('mapFeatureDetail');
+  const mapFeatureClose=document.getElementById('mapFeatureClose');
+  let tlActiveFeatureLayer=null;
 
   // =========================================================
   // MAP RUNTIME STATE
@@ -3873,6 +3875,57 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       function esc(s) {
         return String(s ?? '').replace(/[&<>"']/g, function(c) {
           return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+        });
+      }
+
+      // =========================================================
+      // THẺ THÔNG TIN CÔNG TRÌNH (mapFeatureCard)
+      // Cập nhật nội dung mỗi khi người dùng chọn một công trình/tuyến
+      // trên bản đồ. Trước đây thẻ này tồn tại trong HTML/CSS nhưng
+      // không có JS nào cập nhật nội dung — luôn hiện mặc định.
+      // =========================================================
+      function tlUpdateFeatureCard(opts) {
+        if (!mapFeatureCard) return;
+        const icon = opts?.icon || '💧';
+        const typeLabel = opts?.typeLabel || 'CÔNG TRÌNH';
+        const name = opts?.name || 'Chưa xác định';
+        const summary = opts?.summary || 'Không có mô tả.';
+        tlActiveFeatureLayer = opts?.layer || null;
+        if (mapFeatureType) mapFeatureType.textContent = icon + ' ' + typeLabel;
+        if (mapFeatureName) mapFeatureName.textContent = name;
+        if (mapFeatureSummary) mapFeatureSummary.textContent = summary;
+        mapFeatureCard.classList.remove('hidden');
+      }
+
+      function tlResetFeatureCard() {
+        if (!mapFeatureCard) return;
+        tlActiveFeatureLayer = null;
+        if (mapFeatureType) mapFeatureType.textContent = '💧 CÔNG TRÌNH';
+        if (mapFeatureName) mapFeatureName.textContent = 'Chưa chọn công trình';
+        if (mapFeatureSummary) mapFeatureSummary.textContent = 'Chọn một công trình trên bản đồ để xem thông tin.';
+        mapFeatureCard.classList.add('hidden');
+        if (aiMap && selectedNonPointLayerRef() && typeof nonPointLayer?.resetStyle === 'function') {
+          try { nonPointLayer.resetStyle(selectedNonPointLayerRef()); } catch (e) {}
+        }
+      }
+      // Cầu nối tới biến selectedNonPointLayer khai báo ở phần render GIS bên dưới.
+      function selectedNonPointLayerRef() {
+        return (typeof selectedNonPointLayer !== 'undefined') ? selectedNonPointLayer : null;
+      }
+
+      if (mapFeatureClose) {
+        mapFeatureClose.addEventListener('click', function() {
+          if (tlActiveFeatureLayer && typeof tlActiveFeatureLayer.closePopup === 'function') {
+            try { tlActiveFeatureLayer.closePopup(); } catch (e) {}
+          }
+          tlResetFeatureCard();
+        });
+      }
+      if (mapFeatureDetail) {
+        mapFeatureDetail.addEventListener('click', function() {
+          if (tlActiveFeatureLayer && typeof tlActiveFeatureLayer.openPopup === 'function') {
+            try { tlActiveFeatureLayer.openPopup(); } catch (e) {}
+          }
         });
       }
 
@@ -4123,7 +4176,8 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       // =========================================================
       // Direct AI_DATA source: same spreadsheet and GID used by api/ai-data.js.
       // This keeps the live engine independent from a separate backend route.
-      const TL_AI_DATA_URL = 'https://docs.google.com/spreadsheets/d/1SJU9aCRZGWeAeHw6UfY_08HK8-A34kIlnrEiPJNEnko/gviz/tq?gid=1866404435&tqx=out:csv&tq=select%20*';
+      const TL_AI_DATA_URL = (window.location.origin || '') + '/api/ai-data';
+      const TL_AI_DATA_DIRECT_URL = 'https://docs.google.com/spreadsheets/d/1SJU9aCRZGWeAeHw6UfY_08HK8-A34kIlnrEiPJNEnko/gviz/tq?gid=1866404435&tqx=out:csv&tq=select%20*';
       const TL_LIVE_TIMEOUT = 7000;
       const TL_LIVE_CACHE_TTL = 60 * 1000;
       const TL_LIVE_MEMORY_CACHE = new Map();
@@ -4131,11 +4185,6 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       let TL_AI_DATA_ROWS_CACHE = null;
       let TL_AI_DATA_CACHE_TIME = 0;
       let TL_AI_DATA_INFLIGHT = null;
-      // PERFORMANCE V5 — index AI_DATA một lần, không chuẩn hóa/lọc toàn bộ Sheet
-      // lặp lại cho từng hồ/trạm. Giữ nguyên raw rows để tương thích API cũ.
-      let TL_AI_DATA_NORMALIZED_CACHE = null;
-      let TL_AI_DATA_INDEX = null;
-      let TL_AI_DATA_INDEX_TIME = 0;
 
       function tlLiveFormatNumber(value, digits = 2) {
         const n = Number(value);
@@ -4154,18 +4203,21 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         } catch (_) { return String(value); }
       }
 
-      // =========================================================
-      // AI_DATA ADAPTER V4 — ADD ONLY
-      // Giữ nguyên URL, cache, Popup API và toàn bộ GIS.
-      // AI_DATA thực tế là long-format:
-      // Tháng | Ngày | Giờ | Đơn vị | Công trình | Hạng mục |
-      // Thông số | Thông số (Đơn vị đo) | Giá trị | Cột nguồn | Nguồn dữ liệu
-      // =========================================================
       function tlAiNorm(v) {
         return String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
           .toLowerCase().replace(/đ/g,'d').replace(/[^a-z0-9]+/g,' ').trim();
       }
-
+      // Chuẩn hóa RIÊNG cho matching tên công trình.
+      // Ví dụ: "Hồ Vĩnh Trinh" == "Hồ Vĩnh Trinh (H3)".
+      // Chỉ dùng để so sánh; không thay đổi tên hiển thị trên Popup/GIS.
+      function tlNormalizeFacilityName(value) {
+        return tlAiNorm(
+          String(value ?? '')
+            .replace(/\([^)]*\)/g, ' ')
+            .replace(/\[[^\]]*\]/g, ' ')
+            .replace(/[\u00a0\u2007\u202f]/g, ' ')
+        );
+      }
       function tlAiNum(v) {
         if (v == null || v === '') return null;
         let x = String(v).trim().replace(/\s/g,'');
@@ -4177,7 +4229,6 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         const n=Number(x.replace(/[^0-9+\-.eE]/g,''));
         return Number.isFinite(n) ? n : null;
       }
-
       function tlAiCsv(text) {
         const rows=[]; let row=[], cell='', quoted=false;
         for(let i=0;i<text.length;i++){
@@ -4190,273 +4241,457 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         if(cell!==''||row.length){row.push(cell);if(row.some(x=>String(x).trim()!==''))rows.push(row);}
         if(!rows.length)return[];
         const h=rows[0].map(x=>String(x).trim());
-        return rows.slice(1).map(r=>{const o={};h.forEach((k,i)=>o[k]=r[i]??'');return o;});
+        const out=rows.slice(1).map(r=>{const o={};h.forEach((k,i)=>o[k]=r[i]??'');return o;});
+        Object.defineProperty(out,'__headers',{value:h,enumerable:false,configurable:true});
+        return out;
+      }
+      async function tlLoadAIData(force = false) {
+        const now = Date.now();
+        if (!force && TL_AI_DATA_ROWS_CACHE && now - TL_AI_DATA_CACHE_TIME < TL_LIVE_CACHE_TTL) {
+          return TL_AI_DATA_ROWS_CACHE;
+        }
+        if (!force && TL_AI_DATA_INFLIGHT) return TL_AI_DATA_INFLIGHT;
+
+        const fetchCsv = async (url) => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), TL_LIVE_TIMEOUT);
+          try {
+            const response = await fetch(url, {
+              method: 'GET',
+              cache: 'no-store',
+              mode: 'cors',
+              headers: { Accept: 'text/csv,text/plain,*/*' },
+              signal: controller.signal
+            });
+            if (!response.ok) throw new Error('AI_DATA HTTP ' + response.status);
+            const text = await response.text();
+            const rows = tlAiCsv(text);
+            if (!rows.length) throw new Error('AI_DATA không trả dữ liệu.');
+            return rows;
+          } finally {
+            clearTimeout(timer);
+          }
+        };
+
+        TL_AI_DATA_INFLIGHT = (async () => {
+          try {
+            const proxyUrl = TL_AI_DATA_URL + (TL_AI_DATA_URL.includes('?') ? '&' : '?') + (force ? 'force=1' : 'v=1');
+            try {
+              const rows = await fetchCsv(proxyUrl);
+              TL_AI_DATA_ROWS_CACHE = rows;
+              TL_AI_DATA_CACHE_TIME = Date.now();
+              return rows;
+            } catch (proxyError) {
+              console.warn('📊 AI_DATA qua Worker không đọc được, thử Google GViz:', proxyError);
+              const rows = await fetchCsv(TL_AI_DATA_DIRECT_URL + '&_ts=' + Date.now());
+              TL_AI_DATA_ROWS_CACHE = rows;
+              TL_AI_DATA_CACHE_TIME = Date.now();
+              return rows;
+            }
+          } finally {
+            TL_AI_DATA_INFLIGHT = null;
+          }
+        })();
+        return TL_AI_DATA_INFLIGHT;
+      }
+
+      // =========================================================
+      // AI_DATA ADAPTER — tham chiếu Technical Module đã chạy ổn định
+      // Cấu trúc AI_DATA thực tế: A Tháng | B Ngày | C Giờ | D Đơn vị
+      // E Công trình | F Hạng mục | G Thông số | H Thông số (Đơn vị đo)
+      // I Giá trị | J Cột nguồn | K Nguồn dữ liệu.
+      // =========================================================
+      function tlAiIsLongFormat(rows) {
+        const h = (rows && rows.__headers || []).map(tlAiNorm);
+        return h.length >= 6 &&
+          h.some(x => x === 'thang' || x.includes('thang')) &&
+          h.some(x => x === 'ngay' || x.includes('ngay')) &&
+          h.some(x => x === 'gio' || x.includes('gio')) &&
+          h.some(x => x === 'cong trinh' || x.includes('cong trinh')) &&
+          h.some(x => x === 'thong so' || x.includes('thong so')) &&
+          h.some(x => x === 'gia tri' || x.includes('gia tri'));
+      }
+
+      function tlAiHeaderIndex(rows, aliases) {
+        const headers = (rows && rows.__headers || []).map(tlAiNorm);
+        const wanted = (aliases || []).map(tlAiNorm).filter(Boolean);
+        for (const alias of wanted) {
+          const exact = headers.indexOf(alias);
+          if (exact >= 0) return exact;
+        }
+        for (let i = 0; i < headers.length; i++) {
+          if (wanted.some(w => w && (headers[i].includes(w) || w.includes(headers[i])))) return i;
+        }
+        return -1;
+      }
+
+      function tlAiLongCell(row, index) {
+        const values = Object.values(row || {});
+        return index >= 0 ? (values[index] ?? '') : '';
+      }
+
+      function tlAiLongCellByHeader(row, aliases) {
+        const rows = TL_AI_DATA_ROWS_CACHE || [];
+        return tlAiLongCell(row, tlAiHeaderIndex(rows, aliases));
+      }
+
+      function tlAiFacility(row) {
+        if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
+          return String(tlAiLongCellByHeader(row, ['công trình', 'cong trinh']) || '').trim();
+        }
+        return String(tlAiField(row, TL_AI_FIELDS.facility) || '').trim();
+      }
+
+      function tlAiParameter(row) {
+        if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
+          // Technical Module dùng cột H = "Thông số (Đơn vị đo)".
+          // Nếu H trống thì fallback sang G = "Thông số".
+          const h = String(tlAiLongCellByHeader(row, [
+            'thông số (đơn vị đo)', 'thong so (don vi do)', 'đơn vị đo', 'don vi do'
+          ]) || '').trim();
+          if (h) return h;
+          return String(tlAiLongCellByHeader(row, ['thông số', 'thong so']) || '').trim();
+        }
+        return String(tlAiField(row, TL_AI_FIELDS.parameter || []) || '').trim();
+      }
+
+      function tlAiUnit(row) {
+        if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
+          const h = String(tlAiLongCellByHeader(row, [
+            'thông số (đơn vị đo)', 'thong so (don vi do)', 'đơn vị đo', 'don vi do'
+          ]) || '').trim();
+          const m = h.match(/\(([^)]+)\)/);
+          return m ? m[1].trim() : '';
+        }
+        return String(tlAiField(row, ['đơn vị', 'đơn vị đo', 'don vi', 'don vi do', 'unit']) || '').trim();
+      }
+
+      function tlAiValue(row) {
+        if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
+          return tlAiLongCellByHeader(row, ['giá trị', 'gia tri', 'value', 'giatri']);
+        }
+        return tlAiField(row, ['giá trị', 'gia tri', 'value', 'giatri']);
+      }
+
+      function tlAiDateTime(row) {
+        if (tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) {
+          // AI_DATA thật không có cột năm: A=Tháng, B=Ngày, C=Giờ.
+          const month = tlAiNum(tlAiLongCellByHeader(row, ['tháng', 'thang']));
+          const day = tlAiNum(tlAiLongCellByHeader(row, ['ngày', 'ngay']));
+          const hourRaw = tlAiLongCellByHeader(row, ['giờ', 'gio']);
+          if (!Number.isFinite(month) || !Number.isFinite(day)) return null;
+
+          let hour = 0, minute = 0, second = 0;
+          const hs = String(hourRaw ?? '').trim();
+          const hm = hs.match(/^(\d{1,2})[:h](\d{1,2})(?::(\d{1,2}))?/i);
+          if (hm) {
+            hour = Number(hm[1]) || 0;
+            minute = Number(hm[2]) || 0;
+            second = Number(hm[3]) || 0;
+          } else {
+            const hn = tlAiNum(hs);
+            if (Number.isFinite(hn)) {
+              hour = Math.floor(hn);
+              minute = Math.round((hn - hour) * 60);
+            }
+          }
+
+          const year = new Date().getFullYear();
+          const d = new Date(year, Math.round(month) - 1, Math.round(day), hour, minute, second, 0);
+          return Number.isNaN(d.getTime()) ? null : d;
+        }
+
+        const raw = tlAiField(row, TL_AI_FIELDS.time);
+        return tlAiDate(raw);
       }
 
       function tlAiField(row, aliases) {
-        const entries=Object.entries(row||{}), wanted=aliases.map(tlAiNorm);
-        for(const [k,v] of entries) if(wanted.includes(tlAiNorm(k)) && String(v).trim()!=='') return v;
-        for(const [k,v] of entries){const nk=tlAiNorm(k);if(wanted.some(w=>nk.includes(w)||w.includes(nk))&&String(v).trim()!=='')return v;}
+        const entries = Object.entries(row || {}), wanted = (aliases || []).map(tlAiNorm);
+        for (const [k, v] of entries) {
+          if (wanted.includes(tlAiNorm(k)) && String(v).trim() !== '') return v;
+        }
+        for (const [k, v] of entries) {
+          const nk = tlAiNorm(k);
+          if (wanted.some(w => w && (nk.includes(w) || w.includes(nk))) && String(v).trim() !== '') return v;
+        }
         return null;
       }
 
-      const TL_AI_FIELDS={
-        facility:['cong trinh','congtrinh','ten cong trinh','tencongtrinh','tram','ho','ten ho','facility','name','ten'],
-        code:['ma cong trinh','macongtrinh','ma','code','id'],
-        time:['thoi gian','thoigian','datetime','date time','timestamp','time','ngay gio','ngaygio','date'],
-        month:['thang'], day:['ngay'], hour:['gio'], year:['nam','year'],
-        category:['hang muc','hangmuc'], parameter:['thong so','thongso'], unit:['thong so don vi do','thongso don vi do','don vi do','donvido'], value:['gia tri','giatri'],
-        water:['muc nuoc','mucnuoc','muc nuoc ho','water level','waterlevel','z','muc nuoc ht','muc nuoc hien tai','htl','hhl'],
-        flow:['luu luong','luuluong','q','flow','discharge','q m3 s','q m3s'],
-        rain:['luong mua','luongmua','mua','rainfall','rain','precipitation','x mm'],
-        salinity:['do man','doman','salinity','man'],
-        mndbt:['mndbt','muc nuoc dbt','mucnuocdbt'],
-        mndgc:['mndgc','muc nuoc dgc','mucnuocdgc']
+      const TL_AI_FIELDS = {
+        facility: ['công trình','cong trinh','congtrinh','tên công trình','ten cong trinh','tencongtrinh','trạm','trạm bơm','hồ','tên hồ','facility','name','ten'],
+        code: ['mã công trình','ma cong trinh','macongtrinh','mã','ma','code','id'],
+        time: ['thời gian','thoi gian','thoigian','datetime','date time','timestamp','time','ngày giờ','ngay gio','ngaygio','date'],
+        parameter: ['thông số','thong so','thông số (đơn vị đo)','thong so (don vi do)','parameter','param'],
+        water: ['mực nước','muc nuoc','mực nước hồ','water level','waterlevel','z','mực nước ht','mực nước hiện tại','h','htl','hhl'],
+        flow: ['lưu lượng','luu luong','luuluong','q','flow','discharge','q m3 s','q m3s'],
+        rain: ['lượng mưa','luong mua','luongmua','mưa','mua','rainfall','rain','precipitation','x','x t1','x c24'],
+        salinity: ['độ mặn','do man','doman','salinity','mặn','man'],
+        mndbt: ['mndbt','mực nước dâng bình thường','muc nuoc dbt','mucnuocdbt'],
+        mndgc: ['mndgc','mực nước dâng gia cường','muc nuoc dgc','mucnuocdgc']
       };
 
-      function tlAiDate(v){
-        if(v==null||v==='')return null;
-        const d=new Date(v);
-        if(!Number.isNaN(d.getTime()))return d;
-        const m=String(v).match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
-        return m?new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0)):null;
+      function tlAiDate(v) {
+        if (v == null || v === '') return null;
+        const s = String(v).trim();
+        const m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+        if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+        const y = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+        if (y) return new Date(+y[1], +y[2] - 1, +y[3]);
+        const d = new Date(s);
+        return Number.isNaN(d.getTime()) ? null : d;
       }
 
-      function tlAiRowDate(row){
-        const direct=tlAiDate(tlAiField(row,TL_AI_FIELDS.time));
-        if(direct) return direct;
-        const month=tlAiNum(tlAiField(row,TL_AI_FIELDS.month));
-        const day=tlAiNum(tlAiField(row,TL_AI_FIELDS.day));
-        const hour=tlAiNum(tlAiField(row,TL_AI_FIELDS.hour));
-        const year=tlAiNum(tlAiField(row,TL_AI_FIELDS.year));
-        if(!Number.isFinite(month)||!Number.isFinite(day)) return null;
-        const now=new Date();
-        let y=Number.isFinite(year)?year:now.getFullYear();
-        // AI_DATA hiện tại không có cột năm; nếu dữ liệu tháng tương lai so với hiện tại,
-        // coi đó là tháng cuối năm trước để không làm sai bản ghi mới nhất quanh năm.
-        if(!Number.isFinite(year) && month > now.getMonth()+1) y -= 1;
-        return new Date(y,month-1,day,Number.isFinite(hour)?hour:0,0,0);
+      function tlAiParameterCode(name) {
+        const n = tlAiNorm(name);
+        if (/(^| )(htl|muc nuoc thuong luu|water level upstream|waterlevel upstream)( |$)/.test(n)) return 'WATER_LEVEL_UPSTREAM';
+        if (/(^| )(hhl|muc nuoc ha luu|water level downstream|waterlevel downstream)( |$)/.test(n)) return 'WATER_LEVEL_DOWNSTREAM';
+        if (/(^| )(h|h m|muc nuoc|muc nuoc ho|muc nuoc ht|muc nuoc hien tai|water level|waterlevel|level|z)( |$)/.test(n)) return 'WATER_LEVEL';
+        if (/(^| )(x c24|x c24 mm|rainfall c24|rainfall c24 mm|mua c24|mua 24h)( |$)/.test(n)) return 'RAINFALL_C24';
+        if (/(^| )(x t1|x t1 mm|rainfall t1|rainfall t1 mm|mua t1)( |$)/.test(n)) return 'RAINFALL_T1';
+        if (/(^| )(x|x mm|luong mua|luong mua mm|mua|rainfall|rain|precipitation)( |$)/.test(n)) return 'RAINFALL';
+        if (/(^| )(q|q m3 s|q m3s|luu luong|luu luong m3 s|flow|discharge)( |$)/.test(n)) return 'FLOW';
+        if (/(^| )(do man|do man per mille|doman|salinity|man)( |$)/.test(n)) return 'SALINITY';
+        return null;
       }
 
-      function tlAiExtractLimit(text, key){
-        const s=String(text||'');
-        const re=new RegExp('(?:^|[^A-Z0-9])'+key+'\\s*[:=]?\\s*([0-9]+(?:[\\.,][0-9]+)?)','i');
-        const m=s.match(re);
-        return m ? tlAiNum(m[1]) : null;
-      }
+      // FACILITY NAME RESOLVER — tham khảo trực tiếp technical_module.py.
+      // Hồ Vĩnh Trinh <-> Hồ Vĩnh Trinh (H2)/(...) ; không đổi tên hiển thị GIS.
+      const TL_FACILITY_CODE_RE = /(?:\(|\[)\s*([A-Za-zÀ-ỹĐđ0-9][A-Za-zÀ-ỹĐđ0-9._-]{0,15})\s*(?:\)|\])/i;
+      const TL_FACILITY_PREFIXES = ['ho chua nuoc','ho chua','ho','tram bom','tram','dap','cong','kenh'];
 
-      function tlAiFacilityClean(v){
-        let s=String(v??'').trim();
-        if(!s) return '';
-        s=s.replace(/^CN\s+THU[ỶY]\s*LO[ẠA]I\s+/i,'');
-        s=s.replace(/^CN\s+THUY\s*LOI\s+/i,'');
-        s=s.replace(/\s*\((?:h|tb|tr|k|hồ|ho)\s*\d+\)\s*$/i,'');
-        s=s.replace(/\s*[-–—]\s*$/,'');
-        return s.trim();
+      function tlCleanFacilityName(value) {
+        return String(value ?? '').replace(/\ufeff/g,'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
       }
-
-      function tlAiTokenSet(v){
-        return new Set(tlAiNorm(tlAiFacilityClean(v)).split(' ').filter(Boolean));
+      function tlFacilityKey(value) {
+        return tlNormalizeFacilityName(value);
       }
-
-      function tlAiLevenshtein(a,b){
-        a=String(a); b=String(b);
-        if(a===b)return 0;
-        if(!a)return b.length; if(!b)return a.length;
-        let prev=Array.from({length:b.length+1},(_,i)=>i);
-        for(let i=1;i<=a.length;i++){
-          const cur=[i];
-          for(let j=1;j<=b.length;j++) cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
-          prev=cur;
+      function tlFacilityCode(value) {
+        const m = TL_FACILITY_CODE_RE.exec(tlCleanFacilityName(value));
+        return m ? tlAiNorm(m[1]) : '';
+      }
+      function tlFacilityCore(value) {
+        let n = tlNormalizeFacilityName(value);
+        for (const prefix of TL_FACILITY_PREFIXES) {
+          if (n.startsWith(prefix + ' ')) { n = n.slice(prefix.length).trim(); break; }
         }
-        return prev[b.length];
+        return n.replace(/\s+/g,' ').trim();
       }
+      function tlFacilityMatchScore(requested, candidate) {
+        const req = tlFacilityKey(requested), cand = tlFacilityKey(candidate);
+        if (!req || !cand) return 0;
 
-      function tlAiMatchScore(a,b){
-        const x=tlAiNorm(tlAiFacilityClean(a)), y=tlAiNorm(tlAiFacilityClean(b));
-        if(!x||!y)return 0;
-        if(x===y)return 1;
-        if(x.includes(y)||y.includes(x))return 0.96;
-        const ax=tlAiTokenSet(a), by=tlAiTokenSet(b);
-        const inter=[...ax].filter(t=>by.has(t)).length;
-        const union=new Set([...ax,...by]).size;
-        const jacc=union?inter/union:0;
-        const lev=1-(tlAiLevenshtein(x,y)/Math.max(x.length,y.length));
-        return Math.max(jacc*0.92,lev*0.88);
+        // 100: match sau khi bỏ mã trong ngoặc.
+        // Hồ Vĩnh Trinh == Hồ Vĩnh Trinh (H3)
+        if (req === cand) return 100;
+
+        const rc = tlFacilityCode(requested), cc = tlFacilityCode(candidate);
+        if (rc && cc && rc === cc) return 98;
+
+        const rcore = tlFacilityCore(requested), ccore = tlFacilityCore(candidate);
+        if (rcore && ccore && rcore === ccore) return 90;
+        return 0;
       }
+      function tlAiMatchRows(rows, facility, code) {
+        const data = Array.isArray(rows) ? rows : [];
+        const requested = tlCleanFacilityName(facility);
+        const requestedCode = tlAiNorm(code);
+        if (!requested && !requestedCode) return [];
 
-      function tlAiClassifyRow(row){
-        const p=tlAiNorm(tlAiField(row,TL_AI_FIELDS.parameter));
-        const c=tlAiNorm(tlAiField(row,TL_AI_FIELDS.category));
-        const u=tlAiNorm(tlAiField(row,TL_AI_FIELDS.unit));
-        const all=[p,c,u].join(' ');
-        let kind='other';
-        if(/do man|salinity|salin/.test(all)) kind='salinity';
-        else if(/luu luong|flow|discharge|q m3|m3 s/.test(all)) kind='flow';
-        else if(/luong mua|rainfall|precipitation|\bmua\b|x mm/.test(all)) kind='rainfall';
-        else if(/muc nuoc|water level|waterlevel|\bhtl\b|\bhhl\b/.test(all) || /\b(h|z)\s*\(?m\)?/.test(all)) kind='water';
-        const value=tlAiNum(tlAiField(row,TL_AI_FIELDS.value));
-        return {kind,value,time:tlAiRowDate(row)};
-      }
-
-      function tlAiNormalizeRows(rows){
-        return (Array.isArray(rows)?rows:[]).map((row,index)=>{
-          const facility=tlAiField(row,TL_AI_FIELDS.facility) || '';
-          const category=tlAiField(row,TL_AI_FIELDS.category) || '';
-          const parameter=tlAiField(row,TL_AI_FIELDS.parameter) || '';
-          const unit=tlAiField(row,TL_AI_FIELDS.unit) || '';
-          const value=tlAiNum(tlAiField(row,TL_AI_FIELDS.value));
-          const time=tlAiRowDate(row);
-          const text=[category,parameter,unit].join(' ');
-          const cls=tlAiClassifyRow(row);
-          const facilityClean=tlAiFacilityClean(facility);
-          return {
-            raw:row,index,facility,facilityClean,facilityNorm:tlAiNorm(facilityClean),
-            category,parameter,unit,value,time,kind:cls.kind,
-            codeNorm:tlAiNorm(tlAiField(row,TL_AI_FIELDS.code)),
-            MNDBT:tlAiExtractLimit(category,'MNDBT') ?? tlAiExtractLimit(text,'MNDBT'),
-            MNDGC:tlAiExtractLimit(parameter,'MNDGC') ?? tlAiExtractLimit(text,'MNDGC')
-          };
-        }).filter(x=>x.facilityClean);
-      }
-
-      function tlAiBuildIndex(rows){
-        const normalized=tlAiNormalizeRows(rows);
-        const byName=new Map(), byCode=new Map();
-        for(const r of normalized){
-          if(r.facilityNorm){
-            const a=byName.get(r.facilityNorm);
-            if(a) a.push(r); else byName.set(r.facilityNorm,[r]);
-          }
-          if(r.codeNorm){
-            const a=byCode.get(r.codeNorm);
-            if(a) a.push(r); else byCode.set(r.codeNorm,[r]);
+        const names = [];
+        const seen = new Set();
+        for (const row of data) {
+          const name = tlAiFacility(row);
+          const key = tlFacilityKey(name);
+          if (name && !seen.has(key)) {
+            seen.add(key);
+            names.push(name);
           }
         }
-        TL_AI_DATA_NORMALIZED_CACHE=normalized;
-        TL_AI_DATA_INDEX={normalized,byName,byCode};
-        TL_AI_DATA_INDEX_TIME=Date.now();
-        return TL_AI_DATA_INDEX;
-      }
 
-      function tlAiGetIndex(rows){
-        if(TL_AI_DATA_INDEX && TL_AI_DATA_NORMALIZED_CACHE) return TL_AI_DATA_INDEX;
-        return tlAiBuildIndex(rows||[]);
-      }
-
-      function tlAiFindFacilityRows(index,facility,code){
-        if(!index)return [];
-        const fn=tlAiNorm(tlAiFacilityClean(facility)), cn=tlAiNorm(code);
-        if(cn && index.byCode.has(cn)) return index.byCode.get(cn).slice();
-        if(!fn)return [];
-        const exact=index.byName.get(fn);
-        if(exact?.length) return exact.slice();
-
-        // Contains chỉ duyệt danh sách tên công trình duy nhất, không duyệt toàn bộ rows.
-        for(const [name,arr] of index.byName){
-          if(name.includes(fn)||fn.includes(name)) return arr.slice();
-        }
-
-        // Fuzzy chỉ chạy khi không có exact/contains.
-        let best=0, candidates=[];
-        for(const [name,arr] of index.byName){
-          const score=tlAiMatchScore(name,fn);
-          if(score>=0.72){
-            if(score>best){best=score;candidates=[arr];}
-            else if(score>=Math.max(0.72,best-0.08)) candidates.push(arr);
+        let bestName = '';
+        let bestScore = 0;
+        for (const name of names) {
+          const score = tlFacilityMatchScore(requested, name);
+          const nameCode = tlFacilityCode(name);
+          const codeBonus = requestedCode && nameCode && requestedCode === nameCode ? 2 : 0;
+          const total = score + codeBonus;
+          if (total > bestScore) {
+            bestScore = total;
+            bestName = name;
           }
         }
-        const out=[]; for(const arr of candidates) out.push(...arr);
+
+        if (!bestName && requestedCode) {
+          bestName = names.find(name => tlFacilityCode(name) === requestedCode) || '';
+          if (bestName) bestScore = 98;
+        }
+        if (!bestName) return [];
+
+        // Quan trọng: lấy TOÀN BỘ dòng của công trình,
+        // không chỉ một dòng. Điều này cần thiết cho Long Format.
+        const bestKey = tlFacilityKey(bestName);
+        return data.filter(row => tlFacilityKey(tlAiFacility(row)) === bestKey);
+      }
+
+      function tlAiWideDateTime(row) {
+        const rawDate = tlAiField(row, ['ngày','ngay','date','ngày quan trắc','ngay quan trac','ngày đo','ngay do']);
+        const rawTime = tlAiField(row, ['giờ','gio','time','thời gian','thoi gian','thoigian','ngày giờ','ngay gio','ngaygio']);
+        if (rawDate == null && rawTime == null) return null;
+        if (rawDate != null && rawTime != null) return tlAiDateTimeParts(rawDate, rawTime);
+        return tlAiDate(rawDate ?? rawTime);
+      }
+      function tlAiDateTimeParts(rawDate, rawTime) {
+        if (rawDate == null || rawDate === '') return tlAiDate(rawTime);
+        const d = tlAiDate(rawDate); if (!d) return null;
+        const t = String(rawTime ?? '').trim();
+        let hour = 0, minute = 0, second = 0;
+        const hm = t.match(/(\d{1,2})[:h](\d{1,2})(?::(\d{1,2}))?/i);
+        if (hm) { hour=Number(hm[1])||0; minute=Number(hm[2])||0; second=Number(hm[3])||0; }
+        else { const hn=tlAiNum(t); if(Number.isFinite(hn)){hour=Math.floor(hn);minute=Math.round((hn-hour)*60);} }
+        d.setHours(Math.max(0,Math.min(23,hour)),Math.max(0,Math.min(59,minute)),Math.max(0,Math.min(59,second)),0);
+        return d;
+      }
+
+      // Chuyển AI_DATA Long/Wide về cùng cấu trúc quan trắc.
+      function tlAiObservations(rows) {
+        const data = Array.isArray(rows) ? rows : [];
+        const long = tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || data);
+        const out = [];
+        if (long) {
+          for (const row of data) {
+            const facility = tlAiFacility(row);
+            const parameter = tlAiParameter(row);
+            const unit = tlAiUnit(row);
+            const value = tlAiValue(row);
+            const dt = tlAiDateTime(row);
+            if (!facility || !parameter || !dt || !Number.isFinite(tlAiNum(value))) continue;
+            out.push({ row, facility, code:String(tlAiField(row, TL_AI_FIELDS.code)||'').trim(), parameter, unit, value, dt, parameterCode:tlAiParameterCode(parameter) });
+          }
+          return out;
+        }
+
+        const parameterColumns = [
+          {code:'WATER_LEVEL_UPSTREAM',aliases:['water_level_upstream','water level upstream','muc nuoc thuong luu','htl'],unit:'m'},
+          {code:'WATER_LEVEL_DOWNSTREAM',aliases:['water_level_downstream','water level downstream','muc nuoc ha luu','hhl'],unit:'m'},
+          {code:'WATER_LEVEL',aliases:['water_level','water level','muc nuoc','mucnuoc','muc nuoc hien tai','h','z','level','waterlevel'],unit:'m'},
+          {code:'RAINFALL_T1',aliases:['rainfall_t1','rainfall t1','x t1','x_t1','mua t1'],unit:'mm'},
+          {code:'RAINFALL_C24',aliases:['rainfall_c24','rainfall c24','x c24','x_c24','mua c24','mua 24h'],unit:'mm'},
+          {code:'RAINFALL',aliases:['rainfall','rain','precipitation','luong mua','luongmua','mua','x'],unit:'mm'},
+          {code:'FLOW',aliases:['flow','discharge','luu luong','luuluong','q','q m3 s','q m3s'],unit:'m³/s'},
+          {code:'SALINITY',aliases:['salinity','do man','doman','man','s'],unit:'‰'}
+        ];
+        for (const row of data) {
+          const facility=String(tlAiField(row,TL_AI_FIELDS.facility)||'').trim(); if(!facility) continue;
+          const code=String(tlAiField(row,TL_AI_FIELDS.code)||'').trim(); const dt=tlAiWideDateTime(row); if(!dt) continue;
+          for(const spec of parameterColumns){
+            const value=tlAiField(row,spec.aliases); if(value==null||value===''||!Number.isFinite(tlAiNum(value))) continue;
+            const unit=String(tlAiField(row,[...spec.aliases.map(a=>`${a} unit`),...spec.aliases.map(a=>`${a} don vi`),'don vi','don vi do','unit'])||spec.unit).trim();
+            out.push({row,facility,code,parameter:spec.code,unit,value,dt,parameterCode:spec.code});
+          }
+        }
         return out;
       }
 
-      async function tlLoadAIData(force=false){
-        const now=Date.now();
-        if(!force&&TL_AI_DATA_ROWS_CACHE&&now-TL_AI_DATA_CACHE_TIME<TL_LIVE_CACHE_TTL){
-          if(!TL_AI_DATA_INDEX) tlAiBuildIndex(TL_AI_DATA_ROWS_CACHE);
-          return TL_AI_DATA_ROWS_CACHE;
+      function tlAiLatestByParameter(rows,codes){
+        const map=new Map();
+        for(const item of tlAiObservations(rows)){
+          const code=item.parameterCode || tlAiParameterCode(item.parameter);
+          if(!item.dt || !Number.isFinite(tlAiNum(item.value)) || !codes.includes(code)) continue;
+          const old=map.get(code);
+          if(!old || item.dt>old.dt) map.set(code, {
+            r:item.row,
+            parameter:item.parameter,
+            code,
+            dt:item.dt,
+            value:tlAiNum(item.value),
+            unit:item.unit
+          });
         }
-        if(!force&&TL_AI_DATA_INFLIGHT)return TL_AI_DATA_INFLIGHT;
-        TL_AI_DATA_INFLIGHT=(async()=>{
-          const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),TL_LIVE_TIMEOUT);
-          try{
-            const u=TL_AI_DATA_URL+(TL_AI_DATA_URL.includes('?')?'&':'?')+'_ts='+Date.now();
-            const r=await fetch(u,{cache:'no-store',mode:'cors',headers:{Accept:'text/csv,text/plain,*/*'},signal:controller.signal});
-            if(!r.ok)throw new Error('AI_DATA HTTP '+r.status);
-            const rows=tlAiCsv(await r.text()); if(!rows.length)throw new Error('AI_DATA không có dữ liệu');
-            TL_AI_DATA_ROWS_CACHE=rows; TL_AI_DATA_CACHE_TIME=Date.now();
-            // Chuẩn hóa + lập index đúng 1 lần sau mỗi lần tải Sheet.
-            const idx=tlAiBuildIndex(rows);
-            try{sessionStorage.setItem('TL_AI_DATA_LAST_OK_V4',JSON.stringify({time:Date.now(),rows}));}catch(_){ }
-            try{window.__TL_AI_DATA_DEBUG__={rawRows:rows.length,headers:Object.keys(rows[0]||{}),normalizedRows:idx.normalized.length,indexedFacilities:idx.byName.size,indexedCodes:idx.byCode.size,loadedAt:new Date().toISOString()};}catch(_){ }
-            return rows;
-          }finally{clearTimeout(timer);}
-        })();
-        try{return await TL_AI_DATA_INFLIGHT;}
-        catch(e){
-          if(TL_AI_DATA_ROWS_CACHE?.length)return TL_AI_DATA_ROWS_CACHE;
-          try{const x=JSON.parse(sessionStorage.getItem('TL_AI_DATA_LAST_OK_V4')||'null');if(x?.rows?.length){TL_AI_DATA_ROWS_CACHE=x.rows;TL_AI_DATA_CACHE_TIME=x.time||Date.now();tlAiBuildIndex(x.rows);return x.rows;}}catch(_){ }
-          throw e;
-        }finally{TL_AI_DATA_INFLIGHT=null;}
+        return map;
       }
-
-      function tlAiMatchRows(rows,facility,code){
-        const raw=Array.isArray(rows)?rows:[];
-        const index=(TL_AI_DATA_INDEX && TL_AI_DATA_NORMALIZED_CACHE) ? TL_AI_DATA_INDEX : tlAiBuildIndex(raw);
-        return tlAiFindFacilityRows(index,facility,code);
-      }
-
-      function tlAiLatestOf(rows,kind){
-        let best=null, bestTime=-Infinity;
-        for(const r of (rows||[])){
-          if(kind && r.kind!==kind) continue;
-          const t=r.time?.getTime?.()||0;
-          if(!best || t>bestTime){best=r;bestTime=t;}
-        }
-        return best;
-      }
-
       function tlAiPayload(rows,facility){
-        const normalized=(rows||[]).length && rows[0]?.kind ? rows : tlAiNormalizeRows(rows);
-        if(!normalized.length)return null;
-        let latestAny=null, latestTime=-Infinity, MNDBT=null, MNDGC=null, limitTime=-Infinity;
-        for(const r of normalized){
-          const t=r.time?.getTime?.()||0;
-          if(t>latestTime){latestTime=t;latestAny=r;}
-          if(r.MNDBT!=null && t>=limitTime){MNDBT=r.MNDBT;}
-          if(r.MNDGC!=null && t>=limitTime){MNDGC=r.MNDGC;}
-          if(r.MNDBT!=null || r.MNDGC!=null) limitTime=Math.max(limitTime,t);
-        }
-        const make=(kind,parameter,unit)=>{
-          const r=tlAiLatestOf(normalized,kind); if(!r||!Number.isFinite(r.value))return null;
-          return {value:r.value,unit:r.unit||unit,parameter:r.parameter||parameter,time:r.time?r.time.toISOString():''};
-        };
-        const water=make('water','Mực nước','m');
-        const flow=make('flow','Lưu lượng','m³/s');
-        const rainfall=make('rainfall','Lượng mưa','mm');
-        const salinity=make('salinity','Độ mặn','‰');
-        const time=(water?.time||flow?.time||rainfall?.time||salinity?.time||latestAny?.time?.toISOString?.()||'');
-        const result={ok:true,data:{water_level:water,flow,rainfall,salinity,limits:{MNDBT,MNDGC},status:{level:'info',label:'AI_DATA'},updated_label:time?tlLiveTimeLabel(time):'AI_DATA',source:'AI_DATA trực tiếp'}};
-        try{window.__TL_AI_DATA_DEBUG__={...(window.__TL_AI_DATA_DEBUG__||{}),facility:facility||normalized[0]?.facility,matchedRows:normalized.length,latest:time,kinds:Object.fromEntries(['water','flow','rainfall','salinity'].map(k=>[k,normalized.reduce((n,r)=>n+(r.kind===k?1:0),0)])),MNDBT,MNDGC};}catch(_){ }
-        return result;
+        const waterMap=tlAiLatestByParameter(rows,['WATER_LEVEL_UPSTREAM','WATER_LEVEL','WATER_LEVEL_DOWNSTREAM']);
+        const rainMap=tlAiLatestByParameter(rows,['RAINFALL','RAINFALL_T1','RAINFALL_C24']);
+        const flowMap=tlAiLatestByParameter(rows,['FLOW']);
+        const salMap=tlAiLatestByParameter(rows,['SALINITY']);
+        const water=waterMap.get('WATER_LEVEL_UPSTREAM')||waterMap.get('WATER_LEVEL')||waterMap.get('WATER_LEVEL_DOWNSTREAM')||null;
+        const rain=rainMap.get('RAINFALL')||rainMap.get('RAINFALL_T1')||rainMap.get('RAINFALL_C24')||null;
+        const flow=flowMap.get('FLOW')||null;
+        const sal=salMap.get('SALINITY')||null;
+        if(!water&&!rain&&!flow&&!sal) throw Object.assign(new Error(`Công trình "${facility}" đã khớp tên nhưng chưa có bản ghi quan trắc hợp lệ.`),{status:404,code:'NO_VALID_DATA'});
+        return {ok:true,data:{
+          water_level:water?{value:water.value,unit:water.unit||'m',parameter:water.parameter,time:water.dt.toISOString()}:null,
+          flow:flow?{value:flow.value,unit:flow.unit||'m³/s',parameter:flow.parameter,time:flow.dt.toISOString()}:null,
+          rainfall:rain?{value:rain.value,unit:rain.unit||'mm',parameter:rain.parameter,time:rain.dt.toISOString()}:null,
+          salinity:sal?{value:sal.value,unit:sal.unit||'‰',parameter:sal.parameter,time:sal.dt.toISOString()}:null,
+          limits:{MNDBT:null,MNDGC:null},
+          status:{level:'info',label:'AI_DATA'},
+          updated_label:water?tlLiveTimeLabel(water.dt):rain?tlLiveTimeLabel(rain.dt):'AI_DATA',
+          source:'AI_DATA • Ngày/Giờ/Công trình/Thông số/Giá trị'
+        }};
       }
-
-      async function tlFetchLive(facility,force=false){
+      async function tlFetchLive(facility,force=false,code=''){
         const key=String(facility||'').trim(); if(!key)throw new Error('Thiếu tên công trình.');
-        const cached=TL_LIVE_MEMORY_CACHE.get(key); if(!force&&cached&&Date.now()-cached.timestamp<TL_LIVE_CACHE_TTL)return cached.data;
-        if(!force&&TL_LIVE_INFLIGHT.has(key))return TL_LIVE_INFLIGHT.get(key);
-        const promise=(async()=>{const rows=await tlLoadAIData(force);const matched=tlAiMatchRows(rows,key,'');if(!matched.length)throw new Error('Chưa có số liệu quan trắc cho công trình này trong AI_DATA.');const data=tlAiPayload(matched,key);TL_LIVE_MEMORY_CACHE.set(key,{timestamp:Date.now(),data});return data;})();
-        TL_LIVE_INFLIGHT.set(key,promise);try{return await promise;}finally{TL_LIVE_INFLIGHT.delete(key);}
+        const cacheKey=key+'|'+String(code||'');
+        const cached=TL_LIVE_MEMORY_CACHE.get(cacheKey);
+        if(!force&&cached&&Date.now()-cached.timestamp<TL_LIVE_CACHE_TTL)return cached.data;
+        if(!force&&TL_LIVE_INFLIGHT.has(cacheKey))return TL_LIVE_INFLIGHT.get(cacheKey);
+        const promise=(async()=>{
+          // Ưu tiên resolver phía Worker: cùng nguyên tắc với Technical Module cũ.
+          try {
+            const params=new URLSearchParams({facility:key});
+            if(code) params.set('code',String(code));
+            if(force) params.set('fresh','1');
+            params.set('year',String(new Date().getFullYear()));
+            const response=await fetch((window.location.origin||'')+'/api/live?'+params.toString(),{
+              method:'GET',cache:'no-store',headers:{Accept:'application/json'}
+            });
+            const payload=await response.json().catch(()=>({}));
+            if(!response.ok || payload?.ok===false){
+              const err=new Error(payload?.error||payload?.message||('AI_DATA /api/live HTTP '+response.status));
+              err.status=response.status; err.code=payload?.code||payload?.error_code||'';
+              err.debug=payload?.debug||null;
+              throw err;
+            }
+            const data=payload?.data || payload;
+            TL_LIVE_MEMORY_CACHE.set(cacheKey,{timestamp:Date.now(),data});
+            return data;
+          } catch(serverError) {
+            // Fallback: giữ nguyên adapter CSV cũ để không làm mất khả năng chạy.
+            if (serverError?.code==='NO_MATCH' || serverError?.code==='NO_VALID_DATA') throw serverError;
+            const rows=await tlLoadAIData(force);
+            const matched=tlAiMatchRows(rows,key,code);
+            if(!matched.length) {
+              const err=Object.assign(new Error(`Không tìm thấy công trình "${key}" trong AI_DATA.`),{status:404,code:'NO_MATCH',debug:{requested:key,source:'client-csv-fallback'}});
+              throw err;
+            }
+            const data=tlAiPayload(matched,key).data;
+            TL_LIVE_MEMORY_CACHE.set(cacheKey,{timestamp:Date.now(),data});
+            return data;
+          }
+        })();
+        TL_LIVE_INFLIGHT.set(cacheKey,promise);try{return await promise;}finally{TL_LIVE_INFLIGHT.delete(cacheKey);}
       }
       const TL_CHART_CACHE=new Map(); const TL_CHART_CACHE_TTL=5*60*1000;
       async function tlFetchChartHistory(facilityName,code){
         const key=String(facilityName||'')+'|'+String(code||''); const cached=TL_CHART_CACHE.get(key); if(cached&&Date.now()-cached.timestamp<TL_CHART_CACHE_TTL)return cached.points;
-        try{const rows=await tlLoadAIData(false),matched=tlAiMatchRows(rows,facilityName,code),cut=Date.now()-48*60*60*1000;
-          const normalized=(matched.length&&matched[0]?.kind)?matched:tlAiNormalizeRows(matched);
-          const points=normalized.filter(r=>r.kind==='water'&&r.time&&Number.isFinite(r.value)&&r.time.getTime()>=cut)
-            .sort((a,b)=>a.time-b.time).map(r=>({t:r.time.toISOString(),v:r.value}));
+        try{
+          const params=new URLSearchParams({facility:String(facilityName||''),year:String(new Date().getFullYear()),days:'7'});
+          if(code) params.set('code',String(code));
+          const response=await fetch((window.location.origin||'')+'/api/chart?'+params.toString(),{method:'GET',cache:'no-store',headers:{Accept:'application/json'}});
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok || payload?.ok===false) throw new Error(payload?.error||('AI_DATA /api/chart HTTP '+response.status));
+          const raw=payload?.data?.water || payload?.water || [];
+          const points=raw.map(x=>({t:new Date(x.time||x.t),v:Number(x.value??x.v)})).filter(x=>!Number.isNaN(x.t.getTime())&&Number.isFinite(x.v)).sort((a,b)=>a.t-b.t).slice(-1000);
           if(points.length)TL_CHART_CACHE.set(key,{timestamp:Date.now(),points}); return points;
-        }catch(e){console.warn('📈 AI_DATA chart error',facilityName,e);return[];}
+        }catch(e){
+          try{
+            const rows=await tlLoadAIData(false),matched=tlAiMatchRows(rows,facilityName,code),water=tlAiObservations(matched).filter(x=>['WATER_LEVEL','WATER_LEVEL_UPSTREAM','WATER_LEVEL_DOWNSTREAM'].includes(x.parameterCode)).map(x=>({t:x.dt,parameter:x.parameterCode,v:tlAiNum(x.value)})).filter(x=>x.t&&Number.isFinite(x.v));
+            const preferredCode=water.find(x=>x.parameter==='WATER_LEVEL_UPSTREAM')?.parameter||water.find(x=>x.parameter==='WATER_LEVEL')?.parameter||water[0]?.parameter;
+            const points=water.filter(x=>x.parameter===preferredCode).sort((a,b)=>a.t-b.t).slice(-1000).map(x=>({t:x.t,v:x.v}));
+            if(points.length)TL_CHART_CACHE.set(key,{timestamp:Date.now(),points}); return points;
+          }catch(_){console.warn('📈 AI_DATA chart error',facilityName,e);return[];}
+        }
       }
       function tlLiveHistoryKey(facility) {
         return 'TL_LIVE_HISTORY_V1:' + String(facility || '').trim();
@@ -4726,14 +4961,16 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 
         const status = Number(error?.status);
         const notFound = status === 404;
+        const noMatch = notFound && error?.code === 'NO_MATCH';
+        const noValid = notFound && error?.code === 'NO_VALID_DATA';
         body.innerHTML = `
           <div class="tl-live-error">
-            ${notFound ? 'ℹ️ Chưa có số liệu quan trắc cho công trình này trong AI_DATA.' : '⚠️ Chưa lấy được số liệu quan trắc thực tế.'}
-            ${!notFound ? '<br><span style="font-size:9px;">' + esc(error?.message || 'AI_DATA không phản hồi.') + '</span>' : ''}
+            ${noMatch ? 'ℹ️ Đã đọc AI_DATA nhưng chưa khớp tên/mã công trình.' : noValid ? 'ℹ️ Đã khớp công trình nhưng chưa nhận diện được thông số quan trắc hợp lệ.' : notFound ? 'ℹ️ Chưa có số liệu quan trắc cho công trình này trong AI_DATA.' : '⚠️ Chưa lấy được số liệu quan trắc thực tế.'}
+            ${error?.message ? '<br><span style="font-size:9px;">' + esc(error.message) + '</span>' : ''}
             <button type="button" class="tl-live-refresh">🔄 Thử lại</button>
           </div>
         `;
-        if (updated) updated.textContent = notFound ? 'Chưa có dữ liệu' : 'Tạm thời lỗi';
+        if (updated) updated.textContent = notFound ? (noValid ? 'Có công trình • thiếu thông số' : 'Chưa khớp dữ liệu') : 'Tạm thời lỗi';
         card.dataset.tlLive = 'error';
 
         const refresh = body.querySelector('.tl-live-refresh');
@@ -4755,7 +4992,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 
       try {
   const [data, chartPoints] = await Promise.all([
-    tlFetchLive(facility, force),
+    tlFetchLive(facility, force, card.dataset.facilityCode || ''),
     tlFetchChartHistory(facility, card.dataset.facilityCode || '').catch(() => [])
   ]);
   tlRenderLive(card, data, chartPoints);
@@ -4782,7 +5019,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
 }
       }
 
-      function tlInitLiveForPopup(layer, facility) {
+      function tlInitLiveForPopup(layer, facility, code='') {
         if (!layer || !String(facility || '').trim()) return;
         const root = layer.getPopup()?.getElement?.();
         if (!root) return;
@@ -4790,7 +5027,28 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         if (!card) return;
         if (card.dataset.tlLiveBound !== '1') {
           card.dataset.tlLiveBound = '1';
-          tlLoadLiveForPopup(card, facility, false);
+          tlLoadLiveForPopup(card, facility, false, code);
+
+          // Tự cập nhật popup đang mở mỗi 60 giây; đóng popup thì dừng timer.
+          if (!layer._tlLiveAutoRefreshBound) {
+            layer._tlLiveAutoRefreshBound = true;
+            layer._tlLiveAutoRefreshTimer = null;
+            layer.on('popupopen', function() {
+              if (layer._tlLiveAutoRefreshTimer) clearInterval(layer._tlLiveAutoRefreshTimer);
+              layer._tlLiveAutoRefreshTimer = setInterval(function() {
+                const currentPopup = layer.getPopup()?.getElement?.();
+                const currentCard = currentPopup?.querySelector('.tl-live-card');
+                if (!currentCard) return;
+                tlLoadLiveForPopup(currentCard, currentCard.dataset.tlLiveFacility || facility, true, currentCard.dataset.tlLiveCode || code);
+              }, 60000);
+            });
+            layer.on('popupclose', function() {
+              if (layer._tlLiveAutoRefreshTimer) {
+                clearInterval(layer._tlLiveAutoRefreshTimer);
+                layer._tlLiveAutoRefreshTimer = null;
+              }
+            });
+          }
         }
       }
 
@@ -5428,7 +5686,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           layer._tlLiveBound = true;
           layer.on('popupopen', function() {
             try {
-              tlInitLiveForPopup(layer, name);
+              tlInitLiveForPopup(layer, name, code);
             } catch (livePopupError) {
               console.warn('📊 Technical Live popup error:', livePopupError);
             }
@@ -5830,10 +6088,35 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         // Ưu tiên dùng layer nếu có (marker)
         const layer = record.layer;
         if (layer) {
+          // Popup có thể chưa được bindPopup() (chỉ tạo khi người dùng chạm
+          // trực tiếp vào marker). Khi đến từ tìm kiếm phải build trước,
+          // nếu không layer.openPopup() sẽ không làm gì cả (popup chưa gắn).
+          const ensurePopupReady = function() {
+            if (layer.feature && !layer._tlPopupReady) {
+              try {
+                buildModernPopup(layer.feature, layer);
+                layer._tlPopupReady = true;
+              } catch (e) { console.warn('Popup GIS (search) error:', e); }
+            }
+            if (layer.feature && typeof tlUpdateFeatureCard === 'function') {
+              const p = layer.feature.properties || {};
+              const type = getCongTrinhType(p, layer.feature.geometry);
+              const icon = ({ho:'💧',tram_bom:'⚙️',dap:'🟠',dap_dang:'🟠',kenh:'〰️',cong:'◆',tran:'🌊',cau:'🌉',ong:'◉',khu_tuoi:'🌱'})[type] || '📍';
+              const label = (typeof getCongTrinhLabel === 'function') ? getCongTrinhLabel(type) : 'CÔNG TRÌNH';
+              tlUpdateFeatureCard({
+                icon,
+                typeLabel: String(label).toUpperCase(),
+                name: p.name || p.Name || p.NAME || 'Chưa xác định',
+                summary: p.status || p.Status || p.trang_thai || 'Chọn 🔎 XEM CHI TIẾT trong popup để biết thêm.',
+                layer: layer
+              });
+            }
+          };
           // Dùng cơ chế của MarkerCluster để zoom tới layer
           if (markerCluster && typeof markerCluster.zoomToShowLayer === 'function') {
             markerCluster.zoomToShowLayer(layer, function() {
               // Sau khi zoom, mở popup
+              ensurePopupReady();
               if (layer.openPopup) {
                 setTimeout(function() { layer.openPopup(); }, 300);
               }
@@ -5842,6 +6125,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             // Fallback: setView
             if (layer.getLatLng) {
               aiMap.setView(layer.getLatLng(), 17);
+              ensurePopupReady();
               if (layer.openPopup) {
                 setTimeout(function() { layer.openPopup(); }, 300);
               }
@@ -6045,18 +6329,17 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       }
       function tlCloseAlertSheet(){tlAlertSheet.hidden=true;}
       async function tlWarmReservoirLiveCache(){
-        // PERFORMANCE V5: không quét/tải hàng loạt ngay khi bản đồ vừa mở.
-        // Popup sẽ đọc từ AI_DATA index O(1) theo công trình. Chỉ làm ấm tối đa 4 hồ
-        // khi trình duyệt rảnh, tránh tranh CPU với GIS/KMZ/MarkerCluster.
-        try{
-          const run=async()=>{
-            const reservoirs=(searchIndex||[]).filter(r=>r.type==='ho'&&r.name).slice(0,4);
-            for(const record of reservoirs){
-              try{ await tlFetchLive(record.name,false); }catch(e){}
+        try {
+          const reservoirs=(searchIndex||[]).filter(r=>r.type==='ho' && r.name).slice(0, 30);
+          let i=0;
+          const worker=async()=>{
+            while(i<reservoirs.length){
+              const record=reservoirs[i++];
+              try { await tlFetchLive(record.name,false); } catch(e) {}
             }
           };
-          tlRunWhenIdle(run,5000);
-        }catch(e){}
+          await Promise.all(Array.from({length:Math.min(8,reservoirs.length)},()=>worker()));
+        } catch(e) {}
       }
 
       async function tlRefreshReservoirAlerts(background = false){
@@ -6077,6 +6360,10 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             if(!item) return;
             const existing=out.findIndex(x=>x.name===item.name);
             if(existing>=0) out[existing]=item; else out.push(item);
+            out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
+            tlReservoirAlertRecords=out.slice();
+            tlReservoirAlertsLoaded=false;
+            tlRenderAlertSummary();
           };
           const worker=async()=>{
             while(cursor<reservoirs.length){
@@ -6097,10 +6384,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               }catch(e){ console.warn('Alert hồ:',record.name,e); }
             }
           };
-          await Promise.all(Array.from({length:Math.min(4,reservoirs.length)},()=>worker()));
-          out.sort((a,b)=>({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[a.kind]-({above_mndgc:0,near_mndgc:1,above_mndbt:2,near_mndbt:3}[b.kind]))||a.name.localeCompare(b.name,'vi'));
-          tlReservoirAlertRecords=out.slice();
-          tlReservoirAlertsLoaded=false;
+          await Promise.all(Array.from({length:Math.min(12,reservoirs.length)},()=>worker()));
           tlReservoirAlertsLoaded=true;
           window.__TL_ALERT_LAST_REFRESH=Date.now();
           mapAlertBtn.classList.remove('is-loading');
@@ -6120,19 +6404,14 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       if(tlAlertClose) tlAlertClose.addEventListener('click',tlCloseAlertSheet);
 
       // =========================================================
-      // GIS FAST CACHE – lần mở sau dùng dữ liệu đã tải gần nhất,
-      // đồng thời âm thầm cập nhật nền để không làm người dùng chờ.
+      // GIS V12 — DIRECT ASSET / NO STALE CACHE
+      // Nguồn duy nhất: /gis/master.geojson được phát hành cùng repository.
+      // Không phụ thuộc Render, Technical API hay Cache API của trình duyệt.
       // =========================================================
-      // Direct local GIS asset: the standalone map serves its own GeoJSON.
-      // No Render/Technical GIS API is required.
-      const GIS_DATA_URL = new URL('gis/master.geojson', document.baseURI).href;
-
-      const TL_GIS_CACHE_NAME = 'thuyloi-gis-v1';
-      const TL_GIS_CACHE_KEY = new Request(GIS_DATA_URL);
-      const TL_GIS_CACHE_TTL = 10 * 60 * 1000; // 10 phút
+      const GIS_DATA_URL = new URL('/gis/master.geojson', window.location.origin).href;
+      const GIS_EXPECTED_MIN_FEATURES = 15000;
 
       function tlNormalizeGISPayload(payload) {
-        // Accept both the legacy API envelope and the direct GeoJSON asset.
         if (payload && payload.success && payload.geojson) return payload;
         if (payload && payload.type === 'FeatureCollection' && Array.isArray(payload.features)) {
           return { success: true, geojson: payload };
@@ -6141,72 +6420,38 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       }
 
       async function tlFetchGISFast() {
-        const cacheSupported = 'caches' in window;
-        if (!cacheSupported) {
-          const r = await fetch(GIS_DATA_URL, { method:'GET', cache:'default', mode:'cors', headers:{'Accept':'application/json'} });
-          if (!r.ok) throw new Error('Không thể truy cập ' + GIS_DATA_URL + ' (' + r.status + ')');
-          return tlNormalizeGISPayload(await r.json());
-        }
-
-        const cache = await caches.open(TL_GIS_CACHE_NAME);
-        const cached = await cache.match(TL_GIS_CACHE_KEY);
-        let cachedAge = Infinity;
-        if (cached) {
-          const stamp = Number(cached.headers.get('x-thuyloi-cache-time') || 0);
-          cachedAge = stamp ? Date.now() - stamp : Infinity;
-        }
-
-        const fetchFresh = async () => {
-          const response = await fetch(GIS_DATA_URL, {
-            method:'GET', cache:'no-store', mode:'cors',
-            headers:{'Accept':'application/json','X-ThuyLoi-Cache':'revalidate'}
-          });
-          if (!response.ok) throw new Error('Không thể truy cập ' + GIS_DATA_URL + ' (' + response.status + ')');
-          const clone = response.clone();
-          try {
-            const h = new Headers(clone.headers);
-            h.set('x-thuyloi-cache-time', String(Date.now()));
-            const body = await clone.blob();
-            await cache.put(TL_GIS_CACHE_KEY, new Response(body, {status:clone.status, statusText:clone.statusText, headers:h}));
-          } catch(e) { /* cache chỉ là tối ưu, không được làm hỏng bản đồ */ }
-          return tlNormalizeGISPayload(await response.json());
-        };
-
-        if (cached && cachedAge <= TL_GIS_CACHE_TTL) {
-          fetchFresh().catch(e => console.warn('[GIS] Background refresh:', e));
-          return tlNormalizeGISPayload(await cached.json());
-        }
-
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 60000);
         try {
-          return await fetchFresh();
-        } catch (e) {
-          if (cached) {
-            console.warn('[GIS] Dùng cache cũ vì mạng/API chậm:', e);
-            return tlNormalizeGISPayload(await cached.json());
+          mapAiStatus.style.display = 'block';
+          mapAiStatus.textContent = '⏳ Đang tải dữ liệu GIS thủy lợi...';
+          const response = await fetch(GIS_DATA_URL + '?v=12', {
+            method: 'GET',
+            cache: 'no-store',
+            mode: 'cors',
+            headers: { 'Accept': 'application/geo+json, application/json' },
+            signal: controller.signal
+          });
+          if (!response.ok) throw new Error('HTTP ' + response.status + ' khi tải ' + GIS_DATA_URL);
+          const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+          const text = await response.text();
+          if (!text.trim().startsWith('{')) {
+            throw new Error('URL GIS không trả về JSON. Content-Type=' + contentType);
           }
-          throw e;
+          let payload;
+          try { payload = JSON.parse(text); }
+          catch (e) { throw new Error('GeoJSON không parse được: ' + e.message); }
+          const result = tlNormalizeGISPayload(payload);
+          const count = result.geojson.features.length;
+          if (count < GIS_EXPECTED_MIN_FEATURES) {
+            throw new Error('GeoJSON thiếu dữ liệu: chỉ có ' + count.toLocaleString('vi-VN') + ' đối tượng, cần tối thiểu ' + GIS_EXPECTED_MIN_FEATURES.toLocaleString('vi-VN') + '.');
+          }
+          console.log('[GIS V12] Loaded:', { url: GIS_DATA_URL, contentType, bytes: text.length, features: count });
+          return result;
+        } finally {
+          clearTimeout(timeout);
         }
       }
-
-      // =========================================================
-      // 6 LỚP — STATE CORE
-      // Chỉ đưa state lên trước initializer để tránh TDZ; không đổi kiến trúc GIS.
-      // =========================================================
-const TL_SIX_LAYER_KEYS = ['reservoir','pump','dam','channel','onchannel','irrigation'];
-const TL_SIX_LAYER_LABELS = {
-  reservoir: 'Hồ chứa',
-  pump: 'Trạm bơm',
-  dam: 'Đập / Bara',
-  channel: 'Hệ thống kênh',
-  onchannel: 'Công trình trên kênh',
-  irrigation: 'Khu tưới'
-};
-const TL_SIX_LAYER_STATE = {
-  reservoir:true, pump:true, dam:true, channel:false, onchannel:false, irrigation:false
-};
-const TL_SIX_LAYER_MEMBERS = {
-  reservoir:[], pump:[], dam:[], channel:[], onchannel:[], irrigation:[]
-};
 
       async function initAiMap() {
         if (aiMap) {
@@ -6216,6 +6461,7 @@ const TL_SIX_LAYER_MEMBERS = {
         // PERF PATCH: Leaflet/MarkerCluster giờ được nạp lười (xem loader
         // cuối trang). Đợi nạp xong trước khi dùng L — không đổi logic bản đồ.
         if (typeof L === 'undefined') {
+          mapAiStatus.style.display = 'block';
           mapAiStatus.textContent = '⏳ Đang tải thư viện bản đồ...';
           try {
             await window.tlEnsureLeaflet();
@@ -6229,23 +6475,42 @@ const TL_SIX_LAYER_MEMBERS = {
           return;
         }
         try {
+          mapAiStatus.style.display = 'block';
           mapAiStatus.textContent = '⏳ Đang khởi tạo bản đồ...';
           aiMap = L.map('aiMap', { zoomControl: true, preferCanvas: true });
           // Bộ nền bản đồ — chuyển lớp tức thời, không cần khởi tạo lại Leaflet.
           aiBaseLayers = {
             satellite: L.tileLayer(
               'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-              { maxZoom: 19, attribution: 'Tiles © Esri' }
+              { maxZoom: 19, attribution: 'Tiles © Esri', crossOrigin: true }
             ),
             street: L.tileLayer(
               'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-              { maxZoom: 19, attribution: 'Tiles © Esri' }
+              { maxZoom: 19, attribution: 'Tiles © Esri', crossOrigin: true }
             ),
             dark: L.tileLayer(
               'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-              { maxZoom: 19, attribution: 'Tiles © Esri' }
+              { maxZoom: 19, attribution: 'Tiles © Esri', crossOrigin: true }
+            ),
+            osmFallback: L.tileLayer(
+              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              { maxZoom: 19, attribution: '© OpenStreetMap contributors' }
             )
           };
+          // Nếu Esri không trả tile, tự chuyển sang OSM để bản đồ không bị màn hình trắng.
+          let __tlSatelliteErrorCount=0;
+          aiBaseLayers.satellite.on('tileerror', function(){
+            __tlSatelliteErrorCount++;
+            if(__tlSatelliteErrorCount >= 3 && aiMap && aiMap.hasLayer(aiBaseLayers.satellite)){
+              console.warn('[Map] Esri Satellite không tải được — chuyển OSM fallback.');
+              aiMap.removeLayer(aiBaseLayers.satellite);
+              aiBaseLayers.osmFallback.addTo(aiMap);
+              activeBaseLayerKey='osmFallback';
+              mapAiStatus.style.display='block';
+              mapAiStatus.textContent='🌐 Nền vệ tinh không phản hồi — đã chuyển sang nền bản đồ dự phòng.';
+              setTimeout(function(){ mapAiStatus.style.display='none'; }, 3500);
+            }
+          });
           activeBaseLayerKey = 'satellite';
           aiBaseLayers.satellite.addTo(aiMap);
           // Đặt tâm khu vực Vu Gia – Thu Bồn ngay lập tức, không chờ GIS.
@@ -6255,91 +6520,105 @@ const TL_SIX_LAYER_MEMBERS = {
             try { aiMap.invalidateSize({ pan: false }); } catch (e) {}
           }, 0);
 
-          // ======================================================
-          // ZOOM BAND PERFORMANCE V2
-          // - Không quét 1.800+ tuyến ở mỗi nấc zoom.
-          // - Chỉ xử lý khi chuyển sang một Zoom Band mới.
-          // - requestAnimationFrame() gom các sự kiện zoom liên tiếp.
-          // - Luôn giữ nguyên style/màu gốc KMZ.
-          // ======================================================
-          let tlZoomBand = null;
-          let tlZoomFrame = 0;
-          let tlZoomPending = false;
+          function updateGISZoomStyle() {
+            if (!aiMapLayer) return;
 
-          function tlGetZoomBand(zoom) {
-            if (zoom <= 7) return 'overview';
-            if (zoom <= 10) return 'regional';
-            if (zoom <= 12) return 'local';
-            return 'detail';
-          }
-
-          function tlZoomStyleForBand(band, base) {
-            const b = base || {};
-            if (band === 'overview') {
-              return { ...b, opacity: 0, fillOpacity: 0 };
-            }
-            if (band === 'regional') {
-              return { ...b, opacity: Math.min(Number.isFinite(b.opacity) ? b.opacity : 1, 0.28) };
-            }
-            if (band === 'local') {
-              return { ...b, opacity: Math.min(Number.isFinite(b.opacity) ? b.opacity : 1, 0.62) };
-            }
-            return { ...b, opacity: Number.isFinite(b.opacity) ? b.opacity : 1 };
-          }
-
-          function tlApplyZoomBand(force) {
-            if (!aiMap || !nonPointLayer) return;
             const zoom = aiMap.getZoom();
-            const band = tlGetZoomBand(zoom);
-            if (!force && band === tlZoomBand) return;
-            tlZoomBand = band;
 
-            // Chỉ tại thời điểm đổi Band mới quét nonPointLayer.
-            nonPointLayer.eachLayer(function(layer) {
-              if (!layer || !layer.setStyle) return;
-              const base = layer.__tlKMLBaseStyle;
-              if (!base) return;
-              layer.setStyle(tlZoomStyleForBand(band, base));
+            let lineWeight, lineOpacity;
+
+            if (zoom <= 7) {
+              lineWeight = 1;
+              lineOpacity = 0.00;
+            } else if (zoom <= 10) {
+              lineWeight = 1.8;
+              lineOpacity = 0.72;
+            } else if (zoom <= 12) {
+              lineWeight = 2.2;
+              lineOpacity = 0.82;
+            } else {
+              lineWeight = 3;
+              lineOpacity = 0.95;
+            }
+
+            // Zoom-based rendering: vẫn giữ nguyên màu/style KMZ, nhưng
+            // tôn trọng trạng thái bật/tắt của 6 lớp bản đồ.
+            const sixChannelToggle = document.getElementById('toggleHeThongKenh');
+            const sixAreaToggle = document.getElementById('toggleKhuTuoi');
+            const showSixChannels = !!(sixChannelToggle && sixChannelToggle.checked);
+            const showSixAreas = !!(sixAreaToggle && sixAreaToggle.checked);
+            if (nonPointLayer) {
+              nonPointLayer.eachLayer(function(layer) {
+                if (!layer || !layer.setStyle) return;
+                const gt = layer.feature?.geometry?.type || '';
+                let key = null;
+                try {
+                  key = (typeof window.__TL_SIX_FEATURE_KEY === 'function')
+                    ? window.__TL_SIX_FEATURE_KEY(layer.feature) : null;
+                } catch(e) {}
+                if (!key) {
+                  key = (gt === 'Polygon' || gt === 'MultiPolygon') ? 'khu_tuoi' : 'kenh';
+                }
+                const visible = key === 'khu_tuoi' ? showSixAreas : key === 'kenh' ? showSixChannels : false;
+                if (!visible || zoom <= 7) {
+                  layer.setStyle({ weight: 0.8, opacity: 0, fillOpacity: 0 });
+                  if (layer.closeTooltip) layer.closeTooltip();
+                } else {
+                  layer.setStyle({
+                    weight: lineWeight,
+                    opacity: lineOpacity,
+                    fillOpacity: (gt === 'Polygon' || gt === 'MultiPolygon') ? (zoom >= 11 ? 0.12 : 0.045) : 0
+                  });
+                }
+              });
+            }
+
+            aiMapLayer.eachLayer(function(layer) {
+              if (layer === nonPointLayer || layer === markerCluster) return;
+              if (layer.setStyle) {
+                layer.setStyle({ weight: lineWeight, opacity: lineOpacity });
+              }
             });
 
-            // Nhãn chỉ thay đổi khi bước sang Band mới.
-            const showLabels = band === 'detail';
-            const mapBounds = showLabels ? aiMap.getBounds() : null;
+            // ======================================================
+            // HIỂN THỊ TÊN KÊNH / BỜ VÙNG THEO ZOOM
+            // Chỉ mở nhãn của các đối tượng đang nằm trong màn hình
+            // để tránh tạo hàng nghìn DOM label trên iPhone.
+            // ======================================================
+            if (!nonPointLayer) return;
+
+            const showLabels = zoom >= 11;
+            const mapBounds = aiMap.getBounds();
+
             nonPointLayer.eachLayer(function(layer) {
               if (!layer || !layer.getTooltip) return;
+
               const tooltip = layer.getTooltip();
               if (!tooltip) return;
+
               if (!showLabels) {
-                if (layer.isTooltipOpen && layer.isTooltipOpen()) layer.closeTooltip();
+                if (layer.isTooltipOpen && layer.isTooltipOpen()) {
+                  layer.closeTooltip();
+                }
                 return;
               }
+
               try {
                 const bounds = layer.getBounds ? layer.getBounds() : null;
                 if (bounds && bounds.isValid() && bounds.intersects(mapBounds)) {
-                  if (!(layer.isTooltipOpen && layer.isTooltipOpen())) layer.openTooltip();
+                  if (!(layer.isTooltipOpen && layer.isTooltipOpen())) {
+                    layer.openTooltip();
+                  }
                 } else if (layer.isTooltipOpen && layer.isTooltipOpen()) {
                   layer.closeTooltip();
                 }
-              } catch (e) {}
+              } catch (e) {
+                // Không để lỗi label ảnh hưởng bản đồ.
+              }
             });
           }
-
-          window.__TL_REFRESH_ZOOM_BAND = function(force) { tlApplyZoomBand(force !== false); };
-
-          function scheduleGISZoomStyle() {
-            tlZoomPending = true;
-            if (tlZoomFrame) return;
-            tlZoomFrame = requestAnimationFrame(function() {
-              tlZoomFrame = 0;
-              if (!tlZoomPending) return;
-              tlZoomPending = false;
-              tlApplyZoomBand(false);
-            });
-          }
-
-          aiMap.on('zoom', scheduleGISZoomStyle, { passive: true });
-          aiMap.on('zoomend', scheduleGISZoomStyle);
-          tlApplyZoomBand(true);
+          aiMap.on('zoomend', updateGISZoomStyle);
+          updateGISZoomStyle();
 
           mapAiStatus.textContent = '🗺️ Bản đồ nền đã sẵn sàng — đang kết nối dữ liệu thủy lợi...';
           gisSearchReady = false;
@@ -6375,16 +6654,13 @@ const TL_SIX_LAYER_MEMBERS = {
               // Bắt đầu tải cảnh báo ngay khi Search Index sẵn sàng.
               // Nút 🔔 sẽ nhấp nháy trong toàn bộ thời gian chờ dữ liệu LIVE.
               if (!tlAlertRefreshStarted) {
-                // Không chạy 12 request/12 bộ lọc ngay lúc GIS vừa vẽ xong.
-                // Chuyển cảnh báo LIVE sang idle, ưu tiên first-paint của bản đồ.
-                tlRunWhenIdle(function(){
-                  tlRefreshReservoirAlerts(true).catch(function(e){
-                    console.warn('[Alert] Refresh:', e);
-                    mapAlertBtn.classList.remove('is-loading');
-                  });
-                },3500);
+                tlRefreshReservoirAlerts(true).catch(function(e){
+                  console.warn('[Alert] Refresh:', e);
+                  mapAlertBtn.classList.remove('is-loading');
+                });
               }
-              // AI_DATA warm-up cũng chạy khi rảnh, tối đa 4 hồ.
+              // Làm ấm cache mực nước theo đợt nhỏ sau khi bản đồ đã hiện.
+              // Không chặn render bản đồ và không tạo hàng trăm request cùng lúc.
               tlWarmReservoirLiveCache();
               console.log('📚 GIS: Search Index', searchIndex.length, 'bản ghi.');
 
@@ -6401,8 +6677,13 @@ const TL_SIX_LAYER_MEMBERS = {
 
           // ---- TẠO MARKER CLUSTER ----
           markerFeatureMap = new WeakMap();
-          markerCluster = L.markerClusterGroup({
-            // Chunking ở chính cluster giúp tránh khóa UI khi có hàng nghìn marker.
+          // ============================================================
+          // 6 LỚP BẢN ĐỒ THỦY LỢI — giữ nguyên nguồn KMZ/GIS
+          // markerCluster chỉ là LayerGroup tổng; 6 nhóm con mới là
+          // lớp bật/tắt thực tế. Mỗi nhóm vẫn dùng MarkerCluster để
+          // giữ hiệu năng khi có hàng nghìn điểm.
+          // ============================================================
+          const TL_CLUSTER_OPTIONS = {
             chunkedLoading: true,
             chunkInterval: TL_IS_MOBILE ? 20 : 50,
             chunkDelay: TL_IS_MOBILE ? 35 : 20,
@@ -6423,6 +6704,21 @@ const TL_SIX_LAYER_MEMBERS = {
                 iconAnchor: [14, 14]
               });
             }
+          };
+
+          const tlSixLayerGroups = {
+            ho: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            tram_bom: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            dap_bara: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            kenh: L.layerGroup(),
+            cong_tren_kenh: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            khu_tuoi: L.layerGroup()
+          };
+
+          // Layer tổng để giữ tương thích với toàn bộ code cũ.
+          markerCluster = L.layerGroup();
+          Object.keys(tlSixLayerGroups).forEach(function(key){
+            markerCluster.addLayer(tlSixLayerGroups[key]);
           });
 
           // Runtime dùng chung cho các lớp điều khiển bản đồ mobile.
@@ -6430,8 +6726,7 @@ const TL_SIX_LAYER_MEMBERS = {
             map: aiMap,
             mapLayer: aiMapLayer,
             markerCluster: markerCluster,
-            sixLayers: TL_SIX_LAYER_STATE,
-            sixLayerMembers: TL_SIX_LAYER_MEMBERS,
+            sixLayers: tlSixLayerGroups,
             nonPointLayer: nonPointLayer,
             baseLayers: aiBaseLayers,
             activeBaseLayerKey: activeBaseLayerKey
@@ -6569,227 +6864,46 @@ function getGISFeatureDescription(feature) {
 // Lấy màu nếu GeoJSON đã có màu KML
 // Nếu chưa có -> xanh mặc định
 // ------------------------------------------------------------
-function firstDefinedGIS(p, keys) {
-  for (const key of keys) {
-    const v = p?.[key];
-    if (v !== undefined && v !== null && String(v).trim() !== '') return v;
-  }
-  return null;
-}
-
-// ============================================================
-// ĐỌC STYLE GỐC KML/KMZ CHO LEAFLET 2D
-// KML chuẩn dùng AABBGGRR -> CSS #RRGGBB + alpha
-// Ưu tiên style đã được build từ KMZ, không ép màu theo category.
-// ============================================================
-function parseGISColor(feature, isFill = false) {
-  const p = feature?.properties || {};
-
-  const keys = isFill
-    ? [
-        'kmlPolyColor','KMLPolyColor','polyColor','PolyColor',
-        'fillColor','FillColor','fill','Fill',
-        'polygonColor','PolygonColor','styleFill','StyleFill',
-        'fill-color','fillColorHex'
-      ]
-    : [
-        'kmlColor','KMLColor','lineColor','LineColor',
-        'strokeColor','StrokeColor','styleColor','StyleColor',
-        'stroke','Stroke','line','Line',
-        'stroke-color','lineColorHex'
-      ];
-
-  let raw = firstDefinedGIS(p, keys);
-  if (raw === null) raw = firstDefinedGIS(p, ['color','Color']);
-  if (raw === null) return null;
-
-  let c = String(raw).trim();
-
-  // rgb()/rgba()
-  const rgb = c.match(
-    /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/i
-  );
-  if (rgb) {
-    const r = Math.max(0, Math.min(255, Number(rgb[1])));
-    const g = Math.max(0, Math.min(255, Number(rgb[2])));
-    const b = Math.max(0, Math.min(255, Number(rgb[3])));
-    const a = rgb[4] === undefined ? 1 : Math.max(0, Math.min(1, Number(rgb[4])));
-    return { color: `rgb(${r},${g},${b})`, opacity: a, raw: c };
-  }
-
-  c = c.replace(/^#/, '').replace(/^0x/i, '');
-
-  // KML chuẩn: AABBGGRR
-  if (/^[0-9a-fA-F]{8}$/.test(c)) {
-    const alpha = parseInt(c.slice(0, 2), 16) / 255;
-    const bb = c.slice(2, 4);
-    const gg = c.slice(4, 6);
-    const rr = c.slice(6, 8);
-    return { color: `#${rr}${gg}${bb}`, opacity: alpha, raw: c, format: 'kml' };
-  }
-
-  // RRGGBB
-  if (/^[0-9a-fA-F]{6}$/.test(c)) {
-    return { color: `#${c}`, opacity: 1, raw: c, format: 'hex' };
-  }
-
-  // RGB 3 ký tự
-  if (/^[0-9a-fA-F]{3}$/.test(c)) {
-    return {
-      color: `#${c[0]}${c[0]}${c[1]}${c[1]}${c[2]}${c[2]}`,
-      opacity: 1,
-      raw: c,
-      format: 'hex3'
-    };
-  }
-
-  return null;
-}
-
 function getGISFeatureColor(feature) {
-  const c = parseGISColor(feature, false);
-  return c?.color || '#1677FF';
+
+  const p = feature?.properties || {};
+
+  // KML dùng AABBGGRR; phải chuyển sang CSS #RRGGBB.
+  // Nếu đã là màu CSS thì giữ nguyên.
+  const kmlColor = getKMLColor(feature);
+  if (kmlColor) return kmlColor;
+
+  return (
+    p.styleColor ||
+    p.StyleColor ||
+    p.color ||
+    p.Color ||
+    "#1677FF"
+  );
 }
 
-function getGISFeatureOpacity(feature, isFill = false, fallback = 1) {
-  const p = feature?.properties || {};
-  const c = parseGISColor(feature, isFill);
 
-  const explicit = firstDefinedGIS(
-    p,
-    isFill
-      ? ['kmlPolyOpacity','fill-opacity','fillOpacity','polygonOpacity']
-      : ['kmlLineOpacity','stroke-opacity','strokeOpacity','lineOpacity']
+// ------------------------------------------------------------
+// Lấy độ dày nếu có
+// ------------------------------------------------------------
+function getGISFeatureWidth(feature) {
+
+  const p = feature?.properties || {};
+
+  const value = Number(
+    p.kmlWidth ||
+    p.KMLWidth ||
+    p.lineWidth ||
+    p.LineWidth ||
+    p.width ||
+    p.Width
   );
 
-  const n = Number(explicit);
-  if (Number.isFinite(n)) return Math.max(0, Math.min(1, n));
-  if (c) return c.opacity;
-  return fallback;
-}
-
-function getGISFeatureFill(feature) {
-  return parseGISColor(feature, true);
-}
-
-function getGISFeatureWidth(feature) {
-  const p = feature?.properties || {};
-  const value = Number(firstDefinedGIS(p, [
-    'kmlWidth','KMLWidth','lineWidth','LineWidth',
-    'stroke-width','strokeWidth','width','Width'
-  ]));
-
-  return Number.isFinite(value) && value > 0 ? value : 2;
-}
-
-// ============================================================
-// 6 LỚP CHÍNH THỦY LỢI — PHÂN LỚP ĐỘC LẬP
-// Giữ nguyên GeoJSON/KMZ, Popup, Search, MarkerCluster và màu gốc.
-// Chỉ bổ sung một lớp điều khiển hiển thị theo 6 nhóm nghiệp vụ.
-// ============================================================
-
-function tlSixLayerKey(feature) {
-  const p = feature?.properties || {};
-  const geom = feature?.geometry?.type || '';
-  const name = getGISFeatureName(feature);
-  const desc = getGISFeatureDescription(feature);
-  const raw = [name, desc, p.type, p.Type, p.loai, p.Loai, p.category, p.Category]
-    .filter(v => v !== undefined && v !== null)
-    .join(' ');
-  const text = String(raw).toLowerCase();
-  const noDiacritics = text.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  let type = 'khac';
-  try { type = getCongTrinhType(p, feature?.geometry); } catch(e) {}
-
-  // 1. Hồ chứa — nhận cả điểm và vùng hồ, ưu tiên trước mọi geometry chung.
-  if (type === 'ho' || /\bho\s*(chua|nuoc)?\b/.test(noDiacritics) || /\bhồ\s*(chứa|nước)?\b/.test(text)) {
-    return 'reservoir';
+  if (Number.isFinite(value) && value > 0) {
+    return value;
   }
 
-  // 2. Trạm bơm.
-  if (type === 'tram_bom' || /tram\s*bom/.test(noDiacritics) || /trạm\s*bơm/.test(text)) {
-    return 'pump';
-  }
-
-  // 3. Đập/Bara.
-  if (type === 'dap' || /\b(dap|bara|barrage)\b/.test(noDiacritics) || /\b(đập|bara|barrage)\b/.test(text)) {
-    return 'dam';
-  }
-
-  // 5. Công trình trên kênh — nhận diện theo tên/loại trước geometry.
-  if (type === 'cong' || type === 'tran' || type === 'cau' || type === 'ong' ||
-      /\b(cong|tran|cau|ong)\b/.test(noDiacritics) ||
-      /\b(cống|tràn|cầu|ống)\b/.test(text)) {
-    return 'onchannel';
-  }
-
-  // 6. Khu tưới — nhận diện rõ bằng thuộc tính/tên trước polygon chung.
-  if (/khu\s*tuoi|vung\s*tuoi|dien\s*tuoi/.test(noDiacritics) ||
-      /khu\s*tưới|vùng\s*tưới|diện\s*tưới/.test(text)) {
-    return 'irrigation';
-  }
-
-  // 4. Hệ thống kênh — tuyến kênh và các đối tượng được khai báo là kênh.
-  if (type === 'kenh' || /\bkenh\b/.test(noDiacritics) || /\bkênh\b/.test(text) ||
-      geom === 'LineString' || geom === 'MultiLineString') {
-    return 'channel';
-  }
-
-  // Polygon còn lại được giữ trong lớp Khu tưới theo kiến trúc GIS hiện hữu.
-  if (geom === 'Polygon' || geom === 'MultiPolygon') return 'irrigation';
-
-  // Các điểm/công trình còn lại thuộc nhóm Công trình trên kênh.
-  return 'onchannel';
-}
-
-function tlRegisterSixLayerMember(feature, layer) {
-  if (!layer || !feature) return;
-  const key = tlSixLayerKey(feature);
-  if (!TL_SIX_LAYER_MEMBERS[key]) TL_SIX_LAYER_MEMBERS[key] = [];
-  TL_SIX_LAYER_MEMBERS[key].push(layer);
-  layer.__tlSixLayerKey = key;
-}
-
-function tlApplySixLayerVisibility() {
-  try {
-    if (!markerCluster || !nonPointLayer) return;
-    TL_SIX_LAYER_KEYS.forEach(function(key){
-      const visible = !!TL_SIX_LAYER_STATE[key];
-      const members = TL_SIX_LAYER_MEMBERS[key] || [];
-      members.forEach(function(layer){
-        try {
-          const isMarker = layer instanceof L.Marker;
-          if (isMarker) {
-            if (visible) {
-              if (!markerCluster.hasLayer(layer)) markerCluster.addLayer(layer);
-            } else {
-              if (markerCluster.hasLayer(layer)) markerCluster.removeLayer(layer);
-            }
-          } else {
-            if (visible) {
-              if (!nonPointLayer.hasLayer(layer)) nonPointLayer.addLayer(layer);
-            } else {
-              if (nonPointLayer.hasLayer(layer)) nonPointLayer.removeLayer(layer);
-            }
-          }
-        } catch(e) {}
-      });
-    });
-  } catch(e) {
-    console.warn('[6-LAYER] visibility:', e);
-  }
-}
-
-function tlSetSixLayer(key, visible) {
-  if (!Object.prototype.hasOwnProperty.call(TL_SIX_LAYER_STATE, key)) return;
-  TL_SIX_LAYER_STATE[key] = !!visible;
-  tlApplySixLayerVisibility();
-  try { if (typeof window.__TL_REFRESH_ZOOM_BAND === 'function') window.__TL_REFRESH_ZOOM_BAND(true); } catch(e) {}
-      try {
-        const _six = {reservoir:'toggleReservoirs',pump:'togglePumps',dam:'toggleDams',channel:'toggleChannels',onchannel:'toggleOnChannel',irrigation:'toggleIrrigation'};
-        Object.keys(_six).forEach(function(k){ const el=document.getElementById(_six[k]); if(el) el.checked=!!TL_SIX_LAYER_STATE[k]; });
-      } catch(e) {}
-  window.__TL_SIX_LAYERS = { state: {...TL_SIX_LAYER_STATE}, counts: Object.fromEntries(TL_SIX_LAYER_KEYS.map(k => [k,(TL_SIX_LAYER_MEMBERS[k]||[]).length])) };
+  return 2;
 }
 
 
@@ -6818,67 +6932,87 @@ nonPointLayer = L.geoJSON(null, {
   // ==========================================================
   style: function(feature) {
 
-    const geometryType = feature?.geometry?.type || '';
-    const line = parseGISColor(feature, false);
-    const fill = parseGISColor(feature, true);
-    const width = getGISFeatureWidth(feature);
+    const geometryType =
+      feature?.geometry?.type || "";
 
-    let style;
+    const color =
+      getGISFeatureColor(feature);
 
-    if (geometryType === 'LineString' || geometryType === 'MultiLineString') {
-      style = {
-        color: line?.color || '#1677FF',
+    const width =
+      getGISFeatureWidth(feature);
+
+
+    // --------------------------------------------------------
+    // ĐƯỜNG / KÊNH
+    // --------------------------------------------------------
+    if (
+      geometryType === "LineString" ||
+      geometryType === "MultiLineString"
+    ) {
+
+      return {
+        color: color,
         weight: width,
-        opacity: getGISFeatureOpacity(feature, false, 1),
-        fill: false,
-        fillOpacity: 0
+        opacity: 0.90,
+        fill: false
       };
-    } else if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
-      const lineColor = line?.color || fill?.color || '#1677FF';
-      const fillColor = fill?.color || lineColor;
-      style = {
-        color: lineColor,
-        weight: width,
-        opacity: getGISFeatureOpacity(feature, false, line?.opacity ?? 1),
-        fill: true,
-        fillColor: fillColor,
-        fillOpacity: getGISFeatureOpacity(feature, true, fill?.opacity ?? 0.35)
-      };
-    } else {
-      style = {
-        color: line?.color || '#1677FF',
-        weight: width,
-        opacity: getGISFeatureOpacity(feature, false, 1),
-        fillOpacity: 0
-      };
+
     }
 
-    // Lưu style nguyên bản của KMZ để zoom không tự đổi màu/độ dày.
-    return style;
-  },
 
+    // --------------------------------------------------------
+    // VÙNG
+    // --------------------------------------------------------
+    if (
+      geometryType === "Polygon" ||
+      geometryType === "MultiPolygon"
+    ) {
+
+      const p =
+        feature?.properties || {};
+
+      const fillColor =
+        p.kmlPolyColor ||
+        p.KMLPolyColor ||
+        color;
+
+      return {
+
+        color: fillColor,
+
+        weight: 1.5,
+
+        opacity: 0.75,
+
+        fillColor: fillColor,
+
+        fillOpacity: 0.06
+
+      };
+
+    }
+
+
+    // --------------------------------------------------------
+    // KHÁC
+    // --------------------------------------------------------
+    return {
+
+      color: color,
+
+      weight: 1.5,
+
+      opacity: 0.70
+
+    };
+
+  },
 
 
   // ==========================================================
   // XỬ LÝ TỪNG FEATURE
   // ==========================================================
   onEachFeature: function(feature, layer) {
-
-    // Đăng ký feature vào đúng 1 trong 6 lớp nghiệp vụ.
-    tlRegisterSixLayerMember(feature, layer);
-
-    // Lưu đúng style gốc để zoom chỉ ẩn/hiện, không biến đổi màu KMZ.
-    try {
-      const gt = feature?.geometry?.type || '';
-      const line = parseGISColor(feature, false);
-      const fill = parseGISColor(feature, true);
-      const baseStyle = gt === 'LineString' || gt === 'MultiLineString'
-        ? { color: line?.color || '#1677FF', weight: getGISFeatureWidth(feature), opacity: getGISFeatureOpacity(feature, false, 1), fill: false, fillOpacity: 0 }
-        : gt === 'Polygon' || gt === 'MultiPolygon'
-          ? { color: line?.color || fill?.color || '#1677FF', weight: getGISFeatureWidth(feature), opacity: getGISFeatureOpacity(feature, false, line?.opacity ?? 1), fill: true, fillColor: fill?.color || line?.color || '#1677FF', fillOpacity: getGISFeatureOpacity(feature, true, fill?.opacity ?? 0.35) }
-          : { color: line?.color || '#1677FF', weight: getGISFeatureWidth(feature), opacity: getGISFeatureOpacity(feature, false, 1), fillOpacity: 0 };
-      layer.__tlKMLBaseStyle = baseStyle;
-    } catch (e) {}
 
     const geometryType =
       feature?.geometry?.type || "";
@@ -7105,6 +7239,15 @@ if (description) {
 
       }
 
+      // Cập nhật thẻ thông tin công trình phía dưới bản đồ.
+      tlUpdateFeatureCard({
+        icon: geometryType === 'Polygon' || geometryType === 'MultiPolygon' ? '🌱' : '〰️',
+        typeLabel: typeName.toUpperCase(),
+        name: name,
+        summary: cleanDescription ? cleanDescription.slice(0, 160) : 'Không có mô tả chi tiết.',
+        layer: layer
+      });
+
     });
 
 
@@ -7177,10 +7320,24 @@ if (description) {
           for (let i = 0; i < features.length; i++) {
             const feature = features[i];
             const geomType = feature?.geometry?.type;
-            if (geomType === 'Point' || geomType === 'MultiPoint') {
+            if (geomType === 'Point') {
               // KMZ master chứa toàn bộ điểm công trình; không giới hạn chỉ hồ/trạm bơm/đập.
-              // MarkerCluster + batch render giữ giao diện mobile ổn định.
               pointFeatures.push(feature);
+            } else if (geomType === 'MultiPoint') {
+              // GeoJSON MultiPoint phải được tách thành các Point marker; tránh lỗi
+              // latLng([ [lon,lat], ... ]) trên mobile và vẫn giữ nguyên properties.
+              const coordsList = Array.isArray(feature.geometry.coordinates) ? feature.geometry.coordinates : [];
+              for (let m = 0; m < coordsList.length; m++) {
+                const c = coordsList[m];
+                if (Array.isArray(c) && c.length >= 2) {
+                  pointFeatures.push({
+                    type: 'Feature',
+                    properties: feature.properties || {},
+                    geometry: { type: 'Point', coordinates: c },
+                    _tlSourceFeature: feature
+                  });
+                }
+              }
             } else if (feature?.geometry) {
               nonPointFeatures.push(feature);
             }
@@ -7198,7 +7355,12 @@ if (description) {
           // Trên mobile KHÔNG addData toàn bộ GeoJSON trong một lượt vì
           // một vòng render lớn có thể khóa main-thread và làm iPhone đứng.
           aiMapLayer.addLayer(nonPointLayer);
-          aiMapLayer.addLayer(markerCluster);
+          // KHÔNG add markerCluster tổng vào bản đồ: markerCluster chứa cả 6 lớp,
+          // nếu add cả group tổng thì mọi lớp con luôn hiện và nút bật/tắt sẽ không có tác dụng.
+          // Giữ markerCluster để tương thích Search/Popup, nhưng render trực tiếp từng lớp.
+          aiMapLayer.addLayer(tlSixLayerGroups.ho);
+          aiMapLayer.addLayer(tlSixLayerGroups.tram_bom);
+          aiMapLayer.addLayer(tlSixLayerGroups.dap_bara);
           aiMapLoaded = true;
           if (window.__TL_MAP_RUNTIME) {
             window.__TL_MAP_RUNTIME.map = aiMap;
@@ -7237,8 +7399,17 @@ if (description) {
             }
 
             // Chỉ chạy vòng duyệt style/label sau khi các lớp đã được nạp.
+            // Đồng thời áp lại 6 lớp để các đường đỏ Khu tưới không bị mặc định
+            // rơi vào lớp Kênh trong lúc addData() theo batch.
             tlYieldToBrowser(function() {
-              tlApplyZoomBand(true);
+              try {
+                if (typeof window.__TL_SIX_REFRESH_NONPOINT === 'function') {
+                  window.__TL_SIX_REFRESH_NONPOINT();
+                }
+              } catch (e) {
+                console.warn('Six-layer visibility refresh:', e);
+              }
+              updateGISZoomStyle();
             });
           }
 
@@ -7250,8 +7421,34 @@ if (description) {
           let pointCursor = 0;
           const POINT_BATCH = TL_IS_MOBILE ? TL_MOBILE_POINT_BATCH : TL_DESKTOP_POINT_BATCH;
 
+          function tlSixLayerKey(feature) {
+            const p = feature?.properties || {};
+            const geometry = feature?.geometry || {};
+            const gt = geometry.type || '';
+            const rawName = [p.name,p.Name,p.NAME,p.description,p.Description,p.description_html].filter(Boolean).join(' ');
+            const text = String(rawName).toLowerCase();
+            const plain = text.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+            // Polygon/MultiPolygon thuộc lớp Khu tưới.
+            if (gt === 'Polygon' || gt === 'MultiPolygon') return 'khu_tuoi';
+
+            const type = (typeof window.getCongTrinhType === 'function')
+              ? window.getCongTrinhType(p, geometry) : '';
+
+            if (type === 'ho' || /\bho (chua|chua|phu|dong|viet|hoa|an|trung|tan|truong)/.test(plain) || plain.includes('ho chua')) return 'ho';
+            if (type === 'tram_bom') return 'tram_bom';
+            if (type === 'dap' || type === 'dap_dang' || plain.includes('bara') || plain.includes('dap dang') || plain.includes('dap ') || text.includes('đập')) return 'dap_bara';
+            if (type === 'kenh' || gt === 'LineString' || gt === 'MultiLineString') return 'kenh';
+            if (type === 'khu_tuoi' || plain.includes('khu tuoi')) return 'khu_tuoi';
+
+            // Các điểm còn lại là công trình nằm trên/thuộc hệ thống kênh.
+            return 'cong_tren_kenh';
+          }
+
           function processPointBatch() {
-            const batch = [];
+            const batches = {
+              ho: [], tram_bom: [], dap_bara: [], cong_tren_kenh: []
+            };
             const end = Math.min(pointCursor + POINT_BATCH, pointFeatures.length);
 
             for (; pointCursor < end; pointCursor++) {
@@ -7269,7 +7466,6 @@ if (description) {
               );
 
               marker.feature = feature;
-              tlRegisterSixLayerMember(feature, marker);
               marker._tlPopupReady = false;
               markerFeatureMap.set(feature, marker);
 
@@ -7282,16 +7478,40 @@ if (description) {
                     console.warn('Popup GIS error:', popupError);
                   }
                 }
+                // bindPopup() ở trên chỉ gắn popup; nếu không mở lại ở đây thì
+                // lần chạm ĐẦU TIÊN sẽ không hiện gì (listener 'click' nội bộ
+                // của Leaflet chỉ được gắn xong SAU khi sự kiện này đã bắn ra).
+                try { marker.openPopup(); } catch (e) {}
+
+                const p = feature.properties || {};
+                const type = getCongTrinhType(p, feature.geometry);
+                const icon = ({ho:'💧',tram_bom:'⚙️',dap:'🟠',dap_dang:'🟠',kenh:'〰️',cong:'◆',tran:'🌊',cau:'🌉',ong:'◉',khu_tuoi:'🌱'})[type] || '📍';
+                const label = (typeof getCongTrinhLabel === 'function') ? getCongTrinhLabel(type) : 'CÔNG TRÌNH';
+                const name = p.name || p.Name || p.NAME || 'Chưa xác định';
+                const status = p.status || p.Status || p.trang_thai || p.TrangThai || p.tinh_trang || p.TinhTrang || '';
+                const rawDesc = p.description || '';
+                let plainDesc = '';
+                if (rawDesc) {
+                  const tmp = document.createElement('div');
+                  tmp.innerHTML = rawDesc;
+                  plainDesc = (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+                }
+                const summary = status
+                  ? ('Trạng thái: ' + status + (plainDesc ? ' • ' + plainDesc.slice(0, 140) : ''))
+                  : (plainDesc ? plainDesc.slice(0, 160) : 'Không có mô tả chi tiết.');
+                tlUpdateFeatureCard({ icon, typeLabel: String(label).toUpperCase(), name, summary, layer: marker });
               });
 
-              batch.push(marker);
+              const sixKey = tlSixLayerKey(feature);
+              if (batches[sixKey]) batches[sixKey].push(marker);
+              else batches.cong_tren_kenh.push(marker);
             }
 
-            if (batch.length) {
-              // Một lần addLayers cho cả batch nhanh hơn hàng trăm addLayer.
-              // chunkedLoading đã cấu hình ở markerClusterGroup.
-              markerCluster.addLayers(batch);
-            }
+            // Mỗi lớp được nạp riêng nhưng vẫn theo batch, giữ nguyên cơ chế
+            // chống khóa UI trên iPhone/PC của bản gốc.
+            Object.keys(batches).forEach(function(key){
+              if (batches[key].length) tlSixLayerGroups[key].addLayers(batches[key]);
+            });
 
             if (pointCursor < pointFeatures.length) {
               mapAiStatus.textContent =
@@ -7302,9 +7522,7 @@ if (description) {
               mapAiStatus.textContent =
                 '✅ Bản đồ đã hiển thị ' + features.length.toLocaleString('vi-VN') +
                 ' đối tượng.';
-
-              // Đồng bộ 6 lớp nghiệp vụ sau khi toàn bộ marker đã được tạo.
-              tlApplySixLayerVisibility();
+              setTimeout(function(){ mapAiStatus.style.display = 'none'; }, 1800);
 
               // Search Index tuyệt đối không được tranh CPU với lần render đầu.
               // Mobile chờ lâu hơn; dữ liệu bản đồ vẫn dùng được trong thời gian này.
@@ -7324,6 +7542,7 @@ if (description) {
 
           setTimeout(function() {
             try { aiMap.invalidateSize({ pan: false }); } catch (e) {}
+            mapAiStatus.style.display='none';
           }, TL_IS_MOBILE ? 900 : 300);
 
         } catch (error) {
@@ -7331,8 +7550,9 @@ if (description) {
           gisSearchReady = false;
           searchIndex = [];
           if (searchResults) searchResults.style.display = 'none';
+          mapAiStatus.style.display = 'block';
           mapAiStatus.textContent =
-            '⚠️ Bản đồ nền đã mở nhưng chưa tải được dữ liệu thủy lợi. Kiểm tra kết nối GIS.';
+            '⚠️ Không tải được GIS: ' + (error?.message || 'lỗi không xác định');
           console.error('[GIS] Không tải được dữ liệu:', { url: GIS_DATA_URL, error: error });
         }
       }
@@ -7395,10 +7615,9 @@ if (description) {
         });
       }
 
-      // Public bridge for the standalone shell: this is INSIDE the original
-      // map IIFE, so the scoped initializer remains accessible safely.
-      window.__TL_BOOT_MAP__ = function () { return initAiMap(); };
-      window.performSearch = performSearch;
+      // Expose the REAL initializer from the same closure.
+      // The standalone bootstrap runs after this script.
+      window.initAiMap = initAiMap;
 
 })();
 </script>
@@ -7997,12 +8216,9 @@ if (description) {
   const search=document.getElementById('mapSearch');
   const quick=panel.querySelectorAll('[data-map-query]');
   const baseButtons=panel.querySelectorAll('[data-basemap]');
-  const reservoirToggle=document.getElementById('toggleReservoirs');
-  const pumpToggle=document.getElementById('togglePumps');
-  const damToggle=document.getElementById('toggleDams');
+  const facilityToggle=document.getElementById('toggleFacilities');
   const channelToggle=document.getElementById('toggleChannels');
-  const onChannelToggle=document.getElementById('toggleOnChannel');
-  const irrigationToggle=document.getElementById('toggleIrrigation');
+  const areaToggle=document.getElementById('toggleAreas');
 
   function setLayerPanel(open){
     if(!layerPanel) return;
@@ -8039,27 +8255,49 @@ if (description) {
     });
   });
 
-  // =========================================================
-  // ĐIỀU KHIỂN 6 LỚP CHÍNH — độc lập, không thay đổi dữ liệu GIS.
-  // =========================================================
-  function bindSixLayerToggle(el,key){
-    if(!el) return;
-    el.addEventListener('change',function(){
-      if(typeof tlSetSixLayer === 'function') tlSetSixLayer(key, el.checked);
-    });
+  function setDataLayerVisible(layer,visible){
+    try{
+      if(!window.aiMapLayer || !layer) return;
+      if(visible && !window.aiMapLayer.hasLayer(layer)) window.aiMapLayer.addLayer(layer);
+      if(!visible && window.aiMapLayer.hasLayer(layer)) window.aiMapLayer.removeLayer(layer);
+    }catch(e){ console.warn('GIS layer toggle:',e); }
   }
-  bindSixLayerToggle(reservoirToggle,'reservoir');
-  bindSixLayerToggle(pumpToggle,'pump');
-  bindSixLayerToggle(damToggle,'dam');
-  bindSixLayerToggle(channelToggle,'channel');
-  bindSixLayerToggle(onChannelToggle,'onchannel');
-  bindSixLayerToggle(irrigationToggle,'irrigation');
+  if(facilityToggle) facilityToggle.addEventListener('change',function(){ setDataLayerVisible(window.markerCluster,facilityToggle.checked); });
+  if(channelToggle) channelToggle.addEventListener('change',function(){ setDataLayerVisible(window.nonPointLayer,channelToggle.checked); });
+  if(areaToggle) areaToggle.addEventListener('change',function(){
+    // Kênh + khu tưới dùng chung nonPointLayer. Khi tắt khu tưới, lọc polygon tạm thời.
+    if(!window.nonPointLayer) return;
+    window.nonPointLayer.eachLayer(function(layer){
+      const f=layer && layer.feature;
+      const t=f && f.geometry && f.geometry.type;
+      const isArea=t==='Polygon'||t==='MultiPolygon';
+      if(isArea) layer.setStyle({opacity:areaToggle.checked?.75:0,fillOpacity:areaToggle.checked?.06:0});
+    });
+  });
 
   if(legendToggle && legendBody) legendToggle.addEventListener('click',function(){
     const hidden=legendBody.style.display==='none';
     legendBody.style.display=hidden?'flex':'none';
     legendToggle.textContent=hidden?'−':'+';
   });
+
+  // initAiMap is exposed by the main map closure itself.
+  // Do not reference the closure-local function here.
+
+  // expose references for the UI without changing the existing map logic
+  const syncGlobals=function(){
+    try{
+      if(typeof aiMap!=='undefined') window.aiMap=aiMap;
+      if(typeof aiMapLayer!=='undefined') window.aiMapLayer=aiMapLayer;
+      if(typeof markerCluster!=='undefined') window.markerCluster=markerCluster;
+      if(typeof nonPointLayer!=='undefined') window.nonPointLayer=nonPointLayer;
+      if(typeof aiBaseLayers!=='undefined') window.aiBaseLayers=aiBaseLayers;
+      if(typeof activeBaseLayerKey!=='undefined') window.activeBaseLayerKey=activeBaseLayerKey;
+      if(typeof performSearch==='function') window.performSearch=performSearch;
+    }catch(e){}
+  };
+  setInterval(syncGlobals,1200);
+  syncGlobals();
 
   document.addEventListener('keydown',function(e){
     const tag=(document.activeElement&&document.activeElement.tagName)||'';
@@ -8071,24 +8309,6 @@ if (description) {
   });
 })();
 </script>
-<style id="tl-six-main-layers-ui">
-#mapAiPanel .tl-six-layer-list{display:flex;flex-direction:column;gap:5px;margin-top:2px}
-#mapAiPanel .tl-six-layer-row{min-height:42px!important;padding:6px 8px!important;border-radius:11px!important;background:rgba(255,255,255,.055)!important;border:1px solid rgba(255,255,255,.07)!important;transition:background .15s,border-color .15s,transform .12s}
-#mapAiPanel .tl-six-layer-row:hover{background:rgba(255,255,255,.09)!important;border-color:rgba(255,255,255,.14)!important}
-#mapAiPanel .tl-six-layer-row>span{display:flex!important;align-items:center!important;gap:8px!important;min-width:0!important;color:#f3f8fb!important}
-#mapAiPanel .tl-six-layer-row b{font-size:11px!important;font-weight:750!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
-#mapAiPanel .tl-layer-icon{width:27px;height:27px;display:grid;place-items:center;border-radius:8px;font-style:normal;font-size:15px;flex:none;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.10)}
-#mapAiPanel .tl-layer-icon.reservoir{background:rgba(38,145,255,.16)}
-#mapAiPanel .tl-layer-icon.pump{background:rgba(33,184,178,.16)}
-#mapAiPanel .tl-layer-icon.dam{background:rgba(245,158,11,.16)}
-#mapAiPanel .tl-layer-icon.channel{background:rgba(14,165,233,.16)}
-#mapAiPanel .tl-layer-icon.onchannel{background:rgba(168,85,247,.16)}
-#mapAiPanel .tl-layer-icon.irrigation{background:rgba(34,197,94,.16)}
-#mapAiPanel .tl-six-layer-note{margin-top:8px;padding:7px 8px;border-radius:9px;background:rgba(255,255,255,.045);color:rgba(255,255,255,.55);font-size:9px;line-height:1.35}
-#mapAiPanel .tl-six-legend{display:grid!important;grid-template-columns:1fr 1fr;gap:6px 10px!important;align-items:center!important}
-#mapAiPanel .tl-six-legend span{white-space:nowrap!important;font-size:10px!important}
-@media(max-width:700px){#mapAiPanel .tl-six-layer-row{min-height:40px!important}#mapAiPanel .tl-six-layer-row b{font-size:10.5px!important}}
-</style>
 <style id="tl-map-v8-layer-interaction-fix">
 #mapAiPanel .map-layer-panel{pointer-events:auto!important;}
 #mapAiPanel .map-layer-panel button,
@@ -8096,8 +8316,115 @@ if (description) {
 #mapAiPanel .map-layer-panel input{pointer-events:auto!important;touch-action:manipulation!important;}
 #mapAiPanel .map-layer-panel[hidden]{display:none!important;}
 </style>
-<!-- TL PERFORMANCE UPGRADE V2 -->
-</body>
+<!-- FIX: thẻ 
+<!-- ================================================================
+     TL SIX LAYERS V10 — FIX RENDER / VISIBILITY
+     Không thay dữ liệu KMZ, không thay Popup/Search/Style gốc.
+     Mục tiêu: mỗi nút điều khiển đúng layer thật trên bản đồ.
+     ================================================================ -->
+<script id="tl-six-layer-v10-render-fix">
+(function(){
+  'use strict';
+  const IDS={
+    ho:'toggleHoChua', tram_bom:'toggleTramBom', dap_bara:'toggleDapBara',
+    kenh:'toggleHeThongKenh', cong_tren_kenh:'toggleCongTrenKenh', khu_tuoi:'toggleKhuTuoi'
+  };
+  function runtime(){ return window.__TL_MAP_RUNTIME || null; }
+  function sync(){
+    const r=runtime();
+    if(!r) return null;
+    window.aiMap=r.map; window.aiMapLayer=r.mapLayer;
+    window.tlSixLayerGroups=r.sixLayers || window.tlSixLayerGroups;
+    return r;
+  }
+  function enforcePointLayers(){
+    const r=sync();
+    if(!r || !r.mapLayer || !r.sixLayers) return false;
+    // Tuyệt đối không để group tổng markerCluster render cùng lúc với các group con.
+    try{
+      if(r.markerCluster && r.mapLayer.hasLayer(r.markerCluster)){
+        r.mapLayer.removeLayer(r.markerCluster);
+      }
+    }catch(e){}
+    ['ho','tram_bom','dap_bara','cong_tren_kenh'].forEach(function(key){
+      const el=document.getElementById(IDS[key]);
+      const g=r.sixLayers[key];
+      if(!g) return;
+      try{
+        const on=!!(el && el.checked);
+        if(on){ if(!r.mapLayer.hasLayer(g)) r.mapLayer.addLayer(g); }
+        else{ if(r.mapLayer.hasLayer(g)) r.mapLayer.removeLayer(g); }
+      }catch(e){}
+    });
+    return true;
+  }
+  function enforceNonPointLayers(){
+    const r=sync();
+    if(!r || !r.nonPointLayer || !r.nonPointLayer.eachLayer) return false;
+    const channelEl=document.getElementById(IDS.kenh);
+    const areaEl=document.getElementById(IDS.khu_tuoi);
+    const showK=!!(channelEl && channelEl.checked);
+    const showA=!!(areaEl && areaEl.checked);
+    r.nonPointLayer.eachLayer(function(layer){
+      const f=layer && layer.feature;
+      const gt=f && f.geometry && f.geometry.type;
+      if(gt!=='LineString' && gt!=='MultiLineString' && gt!=='Polygon' && gt!=='MultiPolygon') return;
+      let key=null;
+      try{ key=typeof window.__TL_SIX_FEATURE_KEY==='function' ? window.__TL_SIX_FEATURE_KEY(f) : null; }catch(e){}
+      const visible=key==='khu_tuoi' ? showA : (key==='kenh' ? showK : false);
+      try{
+        if(gt==='Polygon' || gt==='MultiPolygon'){
+          layer.setStyle({opacity:visible?0.75:0, fillOpacity:visible?0.06:0});
+        }else{
+          layer.setStyle({opacity:visible?0.90:0, fillOpacity:0});
+        }
+        if(!visible && layer.closeTooltip) layer.closeTooltip();
+      }catch(e){}
+    });
+    return true;
+  }
+  function enforce(){
+    const ok1=enforcePointLayers();
+    const ok2=enforceNonPointLayers();
+    return ok1||ok2;
+  }
+  function bind(){
+    Object.keys(IDS).forEach(function(key){
+      const el=document.getElementById(IDS[key]);
+      if(!el || el.__tlV10Bound) return;
+      el.__tlV10Bound=true;
+      el.addEventListener('change',function(){
+        // Chờ Leaflet hoàn tất event hiện tại rồi áp trạng thái lên layer thật.
+        requestAnimationFrame(function(){ enforce(); });
+      },true);
+    });
+  }
+  function start(){
+    bind();
+    let tries=0;
+    const timer=setInterval(function(){
+      bind();
+      if(enforce() || ++tries>80){
+        if(tries>80) clearInterval(timer);
+        else if(runtime() && runtime().nonPointLayer) clearInterval(timer);
+      }
+    },250);
+    // Mỗi lần zoom/pan chỉ áp lại visibility, không rebuild dữ liệu.
+    const zoomTimer=setInterval(function(){
+      const r=sync();
+      if(r && r.map){
+        clearInterval(zoomTimer);
+        r.map.on('zoomend',function(){ requestAnimationFrame(enforceNonPointLayers); });
+        r.map.on('moveend',function(){ requestAnimationFrame(enforceNonPointLayers); });
+      }
+    },250);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
+})();
+</script>
+
+</body> từng bị đặt nhầm ngay tại đây (còn rất nhiều style/script
+     phía sau vẫn thuộc về trang). Đã gỡ bỏ, </body> thật nằm ở cuối file. -->
 <!-- =========================================================
      THỦY LỢI AI — MAP CLEAN UI V1
      CHỈ THAY ĐỔI HIỂN THỊ UI; KHÔNG ĐỤNG DATA / GIS / JS
@@ -8111,9 +8438,25 @@ if (description) {
   /* Các thành phần chỉ là lớp trình bày, không xóa DOM để không ảnh hưởng JS */
   #mapAiPanel .map-quick-chips,
   #mapAiPanel #mapHud,
-  #mapAiPanel #mapLegend,
-  #mapAiPanel #mapAiStatus {
+  #mapAiPanel #mapLegend {
     display: none !important;
+  }
+  #mapAiPanel #mapAiStatus {
+    display: none;
+    position: fixed;
+    left: 50%;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 9500;
+    max-width: min(92vw, 520px);
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(8,20,35,.88);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.25;
+    box-shadow: 0 8px 28px rgba(0,0,0,.22);
+    pointer-events: none;
   }
 
   /* Khi bỏ chip, đưa cụm điều khiển nổi lên gần thanh tìm kiếm */
@@ -8144,9 +8487,12 @@ if (description) {
     }
   }
 </style>
-
-
-</html>
+<!-- FIX: thẻ </html> từng bị đặt nhầm ngay tại đây (trong khi toàn bộ phần
+     "BẢN ĐỒ THỦY LỢI STANDALONE" phía dưới — bao gồm cả script mở bản đồ
+     full-screen khi tải trang — nằm SAU nó). Trình duyệt vẫn "tự sửa" và
+     chèn phần còn lại vào <body>, nhưng đây là HTML không hợp lệ, dễ vỡ với
+     một số trình duyệt/webview hoặc công cụ minify. Đã dời </html> thật
+     xuống cuối file. -->
 <!-- =========================================================
      THỦY LỢI AI — BẢN ĐỒ THỦY LỢI STANDALONE
      Bản sao độc lập từ App gốc.
@@ -8234,19 +8580,14 @@ if (description) {
     panel.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 
-    // Gọi initializer qua wrapper được tạo bên trong scope của App gốc.
-    if (typeof window.__TL_BOOT_MAP__ === 'function') {
-      Promise.resolve(window.__TL_BOOT_MAP__()).catch(function (e) {
-        console.error('[TL MAP] Bootstrap error — giữ nguyên GIS shell:', e);
-        var status = document.getElementById('mapAiStatus');
-        if (status) status.textContent = '⚠️ GIS đang khởi tạo lại…';
-      });
+    // initAiMap thuộc nguyên bản App gốc; không thay thế logic bản đồ.
+    if (typeof window.initAiMap === 'function') {
+      window.initAiMap();
     } else {
       // initAiMap được khai báo trong cùng script nhưng không expose lên window.
       // Click giả lập dùng chính handler nguyên bản của App.
       var openButton = document.getElementById('mapAiBtn');
       if (openButton) openButton.click();
-      else console.error('[TL MAP] Không tìm thấy initializer của bản đồ.');
     }
 
     setTimeout(function () {
@@ -8454,23 +8795,41 @@ if (description) {
       },true);
     }
 
-    /* ---------- Tương thích lớp cũ ----------
-       V14-6-Lop-2D hiện điều khiển 6 lớp bằng TL_SIX_LAYER_STATE.
-       Không chạy lại style trên toàn bộ nonPointLayer ở mỗi thay đổi,
-       tránh ghi đè màu/style gốc KMZ và tránh quét hàng nghìn tuyến. */
-    if(channelToggle){
-      channelToggle.addEventListener('change',function(){
-        if(typeof tlSetSixLayer==='function') tlSetSixLayer('channel',channelToggle.checked);
-      },true);
+    /* ---------- Tuyến / Kênh và Khu tưới ----------
+       Hai lớp đang dùng chung nonPointLayer trong code cũ. V7 không
+       remove cả group nữa; thay vào đó ẩn/hiện đúng geometry từng layer. */
+    function setNonPointVisibility(){
+      sync();
+      const r=runtime();
+      const group=r && r.nonPointLayer;
+      if(!group || typeof group.eachLayer!=='function') return;
+      const showChannels=!channelToggle || channelToggle.checked;
+      const showAreas=!areaToggle || areaToggle.checked;
+      group.eachLayer(function(layer){
+        const f=layer && layer.feature;
+        const t=f && f.geometry && f.geometry.type;
+        try{
+          if(t==='LineString' || t==='MultiLineString'){
+            if(layer.setStyle) layer.setStyle({opacity:showChannels?0.90:0, fillOpacity:0});
+          }else if(t==='Polygon' || t==='MultiPolygon'){
+            if(layer.setStyle) layer.setStyle({opacity:showAreas?0.75:0, fillOpacity:showAreas?0.06:0});
+          }
+        }catch(e){}
+      });
     }
-    /* Khu tưới dùng toggleIrrigation trong kiến trúc 6 lớp; không dùng
-       toggleAreas cũ nếu DOM đó không tồn tại. */
-    if(typeof tlSetSixLayer==='function'){
-      try{
-        const ir=document.getElementById('toggleIrrigation');
-        if(ir) ir.checked=!!TL_SIX_LAYER_STATE.irrigation;
-      }catch(e){}
-    }
+    if(channelToggle) channelToggle.addEventListener('change',setNonPointVisibility,true);
+    if(areaToggle) areaToggle.addEventListener('change',setNonPointVisibility,true);
+
+    /* Chờ GeoJSON render xong rồi áp dụng đúng trạng thái hiện tại. */
+    let tries=0;
+    const applyTimer=setInterval(function(){
+      sync();
+      if(window.nonPointLayer){
+        setNonPointVisibility();
+        clearInterval(applyTimer);
+      }
+      if(++tries>40) clearInterval(applyTimer);
+    },250);
 
     /* ESC đóng Layer trước. */
     document.addEventListener('keydown',function(e){
@@ -8482,3 +8841,188 @@ if (description) {
   else ready();
 })();
 </script>
+<style id="tl-six-layer-v9">
+#mapAiPanel .tl-six-row{height:40px!important}
+#mapAiPanel .tl-six-icon.ho{background:#1683ff}
+#mapAiPanel .tl-six-icon.tram{background:#16a6d9}
+#mapAiPanel .tl-six-icon.dap{background:#ff7a00}
+#mapAiPanel .tl-six-icon.cong{background:#8e44ad}
+#mapAiPanel .tl-six-icon.area{background:#22a06b}
+#mapAiPanel .tl-six-icon-line.kenh{background:#28c7a0}
+</style>
+<script id="tl-six-layer-v9-js">
+(function(){
+  'use strict';
+  const IDS={
+    ho:'toggleHoChua',tram_bom:'toggleTramBom',dap_bara:'toggleDapBara',
+    kenh:'toggleHeThongKenh',cong_tren_kenh:'toggleCongTrenKenh',khu_tuoi:'toggleKhuTuoi'
+  };
+  const labels={ho:'🏞️ HỒ CHỨA',tram_bom:'🚰 TRẠM BƠM',dap_bara:'🏗️ ĐẬP/BARA',kenh:'💧 HỆ THỐNG KÊNH',cong_tren_kenh:'⚙️ CÔNG TRÌNH TRÊN KÊNH',khu_tuoi:'🌾 KHU TƯỚI'};
+  function runtime(){return window.__TL_MAP_RUNTIME||null;}
+  function sync(){
+    const r=runtime(); if(!r) return null;
+    window.aiMap=r.map; window.aiMapLayer=r.mapLayer; window.markerCluster=r.markerCluster; window.nonPointLayer=r.nonPointLayer;
+    window.tlSixLayerGroups=r.sixLayers||window.tlSixLayerGroups;
+    return r;
+  }
+  // Phân loại tuyến theo đúng dữ liệu gốc KMZ:
+  // - Polygon/MultiPolygon -> Khu tưới
+  // - Đường màu đỏ thuần trong KML (AABBGGRR = ff0000ff) -> Khu tưới
+  //   trừ các tuyến có tên xác định rõ là Kênh.
+  // - Các tuyến còn lại -> Hệ thống kênh.
+  // Đây là điểm quan trọng: không được coi mọi LineString là Kênh.
+  function tlNormalizeName(v){
+    return String(v||'')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'')
+      .replace(/đ/g,'d');
+  }
+
+  function tlFeatureLayerKey(feature){
+    const p=feature&&feature.properties||{};
+    const g=feature&&feature.geometry||{};
+    const gt=g.type||'';
+    if(gt==='Polygon'||gt==='MultiPolygon') return 'khu_tuoi';
+    if(gt!=='LineString'&&gt!=='MultiLineString') return 'khac';
+
+    const name=tlNormalizeName(
+      p.name||p.Name||p.NAME||p.ten||p.Ten||p.TEN||
+      p.ten_kenh||p.TEN_KENH||p.ten_duong||p.TEN_DUONG||''
+    );
+
+    // Đường màu đỏ là ĐƯỜNG KHU TƯỚI.
+    // Phải kiểm tra MÀU TRƯỚC TÊN, vì trong master.kmz có các tuyến
+    // màu đỏ nhưng tên có thể chứa chữ 'kênh'. Theo yêu cầu phân lớp,
+    // tuyệt đối không đưa đường đỏ vào Hệ thống kênh.
+    let kmlColor='';
+    try{
+      kmlColor=String(getKMLColor(feature)||'').toLowerCase().replace('#','');
+    }catch(e){}
+    const cssColor=String(
+      p.styleColor||p.StyleColor||p.color||p.Color||p.lineColor||p.LineColor||''
+    ).toLowerCase().replace('#','');
+    const rawColor=String(
+      p.kmlColor||p.KMLColor||p.styleColorKML||p.style_color_kml||''
+    ).toLowerCase().replace('#','');
+    let derivedColor='';
+    try { derivedColor=String(getGISFeatureColor(feature)||'').toLowerCase().replace('#',''); } catch(e) {}
+    const isRedLine =
+      kmlColor==='ff0000' || kmlColor==='ff0000ff' ||
+      rawColor==='ff0000' || rawColor==='ff0000ff' ||
+      cssColor==='ff0000' || cssColor==='ff0000ff' ||
+      cssColor==='rgb(255,0,0)' || cssColor==='rgb(255, 0, 0)' ||
+      derivedColor==='ff0000' || derivedColor==='ff0000ff';
+
+    if(isRedLine) return 'khu_tuoi';
+
+    // Chỉ sau khi loại toàn bộ đường đỏ mới nhận diện tên tuyến kênh.
+    const isChannelName =
+      /\bkenh\b/.test(name) ||
+      name.includes('tuyen kenh') ||
+      name.includes('kenh chinh') ||
+      name.includes('kenh nhanh') ||
+      /\bmuong\b/.test(name);
+
+    if(isChannelName) return 'kenh';
+
+    // Tên có chữ Khu tưới nhưng bị lỗi gõ/Unicode vẫn ưu tiên Khu tưới.
+    if(
+      name.includes('khu tuoi') ||
+      name.includes('khu tuowisi') ||
+      name.includes('khu tuoi') ||
+      name.includes('khut uoi') ||
+      name.includes('khu tii') ||
+      name.includes('khu tui')
+    ) return 'khu_tuoi';
+
+    return 'kenh';
+  }
+
+  // Cho bộ render theo zoom dùng chung đúng bộ phân lớp 6 lớp.
+  window.__TL_SIX_FEATURE_KEY = tlFeatureLayerKey;
+
+  function lineAreaVisible(key, visible){
+    const r=sync(); const g=r&&r.nonPointLayer; if(!g||!g.eachLayer) return;
+    g.eachLayer(function(layer){
+      const f=layer&&layer.feature;
+      const gt=f&&f.geometry&&f.geometry.type;
+      const actualKey=tlFeatureLayerKey(f);
+      try{
+        if((key==='kenh'||key==='khu_tuoi') && actualKey===key){
+          const isLine=gt==='LineString'||gt==='MultiLineString';
+          const isArea=gt==='Polygon'||gt==='MultiPolygon';
+          if(isLine){
+            layer.setStyle({opacity:visible?0.90:0,fillOpacity:0});
+          }else if(isArea){
+            layer.setStyle({opacity:visible?0.75:0,fillOpacity:visible?0.06:0});
+          }
+          if(!visible&&layer.closeTooltip) layer.closeTooltip();
+        }
+      }catch(e){}
+    });
+  }
+  function applyAllLineAreaVisibility(){
+    const ho=document.getElementById(IDS.ho);
+    const tram=document.getElementById(IDS.tram_bom);
+    const dap=document.getElementById(IDS.dap_bara);
+    const kenh=document.getElementById(IDS.kenh);
+    const cong=document.getElementById(IDS.cong_tren_kenh);
+    const area=document.getElementById(IDS.khu_tuoi);
+    if(kenh) lineAreaVisible('kenh',!!kenh.checked);
+    if(area) lineAreaVisible('khu_tuoi',!!area.checked);
+  }
+
+  // Được gọi lại sau khi các batch non-point đã nạp xong.
+  // Rất quan trọng vì runtime/layer group được tạo trước khi toàn bộ KMZ được addData().
+  window.__TL_SIX_REFRESH_NONPOINT=applyAllLineAreaVisibility;
+
+  function setVisible(key, visible){
+    const r=sync(); if(!r) return;
+    const g=(r.sixLayers||{})[key];
+    if(key==='kenh'||key==='khu_tuoi'){
+      lineAreaVisible(key,visible);
+      return;
+    }
+    if(!g||!r.mapLayer) return;
+    try{
+      if(visible){if(!r.mapLayer.hasLayer(g)) r.mapLayer.addLayer(g);}
+      else{if(r.mapLayer.hasLayer(g)) r.mapLayer.removeLayer(g);}
+    }catch(e){console.warn('[6 lớp] toggle',key,e);}
+  }
+  function bind(){
+    Object.keys(IDS).forEach(function(key){
+      const el=document.getElementById(IDS[key]); if(!el||el.__tlSixBound) return;
+      el.__tlSixBound=true;
+      el.addEventListener('change',function(e){
+        e.preventDefault(); e.stopImmediatePropagation(); setVisible(key,el.checked);
+      },true);
+    });
+  }
+  function init(){
+    bind(); sync();
+    // Trạng thái khởi động: chỉ mở 3 lớp lõi; 3 lớp chi tiết đóng.
+    ['toggleHeThongKenh','toggleCongTrenKenh','toggleKhuTuoi'].forEach(function(id){
+      const el=document.getElementById(id);
+      if(el) el.checked=false;
+    });
+    ['toggleHoChua','toggleTramBom','toggleDapBara'].forEach(function(id){
+      const el=document.getElementById(id);
+      if(el) el.checked=true;
+    });
+    const timer=setInterval(function(){
+      const r=sync(); bind();
+      if(r&&r.sixLayers){
+        clearInterval(timer);
+        Object.keys(IDS).forEach(function(key){
+          const el=document.getElementById(IDS[key]); if(el) setVisible(key,el.checked);
+        });
+      }
+    },400);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+  window.__TL_SIX_LAYER_LABELS=labels;
+})();
+</script>
+</body>
+</html>

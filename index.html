@@ -6520,20 +6520,31 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             try { aiMap.invalidateSize({ pan: false }); } catch (e) {}
           }, 0);
 
+          // ======================================================
+          // RENDER GIS — ưu tiên độ mượt và giảm nhãn gây che bản đồ
+          // ======================================================
+          let __tlLastZoomBand = null;
+          let __tlZoomFrame = 0;
+
           function updateGISZoomStyle() {
             if (!aiMapLayer) return;
 
             const zoom = aiMap.getZoom();
+            const zoomBand = zoom <= 7 ? 0 : zoom <= 10 ? 1 : zoom <= 12 ? 2 : 3;
+
+            // Không chạy lại toàn bộ 1.800+ tuyến nếu chỉ thay đổi zoom trong
+            // cùng một vùng hiển thị; giảm đáng kể việc setStyle trên main thread.
+            if (__tlLastZoomBand === zoomBand) return;
+            __tlLastZoomBand = zoomBand;
 
             let lineWeight, lineOpacity;
-
-            if (zoom <= 7) {
+            if (zoomBand === 0) {
               lineWeight = 1;
               lineOpacity = 0.00;
-            } else if (zoom <= 10) {
+            } else if (zoomBand === 1) {
               lineWeight = 1.8;
               lineOpacity = 0.72;
-            } else if (zoom <= 12) {
+            } else if (zoomBand === 2) {
               lineWeight = 2.2;
               lineOpacity = 0.82;
             } else {
@@ -6541,12 +6552,11 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
               lineOpacity = 0.95;
             }
 
-            // Zoom-based rendering: vẫn giữ nguyên màu/style KMZ, nhưng
-            // tôn trọng trạng thái bật/tắt của 6 lớp bản đồ.
             const sixChannelToggle = document.getElementById('toggleHeThongKenh');
             const sixAreaToggle = document.getElementById('toggleKhuTuoi');
             const showSixChannels = !!(sixChannelToggle && sixChannelToggle.checked);
             const showSixAreas = !!(sixAreaToggle && sixAreaToggle.checked);
+
             if (nonPointLayer) {
               nonPointLayer.eachLayer(function(layer) {
                 if (!layer || !layer.setStyle) return;
@@ -6556,68 +6566,41 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
                   key = (typeof window.__TL_SIX_FEATURE_KEY === 'function')
                     ? window.__TL_SIX_FEATURE_KEY(layer.feature) : null;
                 } catch(e) {}
-                if (!key) {
-                  key = (gt === 'Polygon' || gt === 'MultiPolygon') ? 'khu_tuoi' : 'kenh';
-                }
+                if (!key) key = (gt === 'Polygon' || gt === 'MultiPolygon') ? 'khu_tuoi' : 'kenh';
+
                 const visible = key === 'khu_tuoi' ? showSixAreas : key === 'kenh' ? showSixChannels : false;
-                if (!visible || zoom <= 7) {
+                if (!visible || zoomBand === 0) {
                   layer.setStyle({ weight: 0.8, opacity: 0, fillOpacity: 0 });
-                  if (layer.closeTooltip) layer.closeTooltip();
                 } else {
                   layer.setStyle({
                     weight: lineWeight,
                     opacity: lineOpacity,
-                    fillOpacity: (gt === 'Polygon' || gt === 'MultiPolygon') ? (zoom >= 11 ? 0.12 : 0.045) : 0
+                    fillOpacity: (gt === 'Polygon' || gt === 'MultiPolygon')
+                      ? (zoomBand >= 2 ? 0.12 : 0.045) : 0
                   });
                 }
               });
             }
 
+            // Các layer cũ ngoài nonPointLayer vẫn được giữ nguyên.
             aiMapLayer.eachLayer(function(layer) {
               if (layer === nonPointLayer || layer === markerCluster) return;
-              if (layer.setStyle) {
-                layer.setStyle({ weight: lineWeight, opacity: lineOpacity });
-              }
-            });
-
-            // ======================================================
-            // HIỂN THỊ TÊN KÊNH / BỜ VÙNG THEO ZOOM
-            // Chỉ mở nhãn của các đối tượng đang nằm trong màn hình
-            // để tránh tạo hàng nghìn DOM label trên iPhone.
-            // ======================================================
-            if (!nonPointLayer) return;
-
-            const showLabels = zoom >= 11;
-            const mapBounds = aiMap.getBounds();
-
-            nonPointLayer.eachLayer(function(layer) {
-              if (!layer || !layer.getTooltip) return;
-
-              const tooltip = layer.getTooltip();
-              if (!tooltip) return;
-
-              if (!showLabels) {
-                if (layer.isTooltipOpen && layer.isTooltipOpen()) {
-                  layer.closeTooltip();
-                }
-                return;
-              }
-
-              try {
-                const bounds = layer.getBounds ? layer.getBounds() : null;
-                if (bounds && bounds.isValid() && bounds.intersects(mapBounds)) {
-                  if (!(layer.isTooltipOpen && layer.isTooltipOpen())) {
-                    layer.openTooltip();
-                  }
-                } else if (layer.isTooltipOpen && layer.isTooltipOpen()) {
-                  layer.closeTooltip();
-                }
-              } catch (e) {
-                // Không để lỗi label ảnh hưởng bản đồ.
-              }
+              if (layer.setStyle) layer.setStyle({ weight: lineWeight, opacity: lineOpacity });
             });
           }
-          aiMap.on('zoomend', updateGISZoomStyle);
+
+          function scheduleGISZoomStyle() {
+            if (__tlZoomFrame) return;
+            __tlZoomFrame = requestAnimationFrame(function() {
+              __tlZoomFrame = 0;
+              updateGISZoomStyle();
+            });
+          }
+
+          aiMap.on('zoomend', scheduleGISZoomStyle);
+          updateGISZoomStyle();
+
+
           updateGISZoomStyle();
 
           mapAiStatus.textContent = '🗺️ Bản đồ nền đã sẵn sàng — đang kết nối dữ liệu thủy lợi...';
@@ -7039,14 +7022,17 @@ if (
   name &&
   name !== "Đối tượng thủy lợi"
 ) {
+  // KHÔNG mở nhãn hàng loạt. Tên chỉ xuất hiện khi người dùng rê chuột
+  // (PC) hoặc chạm vào đối tượng (mobile). Đây là nguyên tắc quan trọng
+  // để bản đồ 15.197 đối tượng không bị phủ kín bởi DOM tooltip.
   layer.bindTooltip(
     escapeGISHTML(name),
     {
       direction: "center",
-      sticky: false,
+      sticky: true,
       permanent: false,
       className: "gis-feature-label",
-      opacity: 0.95
+      opacity: 0.96
     }
   );
 }
@@ -8083,7 +8069,7 @@ if (description) {
 #mapAiPanel .map-legend-body span{display:flex;align-items:center;gap:6px}
 #mapAiPanel #mapFeatureCard{position:fixed!important;left:16px!important;bottom:88px!important;width:min(350px,calc(100vw - 32px))!important;background:rgba(255,255,255,.95)!important;border:1px solid rgba(255,255,255,.85)!important;border-radius:18px!important;box-shadow:0 18px 45px rgba(0,0,0,.20)!important;backdrop-filter:blur(18px)!important;z-index:4400!important}
 #mapAiPanel .map-ai-status{position:fixed!important;left:50%!important;bottom:12px!important;transform:translateX(-50%)!important;width:auto!important;padding:6px 11px!important;border-radius:999px!important;background:rgba(7,28,48,.72)!important;color:rgba(255,255,255,.78)!important;font-size:9px!important;z-index:4100!important;border:1px solid rgba(255,255,255,.08)!important;backdrop-filter:blur(10px)!important;display:block!important}
-#mapAiPanel .gis-feature-label{background:rgba(7,28,48,.82)!important;border:1px solid rgba(255,255,255,.12)!important;color:#fff!important;border-radius:7px!important;padding:3px 6px!important;box-shadow:0 4px 12px rgba(0,0,0,.18)!important;font-size:10px!important;font-weight:700!important}
+#mapAiPanel .gis-feature-label{background:rgba(7,28,48,.88)!important;border:1px solid rgba(255,255,255,.14)!important;color:#fff!important;border-radius:6px!important;padding:2px 5px!important;box-shadow:0 3px 10px rgba(0,0,0,.18)!important;font-size:10px!important;font-weight:650!important;line-height:1.15!important;pointer-events:none!important;white-space:nowrap!important;max-width:240px!important;overflow:hidden!important;text-overflow:ellipsis!important}
 #mapAiPanel .gis-feature-label:before{display:none!important}
 #mapAiPanel .leaflet-control-zoom{border:0!important;border-radius:12px!important;overflow:hidden!important;box-shadow:0 8px 20px rgba(0,0,0,.18)!important}
 #mapAiPanel .leaflet-control-zoom a{background:rgba(255,255,255,.92)!important;color:#153a5a!important;border:0!important}
@@ -8729,6 +8715,11 @@ if (description) {
   else ready();
 })();
 </script>
+<style id="tl-map-performance-v10">
+/* V10: nhãn theo tương tác, không dựng hàng nghìn tooltip cùng lúc */
+#mapAiPanel .leaflet-tooltip.gis-feature-label{will-change:transform;contain:layout paint;}
+#mapAiPanel .leaflet-interactive{vector-effect:non-scaling-stroke;}
+</style>
 <style id="tl-six-layer-v9">
 #mapAiPanel .tl-six-row{height:40px!important}
 #mapAiPanel .tl-six-icon.ho{background:#1683ff}

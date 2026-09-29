@@ -4619,17 +4619,46 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         const flow=flowMap.get('FLOW')||null;
         const sal=salMap.get('SALINITY')||null;
         if(!water&&!rain&&!flow&&!sal) throw Object.assign(new Error(`Công trình "${facility}" đã khớp tên nhưng chưa có bản ghi quan trắc hợp lệ.`),{status:404,code:'NO_VALID_DATA'});
+
+        // Một số AI_DATA có MNDBT/MNDGC ngay trong dòng hồ; đọc luôn để
+        // Popup hiện đủ thông số hiện tại mà không phụ thuộc API phụ.
+        const firstRow = (rows && rows[0]) || {};
+        const mndbtRaw = tlAiField(firstRow, TL_AI_FIELDS.mndbt);
+        const mndgcRaw = tlAiField(firstRow, TL_AI_FIELDS.mndgc);
+        const mndbt = tlAiNum(mndbtRaw);
+        const mndgc = tlAiNum(mndgcRaw);
+
         return {ok:true,data:{
           water_level:water?{value:water.value,unit:water.unit||'m',parameter:water.parameter,time:water.dt.toISOString()}:null,
           flow:flow?{value:flow.value,unit:flow.unit||'m³/s',parameter:flow.parameter,time:flow.dt.toISOString()}:null,
           rainfall:rain?{value:rain.value,unit:rain.unit||'mm',parameter:rain.parameter,time:rain.dt.toISOString()}:null,
           salinity:sal?{value:sal.value,unit:sal.unit||'‰',parameter:sal.parameter,time:sal.dt.toISOString()}:null,
-          limits:{MNDBT:null,MNDGC:null},
+          limits:{MNDBT:Number.isFinite(mndbt)?mndbt:null,MNDGC:Number.isFinite(mndgc)?mndgc:null},
           status:{level:'info',label:'AI_DATA'},
-          updated_label:water?tlLiveTimeLabel(water.dt):rain?tlLiveTimeLabel(rain.dt):'AI_DATA',
+          updated_label:water?tlLiveTimeLabel(water.dt):rain?tlLiveTimeLabel(rain.dt):flow?tlLiveTimeLabel(flow.dt):'AI_DATA',
           source:'AI_DATA • Ngày/Giờ/Công trình/Thông số/Giá trị'
         }};
       }
+      function tlLiveHasAny(data) {
+        const d = data?.data || data || {};
+        return ['water_level','flow','rainfall','salinity'].some(k => Number.isFinite(Number(d?.[k]?.value)));
+      }
+
+      function tlLiveMerge(primary, fallback) {
+        const a = primary?.data || primary || {};
+        const b = fallback?.data || fallback || {};
+        const merged = {
+          ...b,
+          ...a,
+          water_level: a.water_level && Number.isFinite(Number(a.water_level.value)) ? a.water_level : b.water_level,
+          flow: a.flow && Number.isFinite(Number(a.flow.value)) ? a.flow : b.flow,
+          rainfall: a.rainfall && Number.isFinite(Number(a.rainfall.value)) ? a.rainfall : b.rainfall,
+          salinity: a.salinity && Number.isFinite(Number(a.salinity.value)) ? a.salinity : b.salinity,
+          limits: { ...(b.limits || {}), ...(a.limits || {}) }
+        };
+        return merged;
+      }
+
       async function tlFetchLive(facility,force=false,code=''){
         const key=String(facility||'').trim(); if(!key)throw new Error('Thiếu tên công trình.');
         const cacheKey=key+'|'+String(code||'');
@@ -4637,7 +4666,11 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         if(!force&&cached&&Date.now()-cached.timestamp<TL_LIVE_CACHE_TTL)return cached.data;
         if(!force&&TL_LIVE_INFLIGHT.has(cacheKey))return TL_LIVE_INFLIGHT.get(cacheKey);
         const promise=(async()=>{
-          // Ưu tiên resolver phía Worker: cùng nguyên tắc với Technical Module cũ.
+          let serverData = null;
+          let serverError = null;
+
+          // Ưu tiên /api/live nếu Worker đã triển khai; nhưng KHÔNG coi
+          // HTTP 200 với dữ liệu rỗng là thành công.
           try {
             const params=new URLSearchParams({facility:key});
             if(code) params.set('code',String(code));
@@ -4653,24 +4686,46 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
               err.debug=payload?.debug||null;
               throw err;
             }
-            const data=payload?.data || payload;
-            TL_LIVE_MEMORY_CACHE.set(cacheKey,{timestamp:Date.now(),data});
-            return data;
-          } catch(serverError) {
-            // Fallback: giữ nguyên adapter CSV cũ để không làm mất khả năng chạy.
-            if (serverError?.code==='NO_MATCH' || serverError?.code==='NO_VALID_DATA') throw serverError;
+            serverData = payload?.data || payload;
+            if(!tlLiveHasAny(serverData)) {
+              const err=new Error('API live phản hồi nhưng chưa có thông số hiện tại.');
+              err.code='INCOMPLETE_LIVE';
+              throw err;
+            }
+          } catch(err) {
+            serverError = err;
+          }
+
+          // Luôn có đường dự phòng trực tiếp AI_DATA. Khi server có một phần
+          // dữ liệu, chỉ bổ sung phần còn thiếu để không làm thay đổi nguồn ưu tiên.
+          try {
             const rows=await tlLoadAIData(force);
             const matched=tlAiMatchRows(rows,key,code);
             if(!matched.length) {
+              if(serverData && tlLiveHasAny(serverData)) {
+                TL_LIVE_MEMORY_CACHE.set(cacheKey,{timestamp:Date.now(),data:serverData});
+                return serverData;
+              }
               const err=Object.assign(new Error(`Không tìm thấy công trình "${key}" trong AI_DATA.`),{status:404,code:'NO_MATCH',debug:{requested:key,source:'client-csv-fallback'}});
               throw err;
             }
-            const data=tlAiPayload(matched,key).data;
+            const localData=tlAiPayload(matched,key).data;
+            const data=serverData ? tlLiveMerge(serverData,localData) : localData;
             TL_LIVE_MEMORY_CACHE.set(cacheKey,{timestamp:Date.now(),data});
             return data;
+          } catch(localError) {
+            if(serverData && tlLiveHasAny(serverData)) {
+              TL_LIVE_MEMORY_CACHE.set(cacheKey,{timestamp:Date.now(),data:serverData});
+              return serverData;
+            }
+            // Giữ nguyên mã lỗi NO_MATCH/NO_VALID_DATA để Popup giải thích đúng.
+            if(localError?.code==='NO_MATCH' || localError?.code==='NO_VALID_DATA') throw localError;
+            if(serverError?.code==='NO_MATCH' || serverError?.code==='NO_VALID_DATA') throw serverError;
+            throw localError || serverError || new Error('Không lấy được AI_DATA.');
           }
         })();
-        TL_LIVE_INFLIGHT.set(cacheKey,promise);try{return await promise;}finally{TL_LIVE_INFLIGHT.delete(cacheKey);}
+        TL_LIVE_INFLIGHT.set(cacheKey,promise);
+        try{return await promise;}finally{TL_LIVE_INFLIGHT.delete(cacheKey);}
       }
       const TL_CHART_CACHE=new Map(); const TL_CHART_CACHE_TTL=5*60*1000;
       async function tlFetchChartHistory(facilityName,code){
@@ -4900,7 +4955,11 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         const water = data.water_level || null;
         const rainfall = data.rainfall || null;
         const flow = data.flow || data.discharge || data.luu_luong || null;
-        const limits = data.limits || {};
+        const rawLimits = data.limits || {};
+        const limits = {
+          MNDBT: Number.isFinite(Number(rawLimits.MNDBT)) ? Number(rawLimits.MNDBT) : tlAiNum(card.dataset.mndbt),
+          MNDGC: Number.isFinite(Number(rawLimits.MNDGC)) ? Number(rawLimits.MNDGC) : tlAiNum(card.dataset.mndgc)
+        };
         const status = data.status || {};
         const statusLevel = ['danger', 'warning', 'info'].includes(status.level) ? status.level : '';
         const facility = card.dataset.tlLiveFacility || '';
@@ -4965,7 +5024,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         const noValid = notFound && error?.code === 'NO_VALID_DATA';
         body.innerHTML = `
           <div class="tl-live-error">
-            ${noMatch ? 'ℹ️ Đã đọc AI_DATA nhưng chưa khớp tên/mã công trình.' : noValid ? 'ℹ️ Đã khớp công trình nhưng chưa nhận diện được thông số quan trắc hợp lệ.' : notFound ? 'ℹ️ Chưa có số liệu quan trắc cho công trình này trong AI_DATA.' : '⚠️ Chưa lấy được số liệu quan trắc thực tế.'}
+            ${noMatch ? 'ℹ️ Đã đọc AI_DATA nhưng chưa khớp tên/mã công trình.' : noValid ? 'ℹ️ Đã khớp công trình nhưng chưa nhận diện được thông số quan trắc hợp lệ.' : notFound ? 'ℹ️ Chưa có số liệu quan trắc cho công trình này trong AI_DATA.' : '⚠️ Kết nối số liệu hiện tại chưa hoàn tất — đang dùng bộ đọc AI_DATA dự phòng.'}
             ${error?.message ? '<br><span style="font-size:9px;">' + esc(error.message) + '</span>' : ''}
             <button type="button" class="tl-live-refresh">🔄 Thử lại</button>
           </div>
@@ -5059,6 +5118,8 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
       // =========================================================
 
       // =========================================================
+      const TL_TECHNICAL_API_BASE = (window.location.origin || '');
+
       // RESERVOIR ENGINE – Z–F–V–Q
       // BỔ SUNG ĐỘC LẬP, KHÔNG THAY ĐỔI LIVE ENGINE HIỆN CÓ.
       // Ưu tiên object reservoir nếu /api/live đã trả về;
@@ -5514,7 +5575,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
                   <span class="tl-popup-source-badge">LIVE</span>
                 </div>
 
-               <div class="tl-live-card" data-tl-live="pending" data-tl-live-facility="${e(name)}" data-facility-code="${e(code)}" data-facility-type="${e(type)}" data-dead-level="${deadLevel == null ? '' : e(deadLevel)}">
+               <div class="tl-live-card" data-tl-live="pending" data-tl-live-facility="${e(name)}" data-facility-code="${e(code)}" data-facility-type="${e(type)}" data-dead-level="${deadLevel == null ? '' : e(deadLevel)}" data-mndbt="${e(p.MNDBT ?? p.mndbt ?? p.mndbt_m ?? p.MucNuocDBT ?? '')}" data-mndgc="${e(p.MNDGC ?? p.mndgc ?? p.mndgc_m ?? p.MucNuocDGC ?? '')}">
                   <div class="tl-live-head">
                     <div class="tl-live-title">📊 Số liệu hiện tại</div>
                     <div class="tl-live-updated" data-tl-live-updated>AI_DATA</div>

@@ -7030,7 +7030,7 @@ if (description) {
 
       // Public bridge for the standalone shell: this is INSIDE the original
       // map IIFE, so the scoped initializer remains accessible safely.
-      window.initAiMap = initAiMap;
+      window.__TL_BOOT_MAP__ = function () { return initAiMap(); };
       window.performSearch = performSearch;
 
 })();
@@ -7886,14 +7886,15 @@ window.__TL3D={open:open3d,close:close3d,fly:fly,search:search,get viewer(){retu
     panel.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 
-    // initAiMap thuộc nguyên bản App gốc; không thay thế logic bản đồ.
-    if (typeof window.initAiMap === 'function') {
-      window.initAiMap();
+    // Gọi initializer qua wrapper được tạo bên trong scope của App gốc.
+    if (typeof window.__TL_BOOT_MAP__ === 'function') {
+      window.__TL_BOOT_MAP__();
     } else {
       // initAiMap được khai báo trong cùng script nhưng không expose lên window.
       // Click giả lập dùng chính handler nguyên bản của App.
       var openButton = document.getElementById('mapAiBtn');
       if (openButton) openButton.click();
+      else console.error('[TL MAP] Không tìm thấy initializer của bản đồ.');
     }
 
     setTimeout(function () {

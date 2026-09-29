@@ -84,14 +84,22 @@
 #mapAiPanel #map3dBtn{width:40px;height:40px;border-radius:11px;border:1px solid rgba(8,42,74,.16);background:#fff;color:#082a4a;cursor:pointer;font-size:17px;font-weight:800}
 #mapAiPanel #map3dBtn:hover{background:#eef7fb}
 #tl3dPanel{
-position:fixed!important;
-inset:0!important;
-width:100vw!important;
-height:100vh!important;
-z-index:99999!important;
-background:#06111c;
-display:none;
-overflow:hidden;
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100vh!important;
+  min-width:100vw!important;
+  min-height:100vh!important;
+  max-width:none!important;
+  max-height:none!important;
+  z-index:99999!important;
+  background:#06111c!important;
+  display:none!important;
+  overflow:hidden!important;
+}
+
+#tl3dPanel:not([hidden]){
+  display:block!important;
 }
 #tl3dPanel:not([hidden]){display:block!important}
 #tl3dMap{position:absolute;inset:0}

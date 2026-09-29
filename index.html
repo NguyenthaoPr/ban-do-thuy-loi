@@ -6130,14 +6130,12 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
                 const gt = layer.feature?.geometry?.type || '';
                 const isArea = gt === 'Polygon' || gt === 'MultiPolygon';
                 if (zoom <= 7) {
-                  layer.setStyle({ weight: 0.8, opacity: 0, fillOpacity: 0 });
+                  // Chỉ ẩn đối tượng ở xa; tuyệt đối không thay màu KMZ.
+                  layer.setStyle({ opacity: 0, fillOpacity: 0 });
                   if (layer.closeTooltip) layer.closeTooltip();
-                } else {
-                  layer.setStyle({
-                    weight: lineWeight,
-                    opacity: lineOpacity,
-                    fillOpacity: isArea ? (zoom >= 11 ? 0.12 : 0.045) : 0
-                  });
+                } else if (layer.__tlKMLBaseStyle) {
+                  // Trả lại nguyên style gốc của KMZ.
+                  layer.setStyle(layer.__tlKMLBaseStyle);
                 }
               });
             }
@@ -6412,45 +6410,118 @@ function getGISFeatureDescription(feature) {
 // Lấy màu nếu GeoJSON đã có màu KML
 // Nếu chưa có -> xanh mặc định
 // ------------------------------------------------------------
-function getGISFeatureColor(feature) {
-
-  const p = feature?.properties || {};
-
-  return (
-    p.kmlColor ||
-    p.KMLColor ||
-    p.styleColor ||
-    p.StyleColor ||
-    p.color ||
-    p.Color ||
-    "#1677FF"
-  );
+function firstDefinedGIS(p, keys) {
+  for (const key of keys) {
+    const v = p?.[key];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+  }
+  return null;
 }
 
-
-// ------------------------------------------------------------
-// Lấy độ dày nếu có
-// ------------------------------------------------------------
-function getGISFeatureWidth(feature) {
-
+// ============================================================
+// ĐỌC STYLE GỐC KML/KMZ CHO LEAFLET 2D
+// KML chuẩn dùng AABBGGRR -> CSS #RRGGBB + alpha
+// Ưu tiên style đã được build từ KMZ, không ép màu theo category.
+// ============================================================
+function parseGISColor(feature, isFill = false) {
   const p = feature?.properties || {};
 
-  const value = Number(
-    p.kmlWidth ||
-    p.KMLWidth ||
-    p.lineWidth ||
-    p.LineWidth ||
-    p.width ||
-    p.Width
-  );
+  const keys = isFill
+    ? [
+        'kmlPolyColor','KMLPolyColor','polyColor','PolyColor',
+        'fillColor','FillColor','fill','Fill',
+        'polygonColor','PolygonColor','styleFill','StyleFill',
+        'fill-color','fillColorHex'
+      ]
+    : [
+        'kmlColor','KMLColor','lineColor','LineColor',
+        'strokeColor','StrokeColor','styleColor','StyleColor',
+        'stroke','Stroke','line','Line',
+        'stroke-color','lineColorHex'
+      ];
 
-  if (Number.isFinite(value) && value > 0) {
-    return value;
+  let raw = firstDefinedGIS(p, keys);
+  if (raw === null) raw = firstDefinedGIS(p, ['color','Color']);
+  if (raw === null) return null;
+
+  let c = String(raw).trim();
+
+  // rgb()/rgba()
+  const rgb = c.match(
+    /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/i
+  );
+  if (rgb) {
+    const r = Math.max(0, Math.min(255, Number(rgb[1])));
+    const g = Math.max(0, Math.min(255, Number(rgb[2])));
+    const b = Math.max(0, Math.min(255, Number(rgb[3])));
+    const a = rgb[4] === undefined ? 1 : Math.max(0, Math.min(1, Number(rgb[4])));
+    return { color: `rgb(${r},${g},${b})`, opacity: a, raw: c };
   }
 
-  return 2;
+  c = c.replace(/^#/, '').replace(/^0x/i, '');
+
+  // KML chuẩn: AABBGGRR
+  if (/^[0-9a-fA-F]{8}$/.test(c)) {
+    const alpha = parseInt(c.slice(0, 2), 16) / 255;
+    const bb = c.slice(2, 4);
+    const gg = c.slice(4, 6);
+    const rr = c.slice(6, 8);
+    return { color: `#${rr}${gg}${bb}`, opacity: alpha, raw: c, format: 'kml' };
+  }
+
+  // RRGGBB
+  if (/^[0-9a-fA-F]{6}$/.test(c)) {
+    return { color: `#${c}`, opacity: 1, raw: c, format: 'hex' };
+  }
+
+  // RGB 3 ký tự
+  if (/^[0-9a-fA-F]{3}$/.test(c)) {
+    return {
+      color: `#${c[0]}${c[0]}${c[1]}${c[1]}${c[2]}${c[2]}`,
+      opacity: 1,
+      raw: c,
+      format: 'hex3'
+    };
+  }
+
+  return null;
 }
 
+function getGISFeatureColor(feature) {
+  const c = parseGISColor(feature, false);
+  return c?.color || '#1677FF';
+}
+
+function getGISFeatureOpacity(feature, isFill = false, fallback = 1) {
+  const p = feature?.properties || {};
+  const c = parseGISColor(feature, isFill);
+
+  const explicit = firstDefinedGIS(
+    p,
+    isFill
+      ? ['kmlPolyOpacity','fill-opacity','fillOpacity','polygonOpacity']
+      : ['kmlLineOpacity','stroke-opacity','strokeOpacity','lineOpacity']
+  );
+
+  const n = Number(explicit);
+  if (Number.isFinite(n)) return Math.max(0, Math.min(1, n));
+  if (c) return c.opacity;
+  return fallback;
+}
+
+function getGISFeatureFill(feature) {
+  return parseGISColor(feature, true);
+}
+
+function getGISFeatureWidth(feature) {
+  const p = feature?.properties || {};
+  const value = Number(firstDefinedGIS(p, [
+    'kmlWidth','KMLWidth','lineWidth','LineWidth',
+    'stroke-width','strokeWidth','width','Width'
+  ]));
+
+  return Number.isFinite(value) && value > 0 ? value : 2;
+}
 
 // ------------------------------------------------------------
 // Escape HTML
@@ -6477,87 +6548,64 @@ nonPointLayer = L.geoJSON(null, {
   // ==========================================================
   style: function(feature) {
 
-    const geometryType =
-      feature?.geometry?.type || "";
+    const geometryType = feature?.geometry?.type || '';
+    const line = parseGISColor(feature, false);
+    const fill = parseGISColor(feature, true);
+    const width = getGISFeatureWidth(feature);
 
-    const color =
-      getGISFeatureColor(feature);
+    let style;
 
-    const width =
-      getGISFeatureWidth(feature);
-
-
-    // --------------------------------------------------------
-    // ĐƯỜNG / KÊNH
-    // --------------------------------------------------------
-    if (
-      geometryType === "LineString" ||
-      geometryType === "MultiLineString"
-    ) {
-
-      return {
-        color: color,
+    if (geometryType === 'LineString' || geometryType === 'MultiLineString') {
+      style = {
+        color: line?.color || '#1677FF',
         weight: width,
-        opacity: 0.90,
-        fill: false
+        opacity: getGISFeatureOpacity(feature, false, 1),
+        fill: false,
+        fillOpacity: 0
       };
-
-    }
-
-
-    // --------------------------------------------------------
-    // VÙNG
-    // --------------------------------------------------------
-    if (
-      geometryType === "Polygon" ||
-      geometryType === "MultiPolygon"
-    ) {
-
-      const p =
-        feature?.properties || {};
-
-      const fillColor =
-        p.kmlPolyColor ||
-        p.KMLPolyColor ||
-        color;
-
-      return {
-
-        color: fillColor,
-
-        weight: 1.5,
-
-        opacity: 0.75,
-
+    } else if (geometryType === 'Polygon' || geometryType === 'MultiPolygon') {
+      const lineColor = line?.color || fill?.color || '#1677FF';
+      const fillColor = fill?.color || lineColor;
+      style = {
+        color: lineColor,
+        weight: width,
+        opacity: getGISFeatureOpacity(feature, false, line?.opacity ?? 1),
+        fill: true,
         fillColor: fillColor,
-
-        fillOpacity: 0.06
-
+        fillOpacity: getGISFeatureOpacity(feature, true, fill?.opacity ?? 0.35)
       };
-
+    } else {
+      style = {
+        color: line?.color || '#1677FF',
+        weight: width,
+        opacity: getGISFeatureOpacity(feature, false, 1),
+        fillOpacity: 0
+      };
     }
 
-
-    // --------------------------------------------------------
-    // KHÁC
-    // --------------------------------------------------------
-    return {
-
-      color: color,
-
-      weight: 1.5,
-
-      opacity: 0.70
-
-    };
-
+    // Lưu style nguyên bản của KMZ để zoom không tự đổi màu/độ dày.
+    return style;
   },
+
 
 
   // ==========================================================
   // XỬ LÝ TỪNG FEATURE
   // ==========================================================
   onEachFeature: function(feature, layer) {
+
+    // Lưu đúng style gốc để zoom chỉ ẩn/hiện, không biến đổi màu KMZ.
+    try {
+      const gt = feature?.geometry?.type || '';
+      const line = parseGISColor(feature, false);
+      const fill = parseGISColor(feature, true);
+      const baseStyle = gt === 'LineString' || gt === 'MultiLineString'
+        ? { color: line?.color || '#1677FF', weight: getGISFeatureWidth(feature), opacity: getGISFeatureOpacity(feature, false, 1), fill: false, fillOpacity: 0 }
+        : gt === 'Polygon' || gt === 'MultiPolygon'
+          ? { color: line?.color || fill?.color || '#1677FF', weight: getGISFeatureWidth(feature), opacity: getGISFeatureOpacity(feature, false, line?.opacity ?? 1), fill: true, fillColor: fill?.color || line?.color || '#1677FF', fillOpacity: getGISFeatureOpacity(feature, true, fill?.opacity ?? 0.35) }
+          : { color: line?.color || '#1677FF', weight: getGISFeatureWidth(feature), opacity: getGISFeatureOpacity(feature, false, 1), fillOpacity: 0 };
+      layer.__tlKMLBaseStyle = baseStyle;
+    } catch (e) {}
 
     const geometryType =
       feature?.geometry?.type || "";

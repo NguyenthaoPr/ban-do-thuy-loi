@@ -8213,6 +8213,51 @@ if (description) {
   [250,700,1400,2500].forEach(function(ms){ setTimeout(sync,ms); });
 })();
 </script>
+<script id="tl-kmz-only-display-fix-v3">
+(function(){
+  'use strict';
+  /* V14-6-Lop-2D: ONLY fix KMZ layer display.
+     Does not change GIS source, classification, style, zoom, popup, search, AI_DATA or UI. */
+  function forceDisplay(){
+    try{
+      const mapLayer = window.__TL_MAP_RUNTIME && window.__TL_MAP_RUNTIME.mapLayer
+        ? window.__TL_MAP_RUNTIME.mapLayer : window.aiMapLayer;
+      const group = window.__TL_MAP_RUNTIME && window.__TL_MAP_RUNTIME.nonPointLayer
+        ? window.__TL_MAP_RUNTIME.nonPointLayer : window.nonPointLayer;
+      if(!mapLayer || !group) return;
+      const members = (typeof TL_SIX_LAYER_MEMBERS !== 'undefined') ? TL_SIX_LAYER_MEMBERS : {};
+      const state = (typeof TL_SIX_LAYER_STATE !== 'undefined') ? TL_SIX_LAYER_STATE : {};
+      const keys = ['reservoir','pump','dam','channel','onchannel','irrigation'];
+      keys.forEach(function(key){
+        const list = members[key] || [];
+        const visible = !!state[key];
+        for(let i=0;i<list.length;i++){
+          const layer=list[i];
+          if(!layer) continue;
+          if(visible){
+            // Add the actual GeoJSON child directly to the map layer.
+            // This is only a display repair; the original nonPointLayer remains intact.
+            if(!mapLayer.hasLayer(layer)) mapLayer.addLayer(layer);
+          }else{
+            // Keep the existing OFF state without touching source/style.
+            if(mapLayer.hasLayer(layer)) mapLayer.removeLayer(layer);
+          }
+        }
+      });
+    }catch(e){
+      console.warn('[KMZ DISPLAY FIX] ',e);
+    }
+  }
+  window.__TL_FORCE_KMZ_DISPLAY = forceDisplay;
+  [300,1000,2200,4000].forEach(function(ms){ setTimeout(forceDisplay,ms); });
+  document.addEventListener('change', function(e){
+    const id=e.target && e.target.id;
+    if(id==='toggleReservoirs'||id==='togglePumps'||id==='toggleDams'||id==='toggleChannels'||id==='toggleOnChannel'||id==='toggleIrrigation'){
+      setTimeout(forceDisplay,0);
+    }
+  }, true);
+})();
+</script>
 </body>
 <!-- =========================================================
      THỦY LỢI AI — MAP CLEAN UI V1

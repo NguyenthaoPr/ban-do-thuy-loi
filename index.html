@@ -7387,7 +7387,16 @@ if (description) {
             }
 
             // Chỉ chạy vòng duyệt style/label sau khi các lớp đã được nạp.
+            // Đồng thời áp lại 6 lớp để các đường đỏ Khu tưới không bị mặc định
+            // rơi vào lớp Kênh trong lúc addData() theo batch.
             tlYieldToBrowser(function() {
+              try {
+                if (typeof window.__TL_SIX_REFRESH_NONPOINT === 'function') {
+                  window.__TL_SIX_REFRESH_NONPOINT();
+                }
+              } catch (e) {
+                console.warn('Six-layer visibility refresh:', e);
+              }
               updateGISZoomStyle();
             });
           }
@@ -8737,23 +8746,104 @@ if (description) {
     window.tlSixLayerGroups=r.sixLayers||window.tlSixLayerGroups;
     return r;
   }
+  // Phân loại tuyến theo đúng dữ liệu gốc KMZ:
+  // - Polygon/MultiPolygon -> Khu tưới
+  // - Đường màu đỏ thuần trong KML (AABBGGRR = ff0000ff) -> Khu tưới
+  //   trừ các tuyến có tên xác định rõ là Kênh.
+  // - Các tuyến còn lại -> Hệ thống kênh.
+  // Đây là điểm quan trọng: không được coi mọi LineString là Kênh.
+  function tlNormalizeName(v){
+    return String(v||'')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'')
+      .replace(/đ/g,'d');
+  }
+
+  function tlFeatureLayerKey(feature){
+    const p=feature&&feature.properties||{};
+    const g=feature&&feature.geometry||{};
+    const gt=g.type||'';
+    if(gt==='Polygon'||gt==='MultiPolygon') return 'khu_tuoi';
+    if(gt!=='LineString'&&gt!=='MultiLineString') return 'khac';
+
+    const name=tlNormalizeName(
+      p.name||p.Name||p.NAME||p.ten||p.Ten||p.TEN||
+      p.ten_kenh||p.TEN_KENH||p.ten_duong||p.TEN_DUONG||''
+    );
+
+    // Những tên này chắc chắn thuộc hệ thống kênh, kể cả khi màu KMZ là đỏ.
+    const isChannelName =
+      /\bkenh\b/.test(name) ||
+      name.includes('tuyen kenh') ||
+      name.includes('kenh chinh') ||
+      name.includes('kenh nhanh') ||
+      /\bmuong\b/.test(name);
+
+    if(isChannelName) return 'kenh';
+
+    // Đọc đúng màu LineStyle của KMZ qua hàm hiện có.
+    // ff0000ff = đỏ thuần theo chuẩn AABBGGRR của KML.
+    let kmlColor='';
+    try{
+      kmlColor=String(getKMLColor(feature)||'').toLowerCase().replace('#','');
+    }catch(e){}
+    if(kmlColor==='#ff0000'||kmlColor==='ff0000ff'||kmlColor==='#ff0000ff') return 'khu_tuoi';
+
+    // Một số bản ghi KML có lưu màu thô trong properties.
+    const rawColor=String(
+      p.kmlColor||p.KMLColor||p.styleColorKML||p.style_color_kml||''
+    ).toLowerCase().replace('#','');
+    if(rawColor==='ff0000ff') return 'khu_tuoi';
+
+    // Tên có chữ Khu tưới nhưng bị lỗi gõ/Unicode vẫn ưu tiên Khu tưới.
+    if(
+      name.includes('khu tuoi') ||
+      name.includes('khu tuowisi') ||
+      name.includes('khu tuoi') ||
+      name.includes('khut uoi') ||
+      name.includes('khu tii') ||
+      name.includes('khu tui')
+    ) return 'khu_tuoi';
+
+    return 'kenh';
+  }
+
   function lineAreaVisible(key, visible){
     const r=sync(); const g=r&&r.nonPointLayer; if(!g||!g.eachLayer) return;
     g.eachLayer(function(layer){
-      const f=layer&&layer.feature, gt=f&&f.geometry&&f.geometry.type;
-      const isLine=gt==='LineString'||gt==='MultiLineString';
-      const isArea=gt==='Polygon'||gt==='MultiPolygon';
+      const f=layer&&layer.feature;
+      const gt=f&&f.geometry&&f.geometry.type;
+      const actualKey=tlFeatureLayerKey(f);
       try{
-        if(key==='kenh'&&isLine){
-          layer.setStyle({opacity:visible?0.90:0,fillOpacity:0});
+        if((key==='kenh'||key==='khu_tuoi') && actualKey===key){
+          const isLine=gt==='LineString'||gt==='MultiLineString';
+          const isArea=gt==='Polygon'||gt==='MultiPolygon';
+          if(isLine){
+            layer.setStyle({opacity:visible?0.90:0,fillOpacity:0});
+          }else if(isArea){
+            layer.setStyle({opacity:visible?0.75:0,fillOpacity:visible?0.06:0});
+          }
           if(!visible&&layer.closeTooltip) layer.closeTooltip();
-        }
-        if(key==='khu_tuoi'&&isArea){
-          layer.setStyle({opacity:visible?0.75:0,fillOpacity:visible?0.06:0});
         }
       }catch(e){}
     });
   }
+  function applyAllLineAreaVisibility(){
+    const ho=document.getElementById(IDS.ho);
+    const tram=document.getElementById(IDS.tram_bom);
+    const dap=document.getElementById(IDS.dap_bara);
+    const kenh=document.getElementById(IDS.kenh);
+    const cong=document.getElementById(IDS.cong_tren_kenh);
+    const area=document.getElementById(IDS.khu_tuoi);
+    if(kenh) lineAreaVisible('kenh',!!kenh.checked);
+    if(area) lineAreaVisible('khu_tuoi',!!area.checked);
+  }
+
+  // Được gọi lại sau khi các batch non-point đã nạp xong.
+  // Rất quan trọng vì runtime/layer group được tạo trước khi toàn bộ KMZ được addData().
+  window.__TL_SIX_REFRESH_NONPOINT=applyAllLineAreaVisibility;
+
   function setVisible(key, visible){
     const r=sync(); if(!r) return;
     const g=(r.sixLayers||{})[key];

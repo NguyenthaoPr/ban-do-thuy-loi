@@ -8097,6 +8097,102 @@ if (description) {
 #mapAiPanel .map-layer-panel[hidden]{display:none!important;}
 </style>
 <!-- TL PERFORMANCE UPGRADE V2 -->
+<script id="tl-six-layer-connection-fix-v1">
+(function(){
+  'use strict';
+  /*
+   * V14-6-Lop-2D — LAYER CONNECTION FIX ONLY
+   * Không thay GIS/KMZ/GeoJSON/Popup/Search/Alert.
+   * Chỉ bảo đảm 6 checkbox điều khiển đúng layer đang hiển thị trên map.
+   */
+  const MAP = {
+    toggleReservoirs:'reservoir',
+    togglePumps:'pump',
+    toggleDams:'dam',
+    toggleChannels:'channel',
+    toggleOnChannel:'onchannel',
+    toggleIrrigation:'irrigation'
+  };
+
+  function getRuntime(){
+    const r = window.__TL_MAP_RUNTIME || {};
+    return {
+      mapLayer: r.mapLayer || window.aiMapLayer || null,
+      markerCluster: r.markerCluster || window.markerCluster || null,
+      nonPointLayer: r.nonPointLayer || window.nonPointLayer || null
+    };
+  }
+
+  function applyOne(key, visible){
+    const r = getRuntime();
+    const members = (window.__TL_SIX_LAYERS_MEMBERS && window.__TL_SIX_LAYERS_MEMBERS[key]) ||
+                    (typeof TL_SIX_LAYER_MEMBERS !== 'undefined' ? TL_SIX_LAYER_MEMBERS[key] : []) || [];
+
+    for(let i=0;i<members.length;i++){
+      const layer = members[i];
+      if(!layer) continue;
+      try{
+        const isMarker = (typeof L !== 'undefined' && layer instanceof L.Marker);
+        const parent = isMarker ? r.markerCluster : r.nonPointLayer;
+        if(!parent) continue;
+        if(visible){
+          if(!parent.hasLayer(layer)) parent.addLayer(layer);
+        }else{
+          if(parent.hasLayer(layer)) parent.removeLayer(layer);
+        }
+      }catch(e){
+        console.warn('[6-LAYER FIX] layer:', key, e);
+      }
+    }
+  }
+
+  function setLayer(key, visible){
+    if(typeof tlSetSixLayer === 'function'){
+      try{
+        tlSetSixLayer(key, !!visible);
+        return;
+      }catch(e){
+        console.warn('[6-LAYER FIX] tlSetSixLayer fallback:', e);
+      }
+    }
+    if(typeof TL_SIX_LAYER_STATE !== 'undefined') TL_SIX_LAYER_STATE[key] = !!visible;
+    applyOne(key, !!visible);
+  }
+
+  function bind(){
+    Object.keys(MAP).forEach(function(id){
+      const el=document.getElementById(id);
+      if(!el || el.__tlLayerConnectionFix) return;
+      el.__tlLayerConnectionFix=true;
+      el.addEventListener('change',function(e){
+        e.stopImmediatePropagation();
+        setLayer(MAP[id], el.checked);
+      }, true);
+    });
+
+    /* Sau khi GIS render xong, đồng bộ trạng thái một lần.
+       Không quét lại dữ liệu; chỉ gắn/bỏ những layer đã được đăng ký. */
+    if(typeof tlApplySixLayerVisibility === 'function'){
+      try{ tlApplySixLayerVisibility(); }catch(e){}
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', bind);
+  }else{
+    bind();
+  }
+
+  /* GIS được nạp theo batch, nên thử đồng bộ ngắn sau khi map runtime xuất hiện. */
+  let tries=0;
+  const timer=setInterval(function(){
+    bind();
+    tries++;
+    if(window.__TL_MAP_RUNTIME && tries>20) clearInterval(timer);
+    if(tries>40) clearInterval(timer);
+  },250);
+})();
+</script>
 </body>
 <!-- =========================================================
      THỦY LỢI AI — MAP CLEAN UI V1

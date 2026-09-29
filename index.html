@@ -6303,6 +6303,27 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         }
       }
 
+
+          // ============================================================
+          // 6 LỚP CHÍNH THỦY LỢI — STATE KHỞI TẠO TRƯỚC initAiMap()
+          // FIX V4: chỉ sửa thứ tự khởi tạo, không thay đổi GIS/KMZ.
+          // ============================================================
+const TL_SIX_LAYER_KEYS = ['reservoir','pump','dam','channel','onchannel','irrigation'];
+const TL_SIX_LAYER_LABELS = {
+  reservoir: 'Hồ chứa',
+  pump: 'Trạm bơm',
+  dam: 'Đập / Bara',
+  channel: 'Hệ thống kênh',
+  onchannel: 'Công trình trên kênh',
+  irrigation: 'Khu tưới'
+};
+const TL_SIX_LAYER_STATE = {
+  reservoir:true, pump:true, dam:true, channel:true, onchannel:true, irrigation:true
+};
+const TL_SIX_LAYER_MEMBERS = {
+  reservoir:[], pump:[], dam:[], channel:[], onchannel:[], irrigation:[]
+};
+
       async function initAiMap() {
         if (aiMap) {
           setTimeout(function() { aiMap.invalidateSize(); }, 200);
@@ -6779,21 +6800,6 @@ function getGISFeatureWidth(feature) {
 // Giữ nguyên GeoJSON/KMZ, Popup, Search, MarkerCluster và màu gốc.
 // Chỉ bổ sung một lớp điều khiển hiển thị theo 6 nhóm nghiệp vụ.
 // ============================================================
-const TL_SIX_LAYER_KEYS = ['reservoir','pump','dam','channel','onchannel','irrigation'];
-const TL_SIX_LAYER_LABELS = {
-  reservoir: 'Hồ chứa',
-  pump: 'Trạm bơm',
-  dam: 'Đập / Bara',
-  channel: 'Hệ thống kênh',
-  onchannel: 'Công trình trên kênh',
-  irrigation: 'Khu tưới'
-};
-const TL_SIX_LAYER_STATE = {
-  reservoir:true, pump:true, dam:true, channel:true, onchannel:true, irrigation:true
-};
-const TL_SIX_LAYER_MEMBERS = {
-  reservoir:[], pump:[], dam:[], channel:[], onchannel:[], irrigation:[]
-};
 
 function tlSixLayerKey(feature) {
   const p = feature?.properties || {};

@@ -8007,6 +8007,25 @@ window.__TL3D={open:open3d,close:close3d,fly:fly,search:search,get viewer(){retu
   #mapAiPanel .map-layer-panel{z-index:6250!important;}
   #mapAiPanel #tlAlertSheet{z-index:9000!important;}
 }
+       /* ===== FINAL 3D PANEL OVERRIDE ===== */
+#tl3dPanel{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100vh!important;
+  min-width:100vw!important;
+  min-height:100vh!important;
+  max-width:none!important;
+  max-height:none!important;
+  z-index:99999!important;
+  background:#06111c!important;
+  display:none!important;
+  overflow:hidden!important;
+}
+
+#tl3dPanel:not([hidden]){
+  display:block!important;
+}
 </style>
 <script id="tl-map-v7-mobile-fix-js">
 (function(){

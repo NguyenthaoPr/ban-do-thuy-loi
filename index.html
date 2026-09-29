@@ -80,62 +80,8 @@
   #mapAiPanel .tl-alert-footer{font-size:10px !important; padding:8px 14px !important;}
 }
 </style>
-<style id="tl3d-integrated-v2">
-#mapAiPanel #map3dBtn{width:40px;height:40px;border-radius:11px;border:1px solid rgba(8,42,74,.16);background:#fff;color:#082a4a;cursor:pointer;font-size:17px;font-weight:800}
-#mapAiPanel #map3dBtn:hover{background:#eef7fb}
-#tl3dPanel{position:fixed;inset:0;z-index:12000;background:#06111c;display:none;overflow:hidden}
-#tl3dPanel:not([hidden]){display:block!important}
-#tl3dMap{position:absolute;inset:0}
-.tl3d-toolbar{position:absolute;z-index:40;top:max(10px,env(safe-area-inset-top));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border-radius:16px;background:rgba(5,18,30,.86);border:1px solid rgba(100,210,220,.25);backdrop-filter:blur(14px);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-.tl3d-title{display:flex;flex-direction:column;min-width:0}.tl3d-title b{font-size:15px}.tl3d-title span{font-size:10px;color:#a8bdc5;margin-top:2px}.tl3d-actions{display:flex;gap:6px}.tl3d-actions button{border:1px solid rgba(100,220,220,.3);background:rgba(100,220,220,.1);color:#eaffff;border-radius:10px;padding:8px 10px;font-weight:800}
-.tl3d-search{position:absolute;z-index:40;top:76px;left:12px;width:min(390px,calc(100% - 24px));display:flex;gap:7px;padding:7px;border-radius:14px;background:rgba(5,18,30,.86);border:1px solid rgba(100,210,220,.24);backdrop-filter:blur(14px)}
-.tl3d-search input{flex:1;min-width:0;border:0;outline:0;background:rgba(255,255,255,.08);color:#fff;border-radius:9px;padding:9px 10px;font-size:13px}.tl3d-search button{border:0;border-radius:9px;background:#21b8b2;color:#05252a;font-weight:900;padding:0 12px}
-.tl3d-search-results{position:absolute;z-index:41;top:128px;left:19px;width:min(376px,calc(100% - 38px));max-height:34vh;overflow:auto;border-radius:12px;background:rgba(5,18,30,.94);backdrop-filter:blur(16px);display:none}.tl3d-search-results.show{display:block}.tl3d-result{padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.08);color:#e8fbff;cursor:pointer}.tl3d-result small{display:block;color:#8eabb4;font-size:10px;margin-top:2px}.tl3d-side{position:absolute;z-index:40;top:76px;right:12px;width:245px;display:flex;flex-direction:column;gap:8px;pointer-events:none}.tl3d-card{pointer-events:auto;border:1px solid rgba(100,210,220,.23);background:rgba(5,18,30,.84);backdrop-filter:blur(14px);border-radius:15px;color:#e9fbff;box-shadow:0 12px 30px rgba(0,0,0,.2);overflow:hidden}.tl3d-card h4{margin:0;padding:10px 12px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:#82e8e3}.tl3d-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(255,255,255,.08)}.tl3d-kpi{background:rgba(5,18,30,.78);padding:9px 5px;text-align:center}.tl3d-kpi b{display:block;font-size:15px}.tl3d-kpi span{font-size:8px;color:#8ea8b0}.tl3d-layers{padding:9px}.tl3d-layer{display:flex;align-items:center;gap:7px;padding:6px 0;font-size:11px}.tl3d-layer input{accent-color:#28d3c7}.tl3d-feature{max-height:33vh;overflow:auto;padding:0 11px 11px;font-size:11px}.tl3d-feature .row{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07)}.tl3d-feature b{min-width:82px;color:#8ecbd0}.tl3d-feature span{word-break:break-word;color:#e7f3f5}
-#tl3dStatus{position:absolute;z-index:40;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100% - 24px);padding:8px 12px;border-radius:12px;background:rgba(5,18,30,.82);color:#d8e9ed;font-size:11px;text-align:center;backdrop-filter:blur(10px)}
-@media(max-width:700px){.tl3d-toolbar{left:8px;right:8px}.tl3d-title b{font-size:12px}.tl3d-title span{display:none}.tl3d-actions button{padding:8px}.tl3d-side{top:auto;right:8px;bottom:58px;width:210px}.tl3d-card:not(.tl3d-feature-card){display:none}.tl3d-feature-card{max-height:32vh}.tl3d-search{top:66px;left:8px;width:calc(100% - 16px)}.tl3d-search-results{top:118px;left:15px;width:calc(100% - 30px)}}
-</style>
-<style id="tl3d-2d-ui-bridge">
-/* =========================================================
-   3D UI BRIDGE V3
-   3D chỉ thay lớp nền/rendering; toàn bộ UI/chức năng 2D giữ nguyên.
-   Không thay thế DOM, GIS, Search, Popup, Alert hay layer logic cũ.
-   ========================================================= */
-#tl3dPanel{
-  z-index:2!important;
-  background:transparent!important;
-  pointer-events:none!important;
-}
-#tl3dPanel:not([hidden]){display:block!important}
-#tl3dMap{z-index:0!important;pointer-events:auto!important}
-#tl3dPanel .tl3d-toolbar,
-#tl3dPanel .tl3d-search,
-#tl3dPanel .tl3d-search-results,
-#tl3dPanel .tl3d-side,
-#tl3dPanel #tl3dStatus{display:none!important}
-body.tl3d-open #mapAiPanel{background:transparent!important}
-body.tl3d-open #mapAiPanel .map-container{background:transparent!important;pointer-events:none!important}
-body.tl3d-open #mapAiPanel #aiMap{background:transparent!important}
-body.tl3d-open #mapAiPanel .leaflet-pane,
-body.tl3d-open #mapAiPanel .leaflet-control-container{opacity:0!important;visibility:hidden!important}
-body.tl3d-open #mapAiPanel .map-atmosphere{pointer-events:none!important}
-body.tl3d-open #mapAiPanel .map-floating-btn,
-body.tl3d-open #mapAiPanel #mapAlertBtn,
-body.tl3d-open #mapAiPanel #tlAlertSheet,
-body.tl3d-open #mapAiPanel .map-layer-panel,
-body.tl3d-open #mapAiPanel .map-feature-card,
-body.tl3d-open #mapAiPanel .map-legend,
-body.tl3d-open #mapAiPanel .map-ai-status{pointer-events:auto!important}
-body.tl3d-open #mapAiPanel .map-search-wrap,
-body.tl3d-open #mapAiPanel .map-quick-chips,
-body.tl3d-open #mapAiPanel #searchResults,
-body.tl3d-open #mapAiPanel .map-ai-header{pointer-events:auto!important}
-/* Nút 3D trở thành nút quay lại 2D khi đang ở chế độ 3D. */
-body.tl3d-open #mapAiPanel #map3dBtn{background:#082a4a!important;color:#fff!important;border-color:rgba(255,255,255,.25)!important}
-/* Khi 3D mở, giữ đúng vị trí/kiểu UI 2D; không tạo toolbar thứ hai. */
-@media(max-width:700px){
-  body.tl3d-open #mapAiPanel .map-container{pointer-events:none!important}
-}
-</style></head>
+
+</head>
        và các điểm gọi tlEnsureLeaflet() / tlEnsureQRCode() trong
        initAiMap() và prepareImageWithStamp().
        ═════════════════════════════════════════════════════════ -->
@@ -3774,7 +3720,6 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 <div aria-label="Chức năng tìm kiếm" class="map-search-actions">
 <button aria-label="Tìm kiếm" id="mapSearchBtn" title="Tìm kiếm" type="button">🔎</button>
 <button aria-label="Vị trí hiện tại" id="mapLocateBtn" title="Vị trí hiện tại" type="button">⌖</button>
-<button aria-label="Chế độ 3D" id="map3dBtn" title="Mở chế độ 3D Terrain" type="button">🌐</button>
 </div>
 </div>
 </div>
@@ -3847,31 +3792,11 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 <button class="map-detail-btn" id="mapFeatureDetail" type="button">Xem chi tiết</button>
 </div>
 <div class="map-ai-status" id="mapAiStatus">Đang chuẩn bị bản đồ...</div>
-</div>
-<div id="tl3dPanel" class="tl3d-panel" hidden>
-  <div class="tl3d-toolbar">
-    <div class="tl3d-title"><b>🌐 THỦY LỢI VIEW · GOD'S EYE</b><span>VU GIA – THU BỒN · 3D TERRAIN · GIS MASTER</span></div>
-    <div class="tl3d-actions"><button id="tl3dHome" type="button" title="Toàn lưu vực">⌂</button><button id="tl3dClose" type="button" title="Về bản đồ 2D">2D</button></div>
-  </div>
-  <div class="tl3d-search"><input id="tl3dSearchInput" type="search" placeholder="Tìm công trình, hồ, trạm, kênh…" autocomplete="off"><button id="tl3dSearchBtn" type="button">Tìm</button></div>
-  <div id="tl3dSearchResults" class="tl3d-search-results"></div>
-  <div class="tl3d-side">
-    <div class="tl3d-card">
-      <h4>GIÁM SÁT LƯU VỰC</h4>
-      <div class="tl3d-kpis"><div class="tl3d-kpi"><b id="tl3dCount">—</b><span>GIS</span></div><div class="tl3d-kpi"><b id="tl3dPoints">—</b><span>ĐIỂM</span></div><div class="tl3d-kpi"><b id="tl3dLines">—</b><span>ĐƯỜNG/VÙNG</span></div></div>
-      <div class="tl3d-layers">
-        <label class="tl3d-layer"><input id="tl3dShowPoints" type="checkbox" checked> Công trình / điểm</label>
-        <label class="tl3d-layer"><input id="tl3dShowLines" type="checkbox" checked> Sông / kênh / tuyến</label>
-        <label class="tl3d-layer"><input id="tl3dShowAreas" type="checkbox" checked> Vùng / hồ</label>
+</div></div></div><span>GIS</span></div><span>ĐIỂM</span></div><span>ĐƯỜNG/VÙNG</span></div></div>
       </div>
-    </div>
-    <div class="tl3d-card tl3d-feature-card">
-      <h4>ĐỐI TƯỢNG ĐANG CHỌN</h4>
-      <div id="tl3dFeature" class="tl3d-feature"><span style="color:#8ea8b0">Chạm vào một đối tượng GIS để xem thông tin.</span></div>
+    </div></div>
     </div>
   </div>
-  <div id="tl3dMap"></div>
-  <div id="tl3dStatus">Sẵn sàng khởi tạo 3D…</div>
 </div>
 </main>
 <!-- ═════════════════════════════════════════════════════════
@@ -6565,16 +6490,44 @@ function tlSixLayerKey(feature) {
   let type = 'khac';
   try { type = getCongTrinhType(p, feature?.geometry); } catch(e) {}
 
-  // Ưu tiên nghiệp vụ hồ chứa, kể cả hồ được biểu diễn bằng Polygon.
-  if (type === 'ho' || /\b(hồ|ho)\s*(chứa|nước)?\b/.test(text) || /\bho\s*(chua|nuoc)\b/.test(noDiacritics)) return 'reservoir';
-  if (type === 'tram_bom' || /trạm\s*bơm/.test(text) || /tram\s*bom/.test(noDiacritics)) return 'pump';
-  if (type === 'dap' || /\bđập\b|\bbara\b|\bbarrage\b/.test(text) || /\bdap\b|\bbara\b|\bbarrage\b/.test(noDiacritics)) return 'dam';
+  // 1. Hồ chứa — nhận cả điểm và vùng hồ, ưu tiên trước mọi geometry chung.
+  if (type === 'ho' || /\bho\s*(chua|nuoc)?\b/.test(noDiacritics) || /\bhồ\s*(chứa|nước)?\b/.test(text)) {
+    return 'reservoir';
+  }
 
-  // Polygon còn lại là vùng/khu tưới; ưu tiên nhãn khu tưới nếu có.
+  // 2. Trạm bơm.
+  if (type === 'tram_bom' || /tram\s*bom/.test(noDiacritics) || /trạm\s*bơm/.test(text)) {
+    return 'pump';
+  }
+
+  // 3. Đập/Bara.
+  if (type === 'dap' || /\b(dap|bara|barrage)\b/.test(noDiacritics) || /\b(đập|bara|barrage)\b/.test(text)) {
+    return 'dam';
+  }
+
+  // 5. Công trình trên kênh — nhận diện theo tên/loại trước geometry.
+  if (type === 'cong' || type === 'tran' || type === 'cau' || type === 'ong' ||
+      /\b(cong|tran|cau|ong)\b/.test(noDiacritics) ||
+      /\b(cống|tràn|cầu|ống)\b/.test(text)) {
+    return 'onchannel';
+  }
+
+  // 6. Khu tưới — nhận diện rõ bằng thuộc tính/tên trước polygon chung.
+  if (/khu\s*tuoi|vung\s*tuoi|dien\s*tuoi/.test(noDiacritics) ||
+      /khu\s*tưới|vùng\s*tưới|diện\s*tưới/.test(text)) {
+    return 'irrigation';
+  }
+
+  // 4. Hệ thống kênh — tuyến kênh và các đối tượng được khai báo là kênh.
+  if (type === 'kenh' || /\bkenh\b/.test(noDiacritics) || /\bkênh\b/.test(text) ||
+      geom === 'LineString' || geom === 'MultiLineString') {
+    return 'channel';
+  }
+
+  // Polygon còn lại được giữ trong lớp Khu tưới theo kiến trúc GIS hiện hữu.
   if (geom === 'Polygon' || geom === 'MultiPolygon') return 'irrigation';
-  if (type === 'kenh' || geom === 'LineString' || geom === 'MultiLineString') return 'channel';
 
-  // Các điểm cống, tràn, cầu, ống và công trình điểm khác thuộc nhóm trên kênh.
+  // Các điểm/công trình còn lại thuộc nhóm Công trình trên kênh.
   return 'onchannel';
 }
 
@@ -7974,282 +7927,8 @@ if (description) {
     }
   }
 </style>
-<style id="tl3d-performance-v3-css">
-/* Render nhẹ hơn: không thay layout/UI 2D */
-#tl3dPanel,#tl3dMap{contain:layout paint size;}
-#tl3dMap{will-change:transform;}
-#tl3dPanel .tl3d-result{contain:content;}
-</style>
-<script id="tl3d-integrated-v3-performance">
-(function(){
-'use strict';
-/*
-  THỦY LỢI 3D — PERFORMANCE PATCH V3
-  Nguyên tắc: KHÔNG thay lõi 2D/GIS/Search/Popup/Alert/API.
-  Chỉ tối ưu vòng đời Cesium, bộ nhớ, tìm kiếm và render.
-*/
-var panel=document.getElementById('tl3dPanel'),btn=document.getElementById('map3dBtn'),close=document.getElementById('tl3dClose'),home=document.getElementById('tl3dHome'),status=document.getElementById('tl3dStatus');
-var viewer=null,ds=null,loading=false,ready=false,cesiumPromise=null,featuresCache=null,entityIndex=[],entityByFeature=new WeakMap();
-var GIS_URL=new URL('gis/master.geojson',document.baseURI).href;
-var HOME={lon:108.2506,lat:15.8801,height:42000};
-var $=function(id){return document.getElementById(id)};
-function setStatus(x){if(status)status.textContent=x}
-function loadScript(){
- if(window.Cesium)return Promise.resolve();
- if(cesiumPromise)return cesiumPromise;
- cesiumPromise=new Promise(function(resolve,reject){
-  if(!$('tl3d-cesium-css')){var l=document.createElement('link');l.id='tl3d-cesium-css';l.rel='stylesheet';l.href='https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css';document.head.appendChild(l)}
-  var s=document.createElement('script');s.src='https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js';s.async=true;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);
- });return cesiumPromise;
-}
-function fly(){if(!viewer)return;viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(HOME.lon,HOME.lat,HOME.height),orientation:{heading:Cesium.Math.toRadians(8),pitch:Cesium.Math.toRadians(-42),roll:0},duration:1.2,easingFunction:Cesium.EasingFunction.QUADRATIC_IN_OUT})}
-function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-function props(entity){
- var out=[],p=entity&&entity.properties;if(!p)return out;
- var names=p.propertyNames||[],now=Cesium.JulianDate.now();
- for(var i=0;i<names.length&&i<30;i++){var k=names[i],v='';try{v=p[k].getValue(now)}catch(e){}if(v!==''&&v!=null)out.push([k,v])}
- return out;
-}
-function showFeature(entity){
- var box=$('tl3dFeature');if(!box)return;
- if(!entity){box.innerHTML='<span style="color:#8ea8b0">Chạm vào một đối tượng GIS để xem thông tin.</span>';return}
- var rows=props(entity),html='<div class="row"><b>Tên</b><span>'+esc(entity.name||'Đối tượng GIS')+'</span></div>';
- for(var i=0;i<rows.length&&i<18;i++){var a=rows[i];html+='<div class="row"><b>'+esc(a[0])+'</b><span>'+esc(a[1])+'</span></div>'}
- box.innerHTML=html;
-}
-function textOfFeature(f){
- var p=f&&f.properties||{},arr=[f&&f.id,f&&f.name];
- var keys=Object.keys(p);
- for(var i=0;i<keys.length;i++)arr.push(keys[i],p[keys[i]]);
- return arr.join(' ').toLowerCase();
-}
-function category(f){
- var t=textOfFeature(f);
- if(/trạm bơm|tram bom|pump/.test(t))return 'pump';
- if(/hồ chứa|ho chua|reservoir|đập|dap/.test(t))return 'reservoir';
- if(/sông|song|river|kênh|kenh|canal/.test(t))return 'water';
- if(/vùng|vung|tưới|tuoi|irrig/.test(t))return 'area';
- return 'other';
-}
-/* ============================================================
-   KMZ COLOR LOCK — GIỮ MÀU GỐC CỦA KML/KMZ
-   - Hỗ trợ KML AABBGGRR
-   - Hỗ trợ #RRGGBB / #RGB / rgb()/rgba()
-   - Hỗ trợ GeoJSON style: stroke/fill + opacity
-   - Không ép màu cyan nếu nguồn đã có màu
-   ============================================================ */
-function firstDefined(p, keys){
-  for(var i=0;i<keys.length;i++){
-    var v=p[keys[i]];
-    if(v!==undefined && v!==null && String(v).trim()!=='') return v;
-  }
-  return null;
-}
-function parseKMLColor(f,poly){
-  var p=f&&f.properties||{};
-  var keys=poly
-    ? ['kmlPolyColor','KMLPolyColor','polyColor','PolyColor','fillColor','FillColor','fill','Fill','polygonColor','PolygonColor','styleFill','StyleFill']
-    : ['kmlColor','KMLColor','lineColor','LineColor','strokeColor','StrokeColor','styleColor','StyleColor','stroke','Stroke','line','Line'];
-  var raw=firstDefined(p,keys);
-  if(raw===null){
-    /* Chỉ dùng color generic như fallback; tránh làm mất stroke/fill rõ ràng. */
-    raw=firstDefined(p,['color','Color']);
-  }
-  if(raw===null)return null;
-  var c=String(raw).trim();
-  var opacity=null;
 
-  /* rgba()/rgb() */
-  var m=c.match(/^rgba?\\(\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*,\\s*([\\d.]+)(?:\\s*,\\s*([\\d.]+))?\\s*\\)$/i);
-  if(m){
-    var r=Math.max(0,Math.min(255,Number(m[1])));
-    var g=Math.max(0,Math.min(255,Number(m[2])));
-    var b=Math.max(0,Math.min(255,Number(m[3])));
-    opacity=m[4]===undefined?1:Math.max(0,Math.min(1,Number(m[4])));
-    return {css:'rgb('+r+','+g+','+b+')',alpha:opacity,raw:c,format:'rgb'};
-  }
 
-  c=c.replace(/^#/,'').replace(/^0x/i,'');
-  if(/^[0-9a-fA-F]{8}$/.test(c)){
-    /* KML chuẩn: AABBGGRR */
-    var a=parseInt(c.substring(0,2),16)/255;
-    var rr=c.substring(6,8),gg=c.substring(4,6),bb=c.substring(2,4);
-    return {css:'#'+rr+gg+bb,alpha:a,raw:c,format:'kml'};
-  }
-  if(/^[0-9a-fA-F]{6}$/.test(c)){
-    return {css:'#'+c,alpha:1,raw:c,format:'hex'};
-  }
-  if(/^[0-9a-fA-F]{3}$/.test(c)){
-    return {css:'#'+c[0]+c[0]+c[1]+c[1]+c[2]+c[2],alpha:1,raw:c,format:'hex3'};
-  }
-  return null;
-}
-function kmlCssColor(f,poly){var c=parseKMLColor(f,poly);return c?c.css:null}
-function kmlCssAlpha(f,poly,def){var c=parseKMLColor(f,poly);return c?c.alpha:(def==null?1:def)}
-function kmlWidth(f){
-  var p=f&&f.properties||{};
-  var n=Number(firstDefined(p,['kmlWidth','KMLWidth','lineWidth','LineWidth','stroke-width','strokeWidth','width','Width']));
-  return Number.isFinite(n)&&n>0?n:2;
-}
-function cssOpacity(f,poly,def){
-  var p=f&&f.properties||{};
-  var v=firstDefined(p,poly?['kmlPolyOpacity','fill-opacity','fillOpacity','polygonOpacity']:['kmlLineOpacity','stroke-opacity','strokeOpacity','lineOpacity']);
-  var n=Number(v);
-  return Number.isFinite(n)?Math.max(0,Math.min(1,n)):def;
-}
-function cesiumColor(hex,alpha){
-  try{return Cesium.Color.fromCssColorString(hex).withAlpha(Math.max(0,Math.min(1,alpha)))}
-  catch(e){return Cesium.Color.WHITE.withAlpha(Math.max(0,Math.min(1,alpha)))}
-}
-function styleEntity(e,f){
-  var c=category(f||{}),line=parseKMLColor(f,false),fill=parseKMLColor(f,true),width=kmlWidth(f);
-  var fallbackLine=c==='water'?'#22d3ee':'#55e6c1';
-  if(e.polyline){
-    var lc=line?line.css:fallbackLine;
-    var la=line?line.alpha:cssOpacity(f,false,.92);
-    e.polyline.width=Math.max(1,Math.min(width,16));
-    e.polyline.clampToGround=true;
-    e.polyline.material=cesiumColor(lc,la);
-  }
-  if(e.polygon){
-    var pc=fill?fill.css:(line?line.css:(c==='reservoir'?'#38bdf8':'#55e6c1'));
-    var pa=fill?fill.alpha:(line?Math.min(line.alpha,.35):cssOpacity(f,true,.16));
-    var oc=line?line.css:pc;
-    var oa=line?line.alpha:Math.min(1,Math.max(.65,pa));
-    e.polygon.outline=true;
-    e.polygon.outlineColor=cesiumColor(oc,oa);
-    e.polygon.material=cesiumColor(pc,pa);
-  }
-  if(e.point){
-    var pt=line?line.css:(c==='pump'?'#f59e0b':c==='reservoir'?'#38bdf8':'#43e6d0');
-    var pa2=line?line.alpha:cssOpacity(f,false,.98);
-    e.point.pixelSize=c==='pump'?11:(c==='reservoir'?10:8);
-    e.point.outlineWidth=1;
-    e.point.color=cesiumColor(pt,pa2);
-    e.point.outlineColor=cesiumColor(pt,pa2);
-  }
-}
-function updateCounts(){
- var fs=(featuresCache&&featuresCache.features)||[],p=0,l=0;
- for(var i=0;i<fs.length;i++){var gt=String(fs[i].geometry&&fs[i].geometry.type||'');if(gt.indexOf('Point')>=0)p++;else l++}
- if($('tl3dCount'))$('tl3dCount').textContent=fs.length.toLocaleString('vi-VN');
- if($('tl3dPoints'))$('tl3dPoints').textContent=p.toLocaleString('vi-VN');
- if($('tl3dLines'))$('tl3dLines').textContent=l.toLocaleString('vi-VN');
-}
-function applyVisibility(){
- if(!ds)return;
- var sp=$('tl3dShowPoints')?$('tl3dShowPoints').checked:true,sl=$('tl3dShowLines')?$('tl3dShowLines').checked:true,sa=$('tl3dShowAreas')?$('tl3dShowAreas').checked:true;
- var es=ds.entities.values;
- for(var i=0;i<es.length;i++){var e=es[i];if(e.point)e.show=sp;else if(e.polyline)e.show=sl;else if(e.polygon)e.show=sa;}
- if(viewer&&viewer.scene)viewer.scene.requestRender();
-}
-function search(q){
- var box=$('tl3dSearchResults');if(!box)return;
- q=String(q||'').trim().toLowerCase();box.innerHTML='';
- if(!q){box.classList.remove('show');return}
- var hits=[];
- for(var i=0;i<entityIndex.length&&hits.length<60;i++){var x=entityIndex[i];if(x.text.indexOf(q)>=0)hits.push(x)}
- hits.sort(function(a,b){var aa=a.name.toLowerCase().indexOf(q),bb=b.name.toLowerCase().indexOf(q);return aa-bb||a.name.length-b.name.length});
- hits=hits.slice(0,12);
- if(!hits.length){box.innerHTML='<div class="tl3d-result">Không tìm thấy đối tượng GIS.</div>';box.classList.add('show');return}
- var frag=document.createDocumentFragment();
- for(var j=0;j<hits.length;j++){(function(h){var d=document.createElement('div');d.className='tl3d-result';d.innerHTML=esc(h.name||'Đối tượng GIS')+'<small>'+esc(h.kind||'GIS')+'</small>';d.onclick=function(){box.classList.remove('show');if(h.entity){h.entity.show=true;showFeature(h.entity);if(viewer)viewer.flyTo(h.entity,{duration:1.0}).catch(function(){});setStatus('🔎 '+(h.name||'Đối tượng GIS'))}};frag.appendChild(d)})(hits[j])}
- box.appendChild(frag);box.classList.add('show');
-}
-async function init(){
- if(ready&&viewer){if(viewer.container)viewer.resize();if(viewer.scene)viewer.scene.requestRender();return}
- if(loading)return;
- loading=true;setStatus('⏳ Đang tải Cesium 3D…');
- try{
-  await loadScript();
-  if(!viewer){
-   viewer=new Cesium.Viewer('tl3dMap',{
-    baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,
-    animation:false,timeline:false,fullscreenButton:false,selectionIndicator:false,infoBox:false,
-    scene3DOnly:true,requestRenderMode:true,maximumRenderTimeChange:Infinity,shouldAnimate:false,msaaSamples:1
-   });
-   try{
-    viewer.terrainProvider=await Cesium.ArcGISTiledElevationTerrainProvider.fromUrl('https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer');
-    viewer.scene.globe.terrainExaggeration=1.20;
-   }catch(e){console.warn('[TL3D] ArcGIS terrain',e);setStatus('🟡 3D Globe đã mở; địa hình ArcGIS chưa tải được. GIS vẫn hiển thị.')}
-   viewer.imageryLayers.removeAll();
-   function add3DBase(key){
-    var provider;
-    if(key==='street')provider=new Cesium.UrlTemplateImageryProvider({url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',credit:'Esri World Street Map'});
-    else if(key==='dark')provider=new Cesium.UrlTemplateImageryProvider({url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',subdomains:['a','b','c','d'],credit:'CARTO'});
-    else provider=new Cesium.UrlTemplateImageryProvider({url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',credit:'Esri World Imagery'});
-    viewer.imageryLayers.removeAll();viewer.imageryLayers.addImageryProvider(provider);window.__TL3D_BASE=key;
-    if(viewer.scene)viewer.scene.requestRender();
-   }
-   window.__TL3D_ADD_BASE=add3DBase;
-   add3DBase(window.activeBaseLayerKey||'satellite');
-   viewer.scene.globe.depthTestAgainstTerrain=true;viewer.scene.fog.enabled=true;viewer.scene.fog.density=0.00004;
-   viewer.selectedEntityChanged.addEventListener(function(e){showFeature(e);if(viewer.scene)viewer.scene.requestRender()});
-  }
-  if(!featuresCache){
-   setStatus('⏳ Đang đọc GIS Master 15.197 đối tượng…');
-   var r=await fetch(GIS_URL,{cache:'default'});if(!r.ok)throw Error('GIS HTTP '+r.status);featuresCache=await r.json();
-  }
-  if(!ds){
-   setStatus('⏳ Đang dựng mô hình 3D…');
-   ds=await Cesium.GeoJsonDataSource.load(featuresCache,{clampToGround:true,stroke:Cesium.Color.CYAN,strokeWidth:3,fill:Cesium.Color.CYAN.withAlpha(.10),markerColor:Cesium.Color.CYAN,markerSize:9});
-   viewer.dataSources.add(ds);
-   var fs=featuresCache.features||[],es=ds.entities.values;
-   entityIndex=new Array(es.length);
-   for(var i=0;i<es.length;i++){
-    var f=fs[i]||{},e=es[i],name=String(e.name||(f.properties&&f.properties.name)||'Đối tượng GIS');
-    styleEntity(e,f);entityIndex[i]={entity:e,name:name,text:textOfFeature(f),kind:category(f)};entityByFeature.set(f,e);
-   }
-   updateCounts();applyVisibility();
-  }else{
-   applyVisibility();
-  }
-  fly();ready=true;setStatus('✅ GOD’S EYE sẵn sàng · GIS Master '+((featuresCache.features||[]).length).toLocaleString('vi-VN')+' đối tượng');
- }catch(e){console.error('[TL3D]',e);setStatus('❌ '+e.message+' — kiểm tra kết nối Cesium/ArcGIS và gis/master.geojson.')}finally{loading=false}
-}
-function open3d(){
- panel.hidden=false;document.body.classList.add('tl3d-open');
- var b=$('map3dBtn');if(b){b.textContent='2D';b.title='Về bản đồ 2D';b.setAttribute('aria-label','Về bản đồ 2D')}
- requestAnimationFrame(function(){if(viewer)viewer.resize();init()});
-}
-function close3d(){
- panel.hidden=true;document.body.classList.remove('tl3d-open');
- var b=$('map3dBtn');if(b){b.textContent='🌐';b.title='Mở chế độ 3D Terrain';b.setAttribute('aria-label','Chế độ 3D')}
-}
-if(btn)btn.addEventListener('click',open3d);if(close)close.addEventListener('click',close3d);if(home)home.addEventListener('click',fly);
-var sb=$('tl3dSearchBtn'),si=$('tl3dSearchInput');if(sb)sb.onclick=function(){search(si?si.value:'')};if(si){var t=null;si.addEventListener('input',function(){clearTimeout(t);var v=si.value;t=setTimeout(function(){search(v)},80)});si.addEventListener('keydown',function(e){if(e.key==='Enter')search(si.value)})}
-['tl3dShowPoints','tl3dShowLines','tl3dShowAreas'].forEach(function(id){var el=$(id);if(el)el.addEventListener('change',applyVisibility)});
-var oldSearch=document.getElementById('mapSearch');if(oldSearch)oldSearch.addEventListener('keydown',function(ev){if(ev.key==='Enter'&&!panel.hidden&&ready)search(oldSearch.value)});
-function sync2DLayerVisibility(){
- var fp=$('toggleFacilities'),cp=$('toggleChannels'),ap=$('toggleAreas'),sp=fp?fp.checked:true,sl=cp?cp.checked:true,sa=ap?ap.checked:true;
- if(ds){var es=ds.entities.values;for(var i=0;i<es.length;i++){var e=es[i];if(e.point)e.show=sp;else if(e.polyline)e.show=sl;else if(e.polygon)e.show=sa}}
- if(viewer&&viewer.scene)viewer.scene.requestRender();
-}
-function set3DBase(key){if(viewer&&window.__TL3D_ADD_BASE)window.__TL3D_ADD_BASE(key)}
-['toggleFacilities','toggleChannels','toggleAreas'].forEach(function(id){var el=$(id);if(el)el.addEventListener('change',sync2DLayerVisibility)});
-var baseBtns=document.querySelectorAll('[data-basemap]');baseBtns.forEach(function(b){b.addEventListener('click',function(){if(document.body.classList.contains('tl3d-open'))set3DBase(b.getAttribute('data-basemap')||'satellite')})});
-var twoDSearch=$('mapSearch'),twoDBtn=$('mapSearchBtn');
-function bridge2DSearch(){if(!document.body.classList.contains('tl3d-open'))return false;search(twoDSearch?twoDSearch.value:'');return true}
-if(twoDBtn)twoDBtn.addEventListener('click',function(e){if(document.body.classList.contains('tl3d-open')){e.preventDefault();e.stopImmediatePropagation();bridge2DSearch()}},true);
-if(twoDSearch)twoDSearch.addEventListener('keydown',function(e){if(document.body.classList.contains('tl3d-open')&&e.key==='Enter'){e.preventDefault();e.stopImmediatePropagation();bridge2DSearch()}},true);
-window.__TL3D={open:open3d,close:close3d,fly:fly,search:search,setBase:set3DBase,get viewer(){return viewer},get ready(){return ready},get data(){return featuresCache}};
-})();
-</script>
-
-<style id="tl3d-final-kmz-ui">
-/* FINAL: 3D là nền render; UI/chức năng vẫn là UI 2D gốc */
-#tl3dPanel{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;min-width:100vw!important;min-height:100vh!important;max-width:none!important;max-height:none!important;z-index:2!important;background:transparent!important;display:none!important;overflow:hidden!important;pointer-events:none!important}
-#tl3dPanel:not([hidden]){display:block!important}
-#tl3dMap{position:absolute!important;inset:0!important;z-index:0!important;pointer-events:auto!important}
-#tl3dPanel .tl3d-toolbar,#tl3dPanel .tl3d-search,#tl3dPanel .tl3d-search-results,#tl3dPanel .tl3d-side,#tl3dPanel #tl3dStatus{display:none!important}
-body.tl3d-open #mapAiPanel{background:transparent!important}
-body.tl3d-open #mapAiPanel .map-container{background:transparent!important;pointer-events:none!important}
-body.tl3d-open #mapAiPanel #aiMap{background:transparent!important}
-body.tl3d-open #mapAiPanel .leaflet-pane,body.tl3d-open #mapAiPanel .leaflet-control-container{opacity:0!important;visibility:hidden!important}
-body.tl3d-open #mapAiPanel .map-floating-btn,body.tl3d-open #mapAiPanel #mapAlertBtn,body.tl3d-open #mapAiPanel #tlAlertSheet,body.tl3d-open #mapAiPanel .map-layer-panel,body.tl3d-open #mapAiPanel .map-feature-card,body.tl3d-open #mapAiPanel .map-legend{pointer-events:auto!important}
-body.tl3d-open #mapAiPanel .map-search-wrap,body.tl3d-open #mapAiPanel .map-quick-chips,body.tl3d-open #mapAiPanel #searchResults,body.tl3d-open #mapAiPanel .map-ai-header{pointer-events:auto!important}
-body.tl3d-open #mapAiPanel #map3dBtn{background:#082a4a!important;color:#fff!important;border-color:rgba(255,255,255,.25)!important}
-</style>
 </html>
 <!-- =========================================================
      THỦY LỢI AI — BẢN ĐỒ THỦY LỢI STANDALONE

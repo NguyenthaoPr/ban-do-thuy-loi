@@ -83,7 +83,16 @@
 <style id="tl3d-integrated-v2">
 #mapAiPanel #map3dBtn{width:40px;height:40px;border-radius:11px;border:1px solid rgba(8,42,74,.16);background:#fff;color:#082a4a;cursor:pointer;font-size:17px;font-weight:800}
 #mapAiPanel #map3dBtn:hover{background:#eef7fb}
-#tl3dPanel{position:fixed;inset:0;z-index:12000;background:#06111c;display:none;overflow:hidden}
+#tl3dPanel{
+position:fixed!important;
+inset:0!important;
+width:100vw!important;
+height:100vh!important;
+z-index:99999!important;
+background:#06111c;
+display:none;
+overflow:hidden;
+}
 #tl3dPanel:not([hidden]){display:block!important}
 #tl3dMap{position:absolute;inset:0}
 .tl3d-toolbar{position:absolute;z-index:40;top:max(10px,env(safe-area-inset-top));left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border-radius:16px;background:rgba(5,18,30,.86);border:1px solid rgba(100,210,220,.25);backdrop-filter:blur(14px);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.25)}

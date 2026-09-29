@@ -6295,10 +6295,23 @@ const TL_SIX_LAYER_MEMBERS = {
             tlZoomBand = band;
 
             // Chỉ tại thời điểm đổi Band mới quét nonPointLayer.
+            // QUAN TRỌNG: trạng thái 6 lớp được áp dụng SAU zoom style,
+            // nên tuyến/vùng tắt không thể bị zoomend làm hiện trở lại.
             nonPointLayer.eachLayer(function(layer) {
               if (!layer || !layer.setStyle) return;
               const base = layer.__tlKMLBaseStyle;
               if (!base) return;
+
+              const key = (typeof tlSixLayerKey === 'function')
+                ? tlSixLayerKey(layer.feature) : null;
+              const visible = key && TL_SIX_LAYER_STATE
+                ? !!TL_SIX_LAYER_STATE[key] : true;
+
+              if (!visible) {
+                layer.setStyle({ opacity: 0, fillOpacity: 0 });
+                return;
+              }
+
               layer.setStyle(tlZoomStyleForBand(band, base));
             });
 
@@ -6399,10 +6412,13 @@ const TL_SIX_LAYER_MEMBERS = {
           };
 
 
-          // ---- TẠO MARKER CLUSTER ----
+          // ---- CỤM 6 LỚP KMZ ----
+          // Tham chiếu kiến trúc index-6: một layer cha chứa 6 nhóm con.
+          // Không add/remove từng Marker trực tiếp khỏi MarkerClusterGroup;
+          // làm vậy dễ gây lỗi nội bộ _zoom của MarkerCluster.
           markerFeatureMap = new WeakMap();
-          markerCluster = L.markerClusterGroup({
-            // Chunking ở chính cluster giúp tránh khóa UI khi có hàng nghìn marker.
+
+          const TL_CLUSTER_OPTIONS = {
             chunkedLoading: true,
             chunkInterval: TL_IS_MOBILE ? 20 : 50,
             chunkDelay: TL_IS_MOBILE ? 35 : 20,
@@ -6423,14 +6439,32 @@ const TL_SIX_LAYER_MEMBERS = {
                 iconAnchor: [14, 14]
               });
             }
+          };
+
+          const tlSixLayerGroups = {
+            reservoir: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            pump: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            dam: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            channel: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            onchannel: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            irrigation: L.markerClusterGroup(TL_CLUSTER_OPTIONS)
+          };
+
+          // Layer cha duy nhất của hệ thống marker; mỗi lớp con tự quản lý
+          // MarkerCluster, tránh thao tác trực tiếp marker -> MarkerCluster.
+          markerCluster = L.layerGroup();
+          Object.keys(tlSixLayerGroups).forEach(function(key){
+            markerCluster.addLayer(tlSixLayerGroups[key]);
           });
 
           // Runtime dùng chung cho các lớp điều khiển bản đồ mobile.
+          window.tlSixLayerGroups = tlSixLayerGroups;
+
           window.__TL_MAP_RUNTIME = {
             map: aiMap,
             mapLayer: aiMapLayer,
             markerCluster: markerCluster,
-            sixLayers: TL_SIX_LAYER_STATE,
+            sixLayers: tlSixLayerGroups,
             sixLayerMembers: TL_SIX_LAYER_MEMBERS,
             nonPointLayer: nonPointLayer,
             baseLayers: aiBaseLayers,
@@ -6688,57 +6722,102 @@ function getGISFeatureWidth(feature) {
 // Chỉ bổ sung một lớp điều khiển hiển thị theo 6 nhóm nghiệp vụ.
 // ============================================================
 
+function tlNormalizeLayerText(v){
+  return String(v ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\\u0300-\\u036f]/g,'')
+    .replace(/đ/g,'d');
+}
+
+function tlIsKMZRedLine(feature){
+  const p = feature?.properties || {};
+  const c = parseGISColor(feature, false);
+  const color = tlNormalizeLayerText(c?.color || '');
+  const raw = [
+    p.kmlColor,p.KMLColor,p.styleColor,p.StyleColor,
+    p.lineColor,p.LineColor,p.color,p.Color
+  ].filter(v => v !== undefined && v !== null).map(String).join(' ').toLowerCase().replace(/#/g,'');
+  return color === '#ff0000' || color === 'rgb(255,0,0)' ||
+         /(^|\\s)(ff0000|ff0000ff)(\\s|$)/.test(raw) ||
+         raw.includes('rgb(255,0,0)') || raw.includes('rgb(255, 0, 0)');
+}
+
+/* Phân lớp theo đúng logic của index-6:
+   - Polygon/MultiPolygon -> Khu tưới
+   - Line màu đỏ thuần KMZ -> Khu tưới
+   - Tuyến có tên/loại Kênh -> Hệ thống kênh
+   - Tuyến còn lại -> Hệ thống kênh
+   - Điểm -> Hồ/Trạm bơm/Đập/Công trình trên kênh theo type/name.
+*/
 function tlSixLayerKey(feature) {
   const p = feature?.properties || {};
-  const geom = feature?.geometry?.type || '';
-  const name = getGISFeatureName(feature);
-  const desc = getGISFeatureDescription(feature);
-  const raw = [name, desc, p.type, p.Type, p.loai, p.Loai, p.category, p.Category]
-    .filter(v => v !== undefined && v !== null)
-    .join(' ');
-  const text = String(raw).toLowerCase();
-  const noDiacritics = text.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  let type = 'khac';
-  try { type = getCongTrinhType(p, feature?.geometry); } catch(e) {}
+  const geom = feature?.geometry || {};
+  const gt = geom.type || '';
 
-  // 1. Hồ chứa — nhận cả điểm và vùng hồ, ưu tiên trước mọi geometry chung.
-  if (type === 'ho' || /\bho\s*(chua|nuoc)?\b/.test(noDiacritics) || /\bhồ\s*(chứa|nước)?\b/.test(text)) {
-    return 'reservoir';
-  }
+  if (gt === 'Polygon' || gt === 'MultiPolygon') return 'irrigation';
 
-  // 2. Trạm bơm.
-  if (type === 'tram_bom' || /tram\s*bom/.test(noDiacritics) || /trạm\s*bơm/.test(text)) {
-    return 'pump';
-  }
+  const name = tlNormalizeLayerText([
+    p.name,p.Name,p.NAME,p.ten,p.Ten,p.TEN,
+    p.ten_kenh,p.TEN_KENH,p.ten_duong,p.TEN_DUONG
+  ].filter(Boolean).join(' '));
 
-  // 3. Đập/Bara.
-  if (type === 'dap' || /\b(dap|bara|barrage)\b/.test(noDiacritics) || /\b(đập|bara|barrage)\b/.test(text)) {
-    return 'dam';
-  }
+  let type = '';
+  try { type = getCongTrinhType(p, geom) || ''; } catch(e) {}
+  type = tlNormalizeLayerText(type);
 
-  // 5. Công trình trên kênh — nhận diện theo tên/loại trước geometry.
-  if (type === 'cong' || type === 'tran' || type === 'cau' || type === 'ong' ||
-      /\b(cong|tran|cau|ong)\b/.test(noDiacritics) ||
-      /\b(cống|tràn|cầu|ống)\b/.test(text)) {
-    return 'onchannel';
-  }
+  if (gt === 'LineString' || gt === 'MultiLineString') {
+    // Theo master.kmz/index-6: đường đỏ là Khu tưới, kiểm tra màu trước tên.
+    if (tlIsKMZRedLine(feature)) return 'irrigation';
 
-  // 6. Khu tưới — nhận diện rõ bằng thuộc tính/tên trước polygon chung.
-  if (/khu\s*tuoi|vung\s*tuoi|dien\s*tuoi/.test(noDiacritics) ||
-      /khu\s*tưới|vùng\s*tưới|diện\s*tưới/.test(text)) {
-    return 'irrigation';
-  }
+    if (
+      type === 'kenh' ||
+      /\\bkenh\\b/.test(name) ||
+      name.includes('tuyen kenh') ||
+      name.includes('kenh chinh') ||
+      name.includes('kenh nhanh') ||
+      /\\bmuong\\b/.test(name)
+    ) return 'channel';
 
-  // 4. Hệ thống kênh — tuyến kênh và các đối tượng được khai báo là kênh.
-  if (type === 'kenh' || /\bkenh\b/.test(noDiacritics) || /\bkênh\b/.test(text) ||
-      geom === 'LineString' || geom === 'MultiLineString') {
+    if (
+      name.includes('khu tuoi') ||
+      name.includes('khu tuowisi') ||
+      name.includes('khut uoi') ||
+      name.includes('khu tii') ||
+      name.includes('khu tui')
+    ) return 'irrigation';
+
     return 'channel';
   }
 
-  // Polygon còn lại được giữ trong lớp Khu tưới theo kiến trúc GIS hiện hữu.
-  if (geom === 'Polygon' || geom === 'MultiPolygon') return 'irrigation';
+  // Điểm/công trình: giữ cách nhận diện nghiệp vụ hiện hữu.
+  const raw = tlNormalizeLayerText([
+    getGISFeatureName(feature),
+    getGISFeatureDescription(feature),
+    p.type,p.Type,p.loai,p.Loai,p.category,p.Category
+  ].filter(v => v !== undefined && v !== null).join(' '));
 
-  // Các điểm/công trình còn lại thuộc nhóm Công trình trên kênh.
+  if (
+    type === 'ho' ||
+    /\\bho\\s*(chua|nuoc)?\\b/.test(raw) ||
+    raw.includes('ho chua')
+  ) return 'reservoir';
+
+  if (
+    type === 'tram_bom' ||
+    raw.includes('tram bom')
+  ) return 'pump';
+
+  if (
+    type === 'dap' || type === 'dap_dang' ||
+    /\\b(dap|bara|barrage)\\b/.test(raw)
+  ) return 'dam';
+
+  if (
+    type === 'khu_tuoi' ||
+    raw.includes('khu tuoi')
+  ) return 'irrigation';
+
   return 'onchannel';
 }
 
@@ -6750,31 +6829,65 @@ function tlRegisterSixLayerMember(feature, layer) {
   layer.__tlSixLayerKey = key;
 }
 
+function tlApplyNonPointSixLayerStyle(layer, force){
+  if (!layer || !layer.setStyle) return;
+  const feature = layer.feature;
+  const gt = feature?.geometry?.type || '';
+  if (
+    gt !== 'LineString' && gt !== 'MultiLineString' &&
+    gt !== 'Polygon' && gt !== 'MultiPolygon'
+  ) return;
+
+  const key = tlSixLayerKey(feature);
+  const visible = !!TL_SIX_LAYER_STATE[key];
+  const base = layer.__tlKMLBaseStyle || {};
+
+  if (!visible) {
+    layer.setStyle({
+      opacity: 0,
+      fillOpacity: 0
+    });
+    if (layer.closeTooltip) {
+      try { layer.closeTooltip(); } catch(e) {}
+    }
+    return;
+  }
+
+  // Chỉ phục hồi style KMZ gốc; zoom-band tiếp tục điều chỉnh độ mờ.
+  layer.setStyle({
+    color: base.color,
+    weight: base.weight,
+    opacity: Number.isFinite(base.opacity) ? base.opacity : 1,
+    fill: base.fill,
+    fillColor: base.fillColor,
+    fillOpacity: Number.isFinite(base.fillOpacity) ? base.fillOpacity : 0
+  });
+}
+
 function tlApplySixLayerVisibility() {
   try {
-    if (!markerCluster || !nonPointLayer) return;
-    TL_SIX_LAYER_KEYS.forEach(function(key){
-      const visible = !!TL_SIX_LAYER_STATE[key];
-      const members = TL_SIX_LAYER_MEMBERS[key] || [];
-      members.forEach(function(layer){
+    // Marker: bật/tắt theo GROUP, không add/remove từng marker.
+    if (window.tlSixLayerGroups) {
+      ['reservoir','pump','dam','channel','onchannel','irrigation'].forEach(function(key){
+        const group = window.tlSixLayerGroups[key];
+        if (!group || !markerCluster) return;
+        const visible = !!TL_SIX_LAYER_STATE[key];
         try {
-          const isMarker = layer instanceof L.Marker;
-          if (isMarker) {
-            if (visible) {
-              if (!markerCluster.hasLayer(layer)) markerCluster.addLayer(layer);
-            } else {
-              if (markerCluster.hasLayer(layer)) markerCluster.removeLayer(layer);
-            }
+          if (visible) {
+            if (!markerCluster.hasLayer(group)) markerCluster.addLayer(group);
           } else {
-            if (visible) {
-              if (!nonPointLayer.hasLayer(layer)) nonPointLayer.addLayer(layer);
-            } else {
-              if (nonPointLayer.hasLayer(layer)) nonPointLayer.removeLayer(layer);
-            }
+            if (markerCluster.hasLayer(group)) markerCluster.removeLayer(group);
           }
         } catch(e) {}
       });
-    });
+    }
+
+    // Đường/vùng: giữ nguyên nonPointLayer trên map, chỉ đổi style.
+    if (nonPointLayer && typeof nonPointLayer.eachLayer === 'function') {
+      nonPointLayer.eachLayer(function(layer){
+        try { tlApplyNonPointSixLayerStyle(layer, true); } catch(e) {}
+      });
+    }
   } catch(e) {
     console.warn('[6-LAYER] visibility:', e);
   }
@@ -6783,17 +6896,34 @@ function tlApplySixLayerVisibility() {
 function tlSetSixLayer(key, visible) {
   if (!Object.prototype.hasOwnProperty.call(TL_SIX_LAYER_STATE, key)) return;
   TL_SIX_LAYER_STATE[key] = !!visible;
-  // Chỉ cập nhật đúng các layer thuộc nhóm vừa đổi; không nạp lại GIS.
   tlApplySixLayerVisibility();
-  try { if (typeof window.__TL_REFRESH_ZOOM_BAND === 'function') window.__TL_REFRESH_ZOOM_BAND(true); } catch(e) {}
-  // Đảm bảo các tuyến/vùng vừa bật vẫn mang style KMZ hiện tại.
-  try { if (typeof tlApplySixLayerVisibility === 'function') tlApplySixLayerVisibility(); } catch(e) {}
-      try {
-        const _six = {reservoir:'toggleReservoirs',pump:'togglePumps',dam:'toggleDams',channel:'toggleChannels',onchannel:'toggleOnChannel',irrigation:'toggleIrrigation'};
-        Object.keys(_six).forEach(function(k){ const el=document.getElementById(_six[k]); if(el) el.checked=!!TL_SIX_LAYER_STATE[k]; });
-      } catch(e) {}
-  window.__TL_SIX_LAYERS = { state: {...TL_SIX_LAYER_STATE}, counts: Object.fromEntries(TL_SIX_LAYER_KEYS.map(k => [k,(TL_SIX_LAYER_MEMBERS[k]||[]).length])) };
+  try {
+    if (typeof window.__TL_REFRESH_ZOOM_BAND === 'function') {
+      window.__TL_REFRESH_ZOOM_BAND(true);
+    }
+  } catch(e) {}
+
+  try {
+    const ids = {
+      reservoir:'toggleReservoirs',
+      pump:'togglePumps',
+      dam:'toggleDams',
+      channel:'toggleChannels',
+      onchannel:'toggleOnChannel',
+      irrigation:'toggleIrrigation'
+    };
+    const el = document.getElementById(ids[key]);
+    if (el) el.checked = !!TL_SIX_LAYER_STATE[key];
+  } catch(e) {}
+
+  window.__TL_SIX_LAYERS = {
+    state: {...TL_SIX_LAYER_STATE},
+    counts: Object.fromEntries(
+      TL_SIX_LAYER_KEYS.map(k => [k,(TL_SIX_LAYER_MEMBERS[k]||[]).length])
+    )
+  };
 }
+
 
 
 // ------------------------------------------------------------
@@ -7257,7 +7387,14 @@ if (description) {
           const POINT_BATCH = TL_IS_MOBILE ? TL_MOBILE_POINT_BATCH : TL_DESKTOP_POINT_BATCH;
 
           function processPointBatch() {
-            const batch = [];
+            const batches = {
+              reservoir: [],
+              pump: [],
+              dam: [],
+              channel: [],
+              onchannel: [],
+              irrigation: []
+            };
             const end = Math.min(pointCursor + POINT_BATCH, pointFeatures.length);
 
             for (; pointCursor < end; pointCursor++) {
@@ -7290,14 +7427,17 @@ if (description) {
                 }
               });
 
-              batch.push(marker);
+              const key = marker.__tlSixLayerKey || tlSixLayerKey(feature);
+              (batches[key] || batches.onchannel).push(marker);
             }
 
-            if (batch.length) {
-              // Một lần addLayers cho cả batch nhanh hơn hàng trăm addLayer.
-              // chunkedLoading đã cấu hình ở markerClusterGroup.
-              markerCluster.addLayers(batch);
-            }
+            // Giống index-6: mỗi nhóm marker có MarkerCluster riêng.
+            Object.keys(batches).forEach(function(key){
+              const group = window.tlSixLayerGroups && window.tlSixLayerGroups[key];
+              if (group && batches[key].length) {
+                group.addLayers(batches[key]);
+              }
+            });
 
             if (pointCursor < pointFeatures.length) {
               mapAiStatus.textContent =
@@ -8216,94 +8356,51 @@ if (description) {
 <script id="tl-kmz-only-display-fix-v3">
 (function(){
   'use strict';
-  /* V14-6-Lop-2D: ONLY fix KMZ layer display.
-     Không thay nguồn GIS, phân lớp nghiệp vụ, popup, search, AI_DATA hay UI.
-     FIX này đặc biệt bảo đảm các LineString/MultiLineString của KMZ luôn
-     được nối vào nonPointLayer khi bật "Hệ thống kênh". Không ép màu mới. */
-  function forceDisplay(){
+  /*
+   * ONLY KMZ DISPLAY CONTROLLER.
+   * Tham chiếu logic index-6: nonPointLayer luôn nằm trên map;
+   * đường/vùng bật-tắt bằng style; marker bật-tắt bằng 6 group.
+   */
+  function sync(){
     try{
-      const runtime = window.__TL_MAP_RUNTIME || {};
-      const mapLayer = runtime.mapLayer || window.aiMapLayer;
-      const nonPoint = runtime.nonPointLayer || window.nonPointLayer;
-      const markerGroup = runtime.markerCluster || window.markerCluster;
-      if(!mapLayer || !nonPoint || !markerGroup) return;
-
-      // Giữ nguyên kiến trúc layer cha hiện hữu.
-      if(!mapLayer.hasLayer(nonPoint)) mapLayer.addLayer(nonPoint);
-      if(!mapLayer.hasLayer(markerGroup)) mapLayer.addLayer(markerGroup);
-
-      const members = (typeof TL_SIX_LAYER_MEMBERS !== 'undefined')
-        ? TL_SIX_LAYER_MEMBERS : {};
-      const state = (typeof TL_SIX_LAYER_STATE !== 'undefined')
-        ? TL_SIX_LAYER_STATE : {};
-      const keys = ['reservoir','pump','dam','channel','onchannel','irrigation'];
-
-      // 1) Đồng bộ các member đã được đăng ký theo 6 lớp hiện hữu.
-      keys.forEach(function(key){
-        const list = members[key] || [];
-        const visible = !!state[key];
-        for(let i=0;i<list.length;i++){
-          const layer = list[i];
-          if(!layer) continue;
-          const isMarker = (typeof L !== 'undefined' && layer instanceof L.Marker);
-          const parent = isMarker ? markerGroup : nonPoint;
-          if(!parent) continue;
-          if(visible){
-            if(!parent.hasLayer(layer)) parent.addLayer(layer);
-          }else{
-            if(parent.hasLayer(layer)) parent.removeLayer(layer);
-          }
-        }
-      });
-
-      // 2) KMZ CHANNEL FALLBACK — chỉ bổ sung kết nối hiển thị cho tuyến.
-      // Một số bản GeoJSON Master có LineString nhưng thuộc tính type/name
-      // không đủ để đăng ký đúng key. Geometry là nguồn xác định chắc chắn.
-      let lineTotal = 0;
-      let lineVisible = 0;
-      nonPoint.eachLayer(function(layer){
-        try{
-          const gt = layer && layer.feature && layer.feature.geometry
-            ? layer.feature.geometry.type : '';
-          const isChannelGeometry = gt === 'LineString' || gt === 'MultiLineString';
-          if(!isChannelGeometry) return;
-          lineTotal++;
-          if(!!state.channel){
-            if(!nonPoint.hasLayer(layer)) nonPoint.addLayer(layer);
-            lineVisible++;
-          }
-        }catch(e){}
-      });
-
-      // 3) Chỉ refresh zoom band để dùng lại style KMZ đang có; không đổi màu.
+      if(typeof tlApplySixLayerVisibility === 'function'){
+        tlApplySixLayerVisibility();
+      }
       if(typeof window.__TL_REFRESH_ZOOM_BAND === 'function'){
         window.__TL_REFRESH_ZOOM_BAND(true);
       }
 
-      // Chẩn đoán nội bộ, không hiển thị lên UI.
-      window.__TL_KMZ_CHANNEL_DIAG = {
-        state: !!state.channel,
-        registered: ((members.channel || []).length),
-        lineGeometry: lineTotal,
-        lineVisible: lineVisible
+      const groups = window.tlSixLayerGroups || {};
+      const counts = {};
+      Object.keys(groups).forEach(function(k){
+        try { counts[k] = groups[k].getLayers ? groups[k].getLayers().length : 0; }
+        catch(e){ counts[k]=0; }
+      });
+
+      window.__TL_KMZ_LAYER_DIAG = {
+        state: (typeof TL_SIX_LAYER_STATE !== 'undefined') ? {...TL_SIX_LAYER_STATE} : {},
+        groups: counts,
+        nonPoint: window.nonPointLayer && window.nonPointLayer.getLayers
+          ? window.nonPointLayer.getLayers().length : 0
       };
     }catch(e){
-      console.warn('[KMZ DISPLAY FIX] ', e);
+      console.warn('[KMZ DISPLAY]',e);
     }
   }
 
-  window.__TL_FORCE_KMZ_DISPLAY = forceDisplay;
-  [300,1000,2200,4000].forEach(function(ms){
-    setTimeout(forceDisplay,ms);
+  window.__TL_FORCE_KMZ_DISPLAY = sync;
+
+  [400,1200,2500,4500].forEach(function(ms){
+    setTimeout(sync,ms);
   });
 
-  document.addEventListener('change', function(e){
-    const id = e.target && e.target.id;
+  document.addEventListener('change',function(e){
+    const id=e.target&&e.target.id;
     if(id==='toggleReservoirs'||id==='togglePumps'||id==='toggleDams'||
        id==='toggleChannels'||id==='toggleOnChannel'||id==='toggleIrrigation'){
-      setTimeout(forceDisplay,0);
+      setTimeout(sync,0);
     }
-  }, true);
+  },true);
 })();
 </script>
 </body>

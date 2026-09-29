@@ -8217,10 +8217,9 @@ if (description) {
 (function(){
   'use strict';
   /* V14-6-Lop-2D: ONLY fix KMZ layer display.
-     Không thay nguồn GIS, phân lớp, style KMZ, zoom, popup, search, AI_DATA hay UI.
-     Quan trọng: layer KMZ non-point luôn được giữ trong nonPointLayer;
-     marker luôn được giữ trong markerCluster. Không đưa child layer trực tiếp
-     lên aiMapLayer vì sẽ phá cơ chế bật/tắt 6 lớp. */
+     Không thay nguồn GIS, phân lớp nghiệp vụ, popup, search, AI_DATA hay UI.
+     FIX này đặc biệt bảo đảm các LineString/MultiLineString của KMZ luôn
+     được nối vào nonPointLayer khi bật "Hệ thống kênh". Không ép màu mới. */
   function forceDisplay(){
     try{
       const runtime = window.__TL_MAP_RUNTIME || {};
@@ -8229,6 +8228,7 @@ if (description) {
       const markerGroup = runtime.markerCluster || window.markerCluster;
       if(!mapLayer || !nonPoint || !markerGroup) return;
 
+      // Giữ nguyên kiến trúc layer cha hiện hữu.
       if(!mapLayer.hasLayer(nonPoint)) mapLayer.addLayer(nonPoint);
       if(!mapLayer.hasLayer(markerGroup)) mapLayer.addLayer(markerGroup);
 
@@ -8238,18 +8238,16 @@ if (description) {
         ? TL_SIX_LAYER_STATE : {};
       const keys = ['reservoir','pump','dam','channel','onchannel','irrigation'];
 
+      // 1) Đồng bộ các member đã được đăng ký theo 6 lớp hiện hữu.
       keys.forEach(function(key){
         const list = members[key] || [];
         const visible = !!state[key];
-
         for(let i=0;i<list.length;i++){
           const layer = list[i];
           if(!layer) continue;
-
           const isMarker = (typeof L !== 'undefined' && layer instanceof L.Marker);
           const parent = isMarker ? markerGroup : nonPoint;
           if(!parent) continue;
-
           if(visible){
             if(!parent.hasLayer(layer)) parent.addLayer(layer);
           }else{
@@ -8258,9 +8256,37 @@ if (description) {
         }
       });
 
+      // 2) KMZ CHANNEL FALLBACK — chỉ bổ sung kết nối hiển thị cho tuyến.
+      // Một số bản GeoJSON Master có LineString nhưng thuộc tính type/name
+      // không đủ để đăng ký đúng key. Geometry là nguồn xác định chắc chắn.
+      let lineTotal = 0;
+      let lineVisible = 0;
+      nonPoint.eachLayer(function(layer){
+        try{
+          const gt = layer && layer.feature && layer.feature.geometry
+            ? layer.feature.geometry.type : '';
+          const isChannelGeometry = gt === 'LineString' || gt === 'MultiLineString';
+          if(!isChannelGeometry) return;
+          lineTotal++;
+          if(!!state.channel){
+            if(!nonPoint.hasLayer(layer)) nonPoint.addLayer(layer);
+            lineVisible++;
+          }
+        }catch(e){}
+      });
+
+      // 3) Chỉ refresh zoom band để dùng lại style KMZ đang có; không đổi màu.
       if(typeof window.__TL_REFRESH_ZOOM_BAND === 'function'){
         window.__TL_REFRESH_ZOOM_BAND(true);
       }
+
+      // Chẩn đoán nội bộ, không hiển thị lên UI.
+      window.__TL_KMZ_CHANNEL_DIAG = {
+        state: !!state.channel,
+        registered: ((members.channel || []).length),
+        lineGeometry: lineTotal,
+        lineVisible: lineVisible
+      };
     }catch(e){
       console.warn('[KMZ DISPLAY FIX] ', e);
     }

@@ -6783,8 +6783,11 @@ function tlApplySixLayerVisibility() {
 function tlSetSixLayer(key, visible) {
   if (!Object.prototype.hasOwnProperty.call(TL_SIX_LAYER_STATE, key)) return;
   TL_SIX_LAYER_STATE[key] = !!visible;
+  // Chỉ cập nhật đúng các layer thuộc nhóm vừa đổi; không nạp lại GIS.
   tlApplySixLayerVisibility();
   try { if (typeof window.__TL_REFRESH_ZOOM_BAND === 'function') window.__TL_REFRESH_ZOOM_BAND(true); } catch(e) {}
+  // Đảm bảo các tuyến/vùng vừa bật vẫn mang style KMZ hiện tại.
+  try { if (typeof tlApplySixLayerVisibility === 'function') tlApplySixLayerVisibility(); } catch(e) {}
       try {
         const _six = {reservoir:'toggleReservoirs',pump:'togglePumps',dam:'toggleDams',channel:'toggleChannels',onchannel:'toggleOnChannel',irrigation:'toggleIrrigation'};
         Object.keys(_six).forEach(function(k){ const el=document.getElementById(_six[k]); if(el) el.checked=!!TL_SIX_LAYER_STATE[k]; });
@@ -7237,8 +7240,11 @@ if (description) {
             }
 
             // Chỉ chạy vòng duyệt style/label sau khi các lớp đã được nạp.
+            // LAYER DISPLAY FIX: đồng bộ lại 6 lớp sau batch cuối để các
+            // tuyến/vùng KMZ được gắn đúng trạng thái BẬT/TẮT hiện tại.
             tlYieldToBrowser(function() {
               tlApplyZoomBand(true);
+              tlApplySixLayerVisibility();
             });
           }
 
@@ -8191,6 +8197,20 @@ if (description) {
     if(window.__TL_MAP_RUNTIME && tries>20) clearInterval(timer);
     if(tries>40) clearInterval(timer);
   },250);
+})();
+</script>
+<script id="tl-kmz-layer-display-fix-v2">
+(function(){
+  'use strict';
+  // Chỉ sửa kết nối hiển thị layer; không thay GIS/KMZ/style/search/popup.
+  function sync(){
+    try{
+      if(typeof tlApplySixLayerVisibility==='function') tlApplySixLayerVisibility();
+      if(typeof window.__TL_REFRESH_ZOOM_BAND==='function') window.__TL_REFRESH_ZOOM_BAND(true);
+    }catch(e){}
+  }
+  window.__TL_SYNC_KMZ_LAYERS=sync;
+  [250,700,1400,2500].forEach(function(ms){ setTimeout(sync,ms); });
 })();
 </script>
 </body>

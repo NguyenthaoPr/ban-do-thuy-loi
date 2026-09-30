@@ -44,7 +44,64 @@
      bên trong comment HTML phía trên (mở </!-- --> ở dòng 32 nhưng không
      đóng cho tới ngay trước dòng này) nên KHÔNG BAO GIỜ có hiệu lực. May mắn
      một bản sao giống hệt của nó đã tồn tại độc lập, còn hoạt động, ngay
-     trước thẻ </head> thật sự (id="map-only-cleanup", ~dòng 3687), nên phần
+     trước thẻ 
+<style id="tl-popup-readability-fix">
+/* =========================================================
+   CHỈ FIX MÀU CHỮ POPUP – KHÔNG THAY ĐỔI NỘI DUNG / KIẾN TRÚC
+   ========================================================= */
+
+/* Popup thông tin công trình */
+.tl-popup-container,
+.tl-popup-container * {
+  color: #17324d;
+}
+
+/* Tiêu đề */
+.tl-popup-container .tl-popup-title,
+.tl-popup-container h1,
+.tl-popup-container h2,
+.tl-popup-container h3,
+.tl-popup-container .title {
+  color: #17324d !important;
+}
+
+/* Nội dung mô tả / thông tin */
+.tl-popup-container .tl-popup-content,
+.tl-popup-container .tl-popup-description,
+.tl-popup-container .description,
+.tl-popup-container .meta,
+.tl-popup-container .info,
+.tl-popup-container p,
+.tl-popup-container span {
+  color: #42566b;
+}
+
+/* Dòng hướng dẫn "Chọn 🔎 XEM CHI TIẾT..." */
+.tl-popup-container .tl-popup-hint,
+.tl-popup-container .hint,
+.tl-popup-container .subtitle {
+  color: #5b6f82 !important;
+}
+
+/* Nút Xem chi tiết: nền xanh + chữ trắng rõ ràng */
+.tl-popup-container button,
+.tl-popup-container .tl-popup-detail-btn,
+.tl-popup-container .detail-btn,
+.tl-popup-container .view-detail,
+.tl-popup-container a.tl-popup-detail-btn {
+  color: #ffffff !important;
+  background: #0879e6 !important;
+  text-shadow: none !important;
+}
+
+/* Không để rule tổng quát phía trên làm đổi màu icon SVG */
+.tl-popup-container svg,
+.tl-popup-container svg * {
+  color: inherit;
+}
+</style>
+
+</head> thật sự (id="map-only-cleanup", ~dòng 3687), nên phần
      hiển thị full-screen của bản đồ không bị ảnh hưởng. Khối
      "map-only-mobile-alert-final" dưới đây thì KHÔNG có bản sao nào khác —
      nó đã bị vô hiệu hoá hoàn toàn cho tới khi sửa ở đây. -->

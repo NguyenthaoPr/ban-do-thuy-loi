@@ -6817,13 +6817,35 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             const showLabels = zoom >= 11;
             const mapBounds = aiMap.getBounds();
 
+            // Nhãn phải đi theo đúng trạng thái 6 lớp:
+            // - Tắt Hệ thống kênh  -> ẩn cả đường Kênh + tên Kênh
+            // - Tắt Khu tưới       -> ẩn cả vùng/đường Khu tưới + tên Khu tưới
+            // Không thay đổi cơ chế Popup hay dữ liệu GIS.
+            const labelChannelToggle = document.getElementById('toggleHeThongKenh');
+            const labelAreaToggle = document.getElementById('toggleKhuTuoi');
+            const showChannelLabels = !!(labelChannelToggle && labelChannelToggle.checked);
+            const showAreaLabels = !!(labelAreaToggle && labelAreaToggle.checked);
+
             nonPointLayer.eachLayer(function(layer) {
               if (!layer || !layer.getTooltip) return;
 
               const tooltip = layer.getTooltip();
               if (!tooltip) return;
 
-              if (!showLabels) {
+              let featureKey = null;
+              try {
+                featureKey = (typeof window.__TL_SIX_FEATURE_KEY === 'function')
+                  ? window.__TL_SIX_FEATURE_KEY(layer.feature)
+                  : null;
+              } catch (e) {}
+
+              // Chỉ 2 nhóm có nhãn tuyến/vùng cần đồng bộ với 2 công tắc.
+              const layerVisible =
+                featureKey === 'kenh' ? showChannelLabels :
+                featureKey === 'khu_tuoi' ? showAreaLabels :
+                true;
+
+              if (!showLabels || !layerVisible) {
                 if (layer.isTooltipOpen && layer.isTooltipOpen()) {
                   layer.closeTooltip();
                 }

@@ -3764,9 +3764,9 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 <label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon reservoir">🏞️</i><b>Hồ chứa</b></span><input checked id="toggleReservoirs" type="checkbox"/><em></em></label>
 <label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon pump">🚰</i><b>Trạm bơm</b></span><input checked id="togglePumps" type="checkbox"/><em></em></label>
 <label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon dam">🏗️</i><b>Đập / Bara</b></span><input checked id="toggleDams" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon channel">💧</i><b>Hệ thống kênh</b></span><input id="toggleChannels" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon onchannel">⚙️</i><b>Công trình trên kênh</b></span><input id="toggleOnChannel" type="checkbox"/><em></em></label>
-<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon irrigation">🌾</i><b>Khu tưới</b></span><input id="toggleIrrigation" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon channel">💧</i><b>Hệ thống kênh</b></span><input checked id="toggleChannels" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon onchannel">⚙️</i><b>Công trình trên kênh</b></span><input checked id="toggleOnChannel" type="checkbox"/><em></em></label>
+<label class="map-toggle-row tl-six-layer-row"><span><i class="tl-layer-icon irrigation">🌾</i><b>Khu tưới</b></span><input checked id="toggleIrrigation" type="checkbox"/><em></em></label>
 </div>
 <div class="tl-six-layer-note">Bật / tắt độc lập từng lớp · Giữ nguyên dữ liệu GIS Master &amp; màu KMZ</div>
 </div>
@@ -6921,17 +6921,22 @@ function tlApplySixLayerVisibility() {
 function tlForceChannelDisplay(){
   try {
     if (!aiMapLayer || !nonPointLayer) return;
-    // The GeoJSON parent must remain on the map; child LineStrings stay in it.
+    // Keep the single GeoJSON parent on the map. Each child is controlled
+    // by its own 6-layer state; do NOT treat every line as Hệ thống kênh.
     if (!aiMapLayer.hasLayer(nonPointLayer)) aiMapLayer.addLayer(nonPointLayer);
-    const visible = document.getElementById('toggleChannels')?.checked !== false;
     nonPointLayer.eachLayer(function(layer){
-      const gt = layer?.feature?.geometry?.type || '';
+      const feature = layer?.feature;
+      const gt = feature?.geometry?.type || '';
       if (gt !== 'LineString' && gt !== 'MultiLineString') return;
+      const key = (typeof tlSixLayerKey === 'function') ? tlSixLayerKey(feature) : 'channel';
+      const visible = (typeof TL_SIX_LAYER_STATE !== 'undefined')
+        ? !!TL_SIX_LAYER_STATE[key]
+        : true;
+      const base = layer.__tlKMLBaseStyle || {};
       if (visible) {
-        const base = layer.__tlKMLBaseStyle || {};
         layer.setStyle({
-          color: base.color || '#1677FF',
-          weight: Number.isFinite(base.weight) ? base.weight : 2,
+          color: base.color || layer.options?.color || '#1677FF',
+          weight: Number.isFinite(base.weight) ? base.weight : (Number(layer.options?.weight) || 2),
           opacity: Number.isFinite(base.opacity) ? base.opacity : 1,
           fill: false,
           fillOpacity: 0
@@ -6940,7 +6945,6 @@ function tlForceChannelDisplay(){
         layer.setStyle({opacity:0, fillOpacity:0});
       }
     });
-    if (window.aiMap) window.aiMap.invalidateSize({pan:false});
   } catch(e) {
     console.warn('[KENH DISPLAY FIX]', e);
   }
@@ -8458,6 +8462,53 @@ if (description) {
   },true);
 })();
 </script>
+<script id="tl-six-layer-final-controller-v16">
+(function(){
+  'use strict';
+  const MAP={
+    toggleReservoirs:'reservoir',
+    togglePumps:'pump',
+    toggleDams:'dam',
+    toggleChannels:'channel',
+    toggleOnChannel:'onchannel',
+    toggleIrrigation:'irrigation'
+  };
+  function syncCheckboxes(){
+    try{
+      if(typeof TL_SIX_LAYER_STATE==='undefined') return;
+      Object.keys(MAP).forEach(function(id){
+        const el=document.getElementById(id);
+        if(el) el.checked=!!TL_SIX_LAYER_STATE[MAP[id]];
+      });
+    }catch(e){}
+  }
+  function apply(){
+    try{
+      if(typeof tlApplySixLayerVisibility==='function') tlApplySixLayerVisibility();
+      if(typeof window.__TL_REFRESH_ZOOM_BAND==='function') window.__TL_REFRESH_ZOOM_BAND(true);
+      if(typeof tlForceChannelDisplay==='function') tlForceChannelDisplay();
+    }catch(e){ console.warn('[V16 6-LAYER]',e); }
+  }
+  function bind(){
+    syncCheckboxes();
+    Object.keys(MAP).forEach(function(id){
+      const el=document.getElementById(id);
+      if(!el || el.__tlV16Bound) return;
+      el.__tlV16Bound=true;
+      el.addEventListener('change',function(){
+        const key=MAP[id];
+        if(typeof tlSetSixLayer==='function') tlSetSixLayer(key,el.checked);
+        else if(typeof TL_SIX_LAYER_STATE!=='undefined') TL_SIX_LAYER_STATE[key]=!!el.checked;
+        apply();
+      });
+    });
+    apply();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind);
+  else bind();
+  [300,1000,2500,5000].forEach(function(ms){setTimeout(bind,ms);});
+})();
+</script>
 <script id="tl-kenh-final-display-guard">
 (function(){
   'use strict';
@@ -8471,6 +8522,90 @@ if (description) {
   document.addEventListener('change',function(e){
     if(e.target && e.target.id === 'toggleChannels') setTimeout(run,50);
   },true);
+})();
+</script>
+
+<script id="tl-six-layer-master-controller-v17">
+(function(){
+  'use strict';
+  /* V17 MASTER 6-LAYER CONTROLLER
+     Chỉ sửa điều khiển 6 lớp; không thay GIS/KMZ/data/popup/search/UI. */
+  const MAP={
+    toggleReservoirs:'reservoir',
+    togglePumps:'pump',
+    toggleDams:'dam',
+    toggleChannels:'channel',
+    toggleOnChannel:'onchannel',
+    toggleIrrigation:'irrigation'
+  };
+  let internal=false;
+
+  function state(){
+    return (typeof TL_SIX_LAYER_STATE!=='undefined') ? TL_SIX_LAYER_STATE : null;
+  }
+  function apply(key){
+    try{
+      if(typeof tlSetSixLayer==='function'){
+        tlSetSixLayer(key, !!state()[key]);
+      }else if(typeof tlApplySixLayerVisibility==='function'){
+        tlApplySixLayerVisibility();
+      }
+      if(typeof window.__TL_REFRESH_ZOOM_BAND==='function') window.__TL_REFRESH_ZOOM_BAND(true);
+      if(key==='channel' && typeof window.tlForceChannelDisplay==='function') window.tlForceChannelDisplay();
+    }catch(e){ console.warn('[V17 6-LAYER]',e); }
+  }
+  function syncFromState(){
+    const st=state(); if(!st) return;
+    Object.keys(MAP).forEach(function(id){
+      const el=document.getElementById(id);
+      if(el) el.checked=!!st[MAP[id]];
+    });
+  }
+  function handle(el){
+    if(!el || !MAP[el.id] || internal) return;
+    const st=state(); if(!st) return;
+    const key=MAP[el.id];
+    st[key]=!!el.checked;
+    apply(key);
+    syncFromState();
+    window.__TL_SIX_LAYER_LAST_ACTION={id:el.id,key:key,checked:!!el.checked,time:Date.now()};
+  }
+
+  /* Window capture chạy trước các document-capture listener cũ trong file. */
+  window.addEventListener('change',function(e){
+    const el=e.target;
+    if(!el || !MAP[el.id]) return;
+    handle(el);
+  },true);
+
+  /* Click trực tiếp trên input: bảo đảm thay đổi checkbox được ghi nhận ngay. */
+  window.addEventListener('click',function(e){
+    const el=e.target;
+    if(!el || !MAP[el.id]) return;
+    setTimeout(function(){ handle(el); },0);
+  },true);
+
+  window.__TL_SIX_LAYER_CONTROL_V17={
+    state:function(){ const st=state(); return st?{...st}:null; },
+    set:function(key,visible){
+      if(!MAP || !Object.prototype.hasOwnProperty.call({reservoir:1,pump:1,dam:1,channel:1,onchannel:1,irrigation:1},key)) return;
+      const st=state(); if(!st) return;
+      st[key]=!!visible;
+      const id=Object.keys(MAP).find(function(k){return MAP[k]===key;});
+      const el=id&&document.getElementById(id);
+      if(el) el.checked=!!visible;
+      apply(key); syncFromState();
+    },
+    sync:function(){ syncFromState(); if(typeof tlApplySixLayerVisibility==='function') tlApplySixLayerVisibility(); }
+  };
+
+  function boot(){
+    syncFromState();
+    if(typeof tlApplySixLayerVisibility==='function') tlApplySixLayerVisibility();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
+  else boot();
+  [300,1000,2000,4000,8000].forEach(function(ms){setTimeout(boot,ms);});
 })();
 </script>
 </body>

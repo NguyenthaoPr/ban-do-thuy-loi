@@ -3678,6 +3678,50 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 #mapAiPanel .map-feature-card.hidden{display:none!important}
 @media(max-width:700px){#mapAiPanel .map-ai-header{display:none!important}}
 </style>
+
+<style id="tl-mobile-controls-only-v2">
+/* CHỈ SỬA VỊ TRÍ CONTROL TRÊN MOBILE — KHÔNG ĐỤNG GIS/DATA/POPUP/SEARCH */
+@media (max-width:700px){
+  #mapAiPanel #mapLayerBtn,
+  #mapAiPanel #mapGpsBtn,
+  #mapAiPanel #mapHomeBtn,
+  #mapAiPanel #mapAlertBtn{
+    position:fixed!important;
+    right:max(8px,env(safe-area-inset-right))!important;
+    width:46px!important;
+    height:46px!important;
+    min-width:46px!important;
+    min-height:46px!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+    z-index:6200!important;
+  }
+
+  /* Thanh tìm kiếm kết thúc khoảng 50px trước cụm nút. */
+  #mapAiPanel #mapLayerBtn{
+    top:calc(max(64px,calc(env(safe-area-inset-top) + 62px)) + 62px)!important;
+  }
+  #mapAiPanel #mapGpsBtn{
+    top:calc(max(64px,calc(env(safe-area-inset-top) + 62px)) + 116px)!important;
+  }
+  #mapAiPanel #mapAlertBtn{
+    top:calc(max(64px,calc(env(safe-area-inset-top) + 62px)) + 170px)!important;
+  }
+  #mapAiPanel #mapHomeBtn{
+    top:calc(max(64px,calc(env(safe-area-inset-top) + 62px)) + 224px)!important;
+  }
+
+  /* Panel lớp bản đồ mở sang trái, không che cụm nút. */
+  #mapAiPanel .map-layer-panel{
+    top:calc(max(64px,calc(env(safe-area-inset-top) + 62px)) + 62px)!important;
+    right:62px!important;
+    width:min(290px,calc(100vw - 74px))!important;
+    max-height:calc(100dvh - 150px)!important;
+    overflow:auto!important;
+    z-index:6250!important;
+  }
+}
+</style>
 </head>
 <body>
 <main><div class="map-ai-panel" id="mapAiPanel">

@@ -4769,12 +4769,41 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         return out;
       }
 
+      function tlAiExtractFacilityLimits(facility) {
+        const out = { MNDBT:null, MNDGC:null, MNC:null };
+        try {
+          const rows = TL_AI_DATA_ROWS_CACHE || [];
+          const matchedRows = tlAiMatchRows(rows, facility, '');
+          // Giới hạn hồ (MNDBT/MNDGC/MNC) là thông tin kỹ thuật tĩnh,
+          // có thể không nằm đúng trong cửa sổ 24 giờ. Vì vậy chỉ giới hạn
+          // quan trắc mới dùng 24H; còn ngưỡng được đọc từ toàn bộ hồ.
+          for (const row of matchedRows) {
+            const rawG = String(tlAiLongCellByHeader(row, ['thông số','thong so']) || '');
+            const rawH = String(tlAiLongCellByHeader(row, ['thông số (đơn vị đo)','thong so (don vi do)']) || '');
+            const raw = rawG + ' ' + rawH;
+            for (const label of ['MNDBT','MNDGC','MNC']) {
+              if (Number.isFinite(out[label])) continue;
+              const re = new RegExp(label + '\\s*[:=]\\s*([-+]?\\d+(?:[.,]\\d+)?)', 'i');
+              const m = raw.match(re);
+              if (m) { const v = tlAiNum(m[1]); if (Number.isFinite(v)) out[label] = v; }
+            }
+          }
+        } catch (_) {}
+        return out;
+      }
+
       function tlAiPayloadFrom24h(items, facility, index) {
         const water = tlAiLatestObservation(items, ['WATER_LEVEL_UPSTREAM','WATER_LEVEL','WATER_LEVEL_DOWNSTREAM']);
         const rain = tlAiLatestObservation(items, ['RAINFALL','RAINFALL_T1','RAINFALL_C24']);
         const flow = tlAiLatestObservation(items, ['FLOW']);
         const sal = tlAiLatestObservation(items, ['SALINITY']);
         const extractedLimits = tlAiExtractLimits(items);
+        const facilityLimits = tlAiExtractFacilityLimits(facility);
+        const limits = {
+          MNDBT: Number.isFinite(extractedLimits.MNDBT) ? extractedLimits.MNDBT : facilityLimits.MNDBT,
+          MNDGC: Number.isFinite(extractedLimits.MNDGC) ? extractedLimits.MNDGC : facilityLimits.MNDGC,
+          MNC: Number.isFinite(extractedLimits.MNC) ? extractedLimits.MNC : facilityLimits.MNC
+        };
         if (!water && !rain && !flow && !sal) {
           throw Object.assign(new Error(`Công trình "${facility}" đã khớp nhưng chưa có thông số quan trắc trong 24 giờ gần nhất.`), {
             status: 404, code: 'NO_VALID_DATA_24H'
@@ -4785,7 +4814,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
           ok:true,
           data:{
             water_level:pick(water), flow:pick(flow), rainfall:pick(rain), salinity:pick(sal),
-            limits:{MNDBT:extractedLimits.MNDBT,MNDGC:extractedLimits.MNDGC,MNC:extractedLimits.MNC},
+            limits,
             status:{level:'info',label:'AI_DATA • 24 GIỜ'},
             updated_label: index?.latest ? tlLiveTimeLabel(index.latest) : (water ? tlLiveTimeLabel(water.dt) : 'AI_DATA'),
             source:'AI_DATA • cửa sổ 24 giờ gần nhất',
@@ -5170,8 +5199,10 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           ? `<div class="tl-live-hero-label">Lưu lượng hiện tại</div><div><span class="tl-live-hero-value">${tlLiveFormatNumber(flow.value,2)}</span><span class="tl-live-hero-unit">${esc(flow.unit || 'm³/s')}</span></div>`
           : `<div class="tl-live-hero-label">${esc(waterLabel)}</div><div><span class="tl-live-hero-value">${water ? tlLiveFormatNumber(water.value,2) : '—'}</span><span class="tl-live-hero-unit">m</span></div>`;
 
-        const chart = !heroFlow ? tlWaterLevelChart(history, current, limits.MNDBT) : '';
-        const gauge = !heroFlow ? tlBuildLevelGauge(current, card.dataset.deadLevel || limits.MNC, limits.MNDBT, limits.MNDGC) : '';
+        // Biểu đồ mực nước phải hiển thị độc lập với lưu lượng.
+        // Hồ có Q vẫn phải có biểu đồ nếu AI_DATA có HTL/mực nước.
+        const chart = water ? tlWaterLevelChart(history, current, limits.MNDBT) : '';
+        const gauge = water ? tlBuildLevelGauge(current, card.dataset.deadLevel || limits.MNC, limits.MNDBT, limits.MNDGC) : '';
 
         body.innerHTML = `
           <div class="tl-live-status ${statusLevel}">
@@ -5921,6 +5952,19 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           autoPanPadding: [20, 20]
         });
 
+        // Chỉ hiển thị một lớp Popup tại một thời điểm.
+        // Thẻ mapFeatureCard vẫn được giữ nguyên trong DOM/logic, nhưng khi
+        // Popup chi tiết mở thì ẩn thẻ xem nhanh để không tạo cảm giác có 2 Popup.
+        if (!layer._tlFeatureCardPopupBound) {
+          layer._tlFeatureCardPopupBound = true;
+          layer.on('popupopen', function() {
+            try { if (mapFeatureCard) mapFeatureCard.classList.add('hidden'); } catch (_) {}
+          });
+          layer.on('popupclose', function() {
+            try { if (mapFeatureCard) mapFeatureCard.classList.add('hidden'); } catch (_) {}
+          });
+        }
+
         // Weather chỉ tải khi popup mở.
         // GIỮ NGUYÊN WEATHER ENGINE ĐÃ CHẠY ĐƯỢC.
         if (hasPosition && !layer._tlWeatherBound) {
@@ -6642,8 +6686,9 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           window.__TL_ALERT_LAST_REFRESH=Date.now();
           mapAlertBtn.classList.remove('is-loading');
           tlRenderAlertSummary();
-          if(tlAlertSelectedGroup !== 'all') tlRenderAlertList();
-          else if (!tlAlertSheet.hidden) tlAlertList.innerHTML='<div class="tl-alert-empty">Chọn một nhóm phía trên để xem chi tiết hồ.</div>';
+          // Mặc định 'Tất cả' phải hiển thị ngay danh sách kết quả;
+          // không để người dùng mở cảnh báo rồi gặp màn hình trống.
+          if (!tlAlertSheet.hidden) tlRenderAlertList();
         })();
         try { return await tlAlertRefreshPromise; }
         finally { tlAlertRefreshPromise=null; }

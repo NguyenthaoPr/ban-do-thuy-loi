@@ -4274,20 +4274,32 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         };
 
         TL_AI_DATA_INFLIGHT = (async () => {
+          let lastError = null;
           try {
-            const proxyUrl = TL_AI_DATA_URL + (TL_AI_DATA_URL.includes('?') ? '&' : '?') + (force ? 'force=1' : 'v=1');
+            // Ưu tiên đọc trực tiếp Google Sheet để bản HTML chạy độc lập,
+            // không phụ thuộc route /api/ai-data của host.
             try {
-              const rows = await fetchCsv(proxyUrl);
+              const directUrl = TL_AI_DATA_DIRECT_URL + '&_ts=' + Date.now();
+              const rows = await fetchCsv(directUrl);
+              if (!rows.length) throw new Error('AI_DATA Google Sheet trả về 0 dòng.');
               TL_AI_DATA_ROWS_CACHE = rows;
               TL_AI_DATA_CACHE_TIME = Date.now();
+              console.info('📊 AI_DATA: đọc trực tiếp Google Sheet OK:', rows.length, 'dòng');
               return rows;
-            } catch (proxyError) {
-              console.warn('📊 AI_DATA qua Worker không đọc được, thử Google GViz:', proxyError);
-              const rows = await fetchCsv(TL_AI_DATA_DIRECT_URL + '&_ts=' + Date.now());
-              TL_AI_DATA_ROWS_CACHE = rows;
-              TL_AI_DATA_CACHE_TIME = Date.now();
-              return rows;
+            } catch (directError) {
+              lastError = directError;
+              console.warn('📊 AI_DATA Google Sheet không đọc được, thử /api/ai-data:', directError);
             }
+
+            const proxyUrl = TL_AI_DATA_URL + (TL_AI_DATA_URL.includes('?') ? '&' : '?') + (force ? 'force=1' : 'v=1');
+            const rows = await fetchCsv(proxyUrl);
+            if (!rows.length) throw lastError || new Error('AI_DATA không trả dữ liệu.');
+            TL_AI_DATA_ROWS_CACHE = rows;
+            TL_AI_DATA_CACHE_TIME = Date.now();
+            console.info('📊 AI_DATA: đọc qua /api/ai-data OK:', rows.length, 'dòng');
+            return rows;
+          } catch (proxyError) {
+            throw lastError || proxyError;
           } finally {
             TL_AI_DATA_INFLIGHT = null;
           }
@@ -4471,6 +4483,8 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       }
       function tlFacilityCore(value) {
         let n = tlNormalizeFacilityName(value);
+        // Chỉ dùng để SO KHỚP, không thay đổi tên hiển thị trên bản đồ/popup.
+        n = n.replace(/^(cn|chi nhanh|cong ty|don vi|thuy loi|thuy loi vu gia thu bon)\s+/,'').trim();
         for (const prefix of TL_FACILITY_PREFIXES) {
           if (n.startsWith(prefix + ' ')) { n = n.slice(prefix.length).trim(); break; }
         }

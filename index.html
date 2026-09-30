@@ -6202,7 +6202,7 @@ const TL_SIX_LAYER_LABELS = {
   irrigation: 'Khu tưới'
 };
 const TL_SIX_LAYER_STATE = {
-  reservoir:true, pump:true, dam:true, channel:false, onchannel:false, irrigation:false
+  reservoir:true, pump:true, dam:true, channel:true, onchannel:true, irrigation:true
 };
 const TL_SIX_LAYER_MEMBERS = {
   reservoir:[], pump:[], dam:[], channel:[], onchannel:[], irrigation:[]
@@ -6445,9 +6445,9 @@ const TL_SIX_LAYER_MEMBERS = {
             reservoir: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
             pump: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
             dam: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
-            channel: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
+            channel: L.layerGroup(),
             onchannel: L.markerClusterGroup(TL_CLUSTER_OPTIONS),
-            irrigation: L.markerClusterGroup(TL_CLUSTER_OPTIONS)
+            irrigation: L.layerGroup()
           };
 
           // Layer cha duy nhất của hệ thống marker; mỗi lớp con tự quản lý
@@ -6469,6 +6469,31 @@ const TL_SIX_LAYER_MEMBERS = {
             nonPointLayer: nonPointLayer,
             baseLayers: aiBaseLayers,
             activeBaseLayerKey: activeBaseLayerKey
+          };
+          // F12 diagnostics: always expose the live GIS runtime.
+          window.aiMap = aiMap;
+          window.aiMapLayer = aiMapLayer;
+          window.markerCluster = markerCluster;
+          window.nonPointLayer = nonPointLayer;
+          window.__TL_KENH_DIAG = function(){
+            const np = window.nonPointLayer;
+            const mapLayer = window.aiMapLayer;
+            const cb = document.getElementById('toggleChannels');
+            let lines = 0, visible = 0;
+            if (np && np.eachLayer) np.eachLayer(function(layer){
+              const t = layer?.feature?.geometry?.type || '';
+              if (t === 'LineString' || t === 'MultiLineString') {
+                lines++;
+                if (Number(layer?.options?.opacity || 0) > 0) visible++;
+              }
+            });
+            return {
+              checkbox: cb?.checked,
+              nonPointOnMap: !!(mapLayer && np && mapLayer.hasLayer(np)),
+              lineFeatures: lines,
+              visibleLines: visible,
+              overlayPaths: document.querySelectorAll('#aiMap .leaflet-overlay-pane path').length
+            };
           };
 
          // ============================================================
@@ -6892,6 +6917,35 @@ function tlApplySixLayerVisibility() {
     console.warn('[6-LAYER] visibility:', e);
   }
 }
+
+function tlForceChannelDisplay(){
+  try {
+    if (!aiMapLayer || !nonPointLayer) return;
+    // The GeoJSON parent must remain on the map; child LineStrings stay in it.
+    if (!aiMapLayer.hasLayer(nonPointLayer)) aiMapLayer.addLayer(nonPointLayer);
+    const visible = document.getElementById('toggleChannels')?.checked !== false;
+    nonPointLayer.eachLayer(function(layer){
+      const gt = layer?.feature?.geometry?.type || '';
+      if (gt !== 'LineString' && gt !== 'MultiLineString') return;
+      if (visible) {
+        const base = layer.__tlKMLBaseStyle || {};
+        layer.setStyle({
+          color: base.color || '#1677FF',
+          weight: Number.isFinite(base.weight) ? base.weight : 2,
+          opacity: Number.isFinite(base.opacity) ? base.opacity : 1,
+          fill: false,
+          fillOpacity: 0
+        });
+      } else {
+        layer.setStyle({opacity:0, fillOpacity:0});
+      }
+    });
+    if (window.aiMap) window.aiMap.invalidateSize({pan:false});
+  } catch(e) {
+    console.warn('[KENH DISPLAY FIX]', e);
+  }
+}
+window.tlForceChannelDisplay = tlForceChannelDisplay;
 
 function tlSetSixLayer(key, visible) {
   if (!Object.prototype.hasOwnProperty.call(TL_SIX_LAYER_STATE, key)) return;
@@ -7355,6 +7409,7 @@ if (description) {
             if (end > nonPointCursor) {
               try {
                 nonPointLayer.addData(nonPointFeatures.slice(nonPointCursor, end));
+                if (typeof tlForceChannelDisplay === 'function') tlForceChannelDisplay();
               } catch (e) {
                 console.warn('GIS non-point batch error:', e);
               }
@@ -8403,6 +8458,21 @@ if (description) {
   },true);
 })();
 </script>
+<script id="tl-kenh-final-display-guard">
+(function(){
+  'use strict';
+  function run(){
+    try {
+      if (typeof window.tlForceChannelDisplay === 'function') window.tlForceChannelDisplay();
+      if (typeof window.__TL_KENH_DIAG === 'function') window.__TL_KENH_LAST_DIAG = window.__TL_KENH_DIAG();
+    } catch(e) {}
+  }
+  [500,1200,2500,5000,9000].forEach(function(ms){ setTimeout(run,ms); });
+  document.addEventListener('change',function(e){
+    if(e.target && e.target.id === 'toggleChannels') setTimeout(run,50);
+  },true);
+})();
+</script>
 </body>
 <!-- =========================================================
      THỦY LỢI AI — MAP CLEAN UI V1
@@ -8767,6 +8837,7 @@ if (description) {
     if(channelToggle){
       channelToggle.addEventListener('change',function(){
         if(typeof tlSetSixLayer==='function') tlSetSixLayer('channel',channelToggle.checked);
+        if(typeof tlForceChannelDisplay==='function') setTimeout(tlForceChannelDisplay,0);
       },true);
     }
     /* Khu tưới dùng toggleIrrigation trong kiến trúc 6 lớp; không dùng

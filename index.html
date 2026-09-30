@@ -2920,121 +2920,7 @@
       }
     }
   
-    /* =========================================================
-       POPUP SAFE PATCH – HỒ CHỨA Z–F–V–Q
-       CHỈ BỔ SUNG PRESENTATION/RESPONSIVE, KHÔNG ĐỔI DATA ENGINE
-       ========================================================= */
-    .tl-reservoir-section {
-      margin: 0 0 10px;
-    }
 
-    .tl-reservoir-card {
-      padding: 9px;
-      border: 1px solid #dce8f2;
-      border-radius: 14px;
-      background: #fbfdff;
-      box-shadow: 0 3px 12px rgba(15,39,66,.04);
-    }
-
-    .tl-reservoir-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
-    }
-
-    .tl-reservoir-item {
-      min-width: 0;
-      padding: 8px 9px;
-      border: 1px solid #e7eef4;
-      border-radius: 11px;
-      background: #fff;
-    }
-
-    .tl-reservoir-label {
-      font-size: 8px;
-      line-height: 1.2;
-      color: #78909c;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: .25px;
-    }
-
-    .tl-reservoir-value {
-      margin-top: 3px;
-      font-size: 16px;
-      line-height: 1.05;
-      color: #0b2a44;
-      font-weight: 850;
-      letter-spacing: -.2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .tl-reservoir-unit {
-      margin-left: 3px;
-      font-size: 9px;
-      font-weight: 700;
-      color: #64748b;
-      letter-spacing: 0;
-    }
-
-    .tl-reservoir-note {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px 8px;
-      margin-top: 7px;
-      padding-top: 7px;
-      border-top: 1px solid #edf2f6;
-      color: #64748b;
-      font-size: 8px;
-      line-height: 1.4;
-    }
-
-    .tl-reservoir-note strong {
-      color: #52697c;
-    }
-
-    .tl-reservoir-loading,
-    .tl-reservoir-error {
-      padding: 8px 9px;
-      border-radius: 10px;
-      font-size: 9px;
-      line-height: 1.4;
-    }
-
-    .tl-reservoir-loading {
-      color: #52697c;
-      background: #f4f7fa;
-    }
-
-    .tl-reservoir-error {
-      color: #9a3412;
-      background: #fff7ed;
-    }
-
-    .tl-reservoir-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      margin-top: 6px;
-      padding: 3px 7px;
-      border-radius: 999px;
-      background: #f1f5f9;
-      color: #475569;
-      font-size: 8px;
-      font-weight: 800;
-    }
-
-    .tl-reservoir-status.live {
-      background: #ecfdf5;
-      color: #047857;
-    }
-
-    .tl-reservoir-status.warn {
-      background: #fffbeb;
-      color: #92400e;
-    }
 
     /* Không để Leaflet ép Popup thành quá cao trên điện thoại.
        Nội dung vẫn đầy đủ và cuộn ở .tl-popup-body. */
@@ -5838,22 +5724,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
                 </div>
               </div>
 
-              <!-- ④ DỮ LIỆU BỔ SUNG HỒ CHỨA: Z–F–V–Q
-                   Chỉ xuất hiện với hồ; không thay đổi nội dung hiện có. -->
-              ${type === 'ho' ? `
-                <div class="tl-popup-section tl-reservoir-section">
-                  <div class="tl-popup-section-head">
-                    <span>🏞️</span>
-                    <span>Thông số hồ chứa • Z–F–V–Q</span>
-                    <span class="tl-popup-source-badge">ENGINE</span>
-                  </div>
-                  <div class="tl-reservoir-card" data-tl-reservoir="pending">
-                    <div data-tl-reservoir-body>
-                      <div class="tl-reservoir-loading">⏳ Đang chờ mực nước thực tế để tính Z–F–V–Q…</div>
-                    </div>
-                  </div>
-                </div>
-              ` : ''}
+           
 
               <!-- ⑤ THÔNG SỐ KỸ THUẬT CỐT LÕI -->
               ${coreSection}

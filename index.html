@@ -4211,12 +4211,47 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
       // Ví dụ: "Hồ Vĩnh Trinh" == "Hồ Vĩnh Trinh (H3)".
       // Chỉ dùng để so sánh; không thay đổi tên hiển thị trên Popup/GIS.
       function tlNormalizeFacilityName(value) {
-        return tlAiNorm(
-          String(value ?? '')
-            .replace(/\([^)]*\)/g, ' ')
-            .replace(/\[[^\]]*\]/g, ' ')
-            .replace(/[\u00a0\u2007\u202f]/g, ' ')
-        );
+        // CHỈ dùng cho MATCHING — tuyệt đối không đổi tên hiển thị GIS/Popup.
+        // Quy tắc hồ chứa:
+        //   Hồ chứa nước Vĩnh Trinh = Hồ chứa Vĩnh Trinh
+        //   = Hồ Vĩnh Trinh = Hồ Vĩnh Trinh (H3) = ...
+        //   = CN THỦY LỢI ... Hồ Vĩnh Trinh (H3)
+        // Tất cả phải quy về cùng một khóa chuẩn.
+        let s = String(value ?? '')
+          .replace(/\ufeff/g, ' ')
+          .replace(/[\u00a0\u2007\u202f]/g, ' ')
+          .replace(/\([^)]*\)/g, ' ')
+          .replace(/\[[^\]]*\]/g, ' ')
+          // Mã hồ có thể nằm ngoài ngoặc: "Vĩnh Trinh - H3", "H3 - Vĩnh Trinh".
+          .replace(/^\s*(?:h|ho)\d{1,4}\s*[-–—:]\s*/i, ' ')
+          .replace(/\s*[-–—:]\s*(?:h|ho)\d{1,4}\s*$/i, ' ')
+          .replace(/[|;,]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        s = tlAiNorm(s).replace(/\s+/g, ' ').trim();
+
+        // Nếu tên đến từ AI_DATA có tiền tố đơn vị, lấy phần bắt đầu từ
+        // tên hồ thực tế. Ví dụ:
+        // "CN THUY LOI VU GIA - THU BON HO VINH TRINH" -> "HO VINH TRINH".
+        // Chỉ áp dụng khi chuỗi có dấu hiệu rõ ràng là hồ chứa.
+        const reservoirPos = s.lastIndexOf(' ho ');
+        if (reservoirPos >= 0) s = s.slice(reservoirPos + 1).trim();
+        else if (s.startsWith('ho ')) s = s.trim();
+
+        // Loại các tiền tố hồ chứa, lặp để xử lý:
+        // "Hồ chứa nước" -> "Hồ chứa" -> "Hồ" -> tên chuẩn.
+        const reservoirPrefix = /^(?:ho chua nuoc|ho chua|ho)\s+/;
+        while (reservoirPrefix.test(s)) s = s.replace(reservoirPrefix, '').trim();
+
+        // Xử lý mã H1/H2/H3... còn sót lại sau chuẩn hóa dấu câu.
+        s = s
+          .replace(/^(?:h|ho)\d{1,4}\s+/, '')
+          .replace(/\s+(?:h|ho)\d{1,4}$/, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        return s;
       }
       function tlAiNum(v) {
         if (v == null || v === '') return null;
@@ -4503,6 +4538,9 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         return m ? tlAiNorm(m[1]) : '';
       }
       function tlFacilityCore(value) {
+        // tlNormalizeFacilityName đã chuẩn hóa nhóm "Hồ..." về cùng một khóa.
+        // Giữ thêm bước tương thích cho các loại công trình khác để không
+        // ảnh hưởng kiến trúc Matching hiện hữu.
         let n = tlNormalizeFacilityName(value);
         for (const prefix of TL_FACILITY_PREFIXES) {
           if (n.startsWith(prefix + ' ')) { n = n.slice(prefix.length).trim(); break; }

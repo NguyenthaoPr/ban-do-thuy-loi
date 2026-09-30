@@ -4275,15 +4275,17 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 
         TL_AI_DATA_INFLIGHT = (async () => {
           try {
-            const proxyUrl = TL_AI_DATA_URL + (TL_AI_DATA_URL.includes('?') ? '&' : '?') + (force ? 'force=1' : 'v=1');
+            // Nguồn chuẩn: AI_DATA trực tiếp từ Google Sheet hiện hành.
+            // Worker/API chỉ là fallback, không được phép làm thay đổi kiến trúc GIS.
             try {
-              const rows = await fetchCsv(proxyUrl);
+              const rows = await fetchCsv(TL_AI_DATA_DIRECT_URL + '&_ts=' + Date.now());
               TL_AI_DATA_ROWS_CACHE = rows;
               TL_AI_DATA_CACHE_TIME = Date.now();
               return rows;
-            } catch (proxyError) {
-              console.warn('📊 AI_DATA qua Worker không đọc được, thử Google GViz:', proxyError);
-              const rows = await fetchCsv(TL_AI_DATA_DIRECT_URL + '&_ts=' + Date.now());
+            } catch (directError) {
+              console.warn('📊 AI_DATA Google GViz không đọc được, thử Worker/API:', directError);
+              const proxyUrl = TL_AI_DATA_URL + (TL_AI_DATA_URL.includes('?') ? '&' : '?') + (force ? 'force=1' : 'v=1');
+              const rows = await fetchCsv(proxyUrl);
               TL_AI_DATA_ROWS_CACHE = rows;
               TL_AI_DATA_CACHE_TIME = Date.now();
               return rows;
@@ -4443,6 +4445,11 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 
       function tlAiParameterCode(name) {
         const n = tlAiNorm(name);
+        // AI_DATA Long Format thực tế có thể chứa giới hạn ngay trong Hạng mục/Thông số:
+        // "MNDBT 25,81" và "MNDGC: 26,97". Đây là giới hạn kỹ thuật,
+        // không phải một bản ghi mực nước mới.
+        if (/(^| )(mndbt|muc nuoc dang binh thuong|muc nuoc dbt|mucnuocdbt)( |:|$)/.test(n)) return 'MNDBT';
+        if (/(^| )(mndgc|muc nuoc dang gia cuong|muc nuoc dgc|mucnuocdgc)( |:|$)/.test(n)) return 'MNDGC';
         if (/(^| )(htl|muc nuoc thuong luu|water level upstream|waterlevel upstream)( |$)/.test(n)) return 'WATER_LEVEL_UPSTREAM';
         if (/(^| )(hhl|muc nuoc ha luu|water level downstream|waterlevel downstream)( |$)/.test(n)) return 'WATER_LEVEL_DOWNSTREAM';
         if (/(^| )(h|h m|muc nuoc|muc nuoc ho|muc nuoc ht|muc nuoc hien tai|water level|waterlevel|level|z)( |$)/.test(n)) return 'WATER_LEVEL';
@@ -4451,6 +4458,32 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         if (/(^| )(x|x mm|luong mua|luong mua mm|mua|rainfall|rain|precipitation)( |$)/.test(n)) return 'RAINFALL';
         if (/(^| )(q|q m3 s|q m3s|luu luong|luu luong m3 s|flow|discharge)( |$)/.test(n)) return 'FLOW';
         if (/(^| )(do man|do man per mille|doman|salinity|man)( |$)/.test(n)) return 'SALINITY';
+        return null;
+      }
+
+      function tlAiExtractLimitFromRow(row, which) {
+        if (!tlAiIsLongFormat(TL_AI_DATA_ROWS_CACHE || [])) return null;
+        const aliases = which === 'MNDBT'
+          ? ['hạng mục','hang muc','mndbt','mục nước dâng bình thường','muc nuoc dbt']
+          : ['hạng mục','hang muc','mndgc','mực nước dâng gia cường','muc nuoc dgc'];
+        const candidates = [];
+        for (const alias of aliases) {
+          const v = tlAiLongCellByHeader(row, [alias]);
+          if (v != null && String(v).trim() !== '') candidates.push(String(v));
+        }
+        // Một số bản AI_DATA đặt MNDBT ở Hạng mục (F), MNDGC ở Thông số (G).
+        candidates.push(String(tlAiLongCellByHeader(row, ['thông số','thong so']) || ''));
+        candidates.push(String(tlAiLongCellByHeader(row, ['thông số (đơn vị đo)','thong so (don vi do)']) || ''));
+        const re = which === 'MNDBT'
+          ? /(?:mndbt|muc\s*nuoc\s*dbt|muc\s*nuoc\s*dang\s*binh\s*thuong)\s*[:=]?\s*(-?\d+(?:[.,]\d+)?)/i
+          : /(?:mndgc|muc\s*nuoc\s*dgc|muc\s*nuoc\s*dang\s*gia\s*cuong)\s*[:=]?\s*(-?\d+(?:[.,]\d+)?)/i;
+        for (const text of candidates) {
+          const m = text.match(re);
+          if (m) {
+            const n = tlAiNum(m[1]);
+            if (Number.isFinite(n)) return n;
+          }
+        }
         return null;
       }
 
@@ -4618,16 +4651,25 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         const rain=rainMap.get('RAINFALL')||rainMap.get('RAINFALL_T1')||rainMap.get('RAINFALL_C24')||null;
         const flow=flowMap.get('FLOW')||null;
         const sal=salMap.get('SALINITY')||null;
+
+        // Giới hạn hồ nằm trong Hạng mục/Thông số của Long Format,
+        // vì vậy phải đọc từ TOÀN BỘ các dòng của công trình, không lấy từ dòng mới nhất.
+        let mndbt=null, mndgc=null;
+        for (const row of (Array.isArray(rows) ? rows : [])) {
+          if (mndbt == null) mndbt = tlAiExtractLimitFromRow(row,'MNDBT');
+          if (mndgc == null) mndgc = tlAiExtractLimitFromRow(row,'MNDGC');
+          if (mndbt != null && mndgc != null) break;
+        }
         if(!water&&!rain&&!flow&&!sal) throw Object.assign(new Error(`Công trình "${facility}" đã khớp tên nhưng chưa có bản ghi quan trắc hợp lệ.`),{status:404,code:'NO_VALID_DATA'});
         return {ok:true,data:{
           water_level:water?{value:water.value,unit:water.unit||'m',parameter:water.parameter,time:water.dt.toISOString()}:null,
           flow:flow?{value:flow.value,unit:flow.unit||'m³/s',parameter:flow.parameter,time:flow.dt.toISOString()}:null,
           rainfall:rain?{value:rain.value,unit:rain.unit||'mm',parameter:rain.parameter,time:rain.dt.toISOString()}:null,
           salinity:sal?{value:sal.value,unit:sal.unit||'‰',parameter:sal.parameter,time:sal.dt.toISOString()}:null,
-          limits:{MNDBT:null,MNDGC:null},
+          limits:{MNDBT:mndbt,MNDGC:mndgc},
           status:{level:'info',label:'AI_DATA'},
-          updated_label:water?tlLiveTimeLabel(water.dt):rain?tlLiveTimeLabel(rain.dt):'AI_DATA',
-          source:'AI_DATA • Ngày/Giờ/Công trình/Thông số/Giá trị'
+          updated_label:water?tlLiveTimeLabel(water.dt):rain?tlLiveTimeLabel(rain.dt):flow?tlLiveTimeLabel(flow.dt):'AI_DATA',
+          source:'AI_DATA • Tháng/Ngày/Giờ/Công trình/Hạng mục/Thông số/Giá trị'
         }};
       }
       async function tlFetchLive(facility,force=false,code=''){

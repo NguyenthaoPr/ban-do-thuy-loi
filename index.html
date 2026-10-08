@@ -6574,9 +6574,22 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
         } catch(e) {}
       }
 
+      function tlShowReservoirUpdating(){
+        if (!mapAiStatus) return;
+        mapAiStatus.textContent = 'Đang cập nhật dữ liệu thực các hồ chứa';
+        mapAiStatus.classList.add('tl-reservoir-updating');
+        mapAiStatus.style.display = 'block';
+      }
+      function tlHideReservoirUpdating(){
+        if (!mapAiStatus) return;
+        mapAiStatus.classList.remove('tl-reservoir-updating');
+        mapAiStatus.style.display = 'none';
+      }
+
       async function tlRefreshReservoirAlerts(background = false){
         if (tlAlertRefreshPromise) return tlAlertRefreshPromise;
         tlAlertRefreshPromise = (async function(){
+          tlShowReservoirUpdating();
           if(!searchIndex?.length){
             if (!background) tlAlertList.innerHTML='<div class="tl-alert-empty">Bản đồ đang tải dữ liệu công trình…</div>';
             return;
@@ -6617,6 +6630,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
             if (!background) tlAlertList.innerHTML='<div class="tl-alert-empty">⚠️ Chưa đọc được dữ liệu cảnh báo từ AI_DATA.</div>';
           } finally {
             mapAlertBtn.classList.remove('is-loading');
+            tlHideReservoirUpdating();
           }
         })();
         try { return await tlAlertRefreshPromise; }
@@ -6869,7 +6883,7 @@ function tlWaterLevelChart(points, currentValue, mndbt) {
           aiMap.on('zoomend', updateGISZoomStyle);
           updateGISZoomStyle();
 
-          mapAiStatus.textContent = '🗺️ Bản đồ nền đã sẵn sàng — đang kết nối dữ liệu thủy lợi...';
+          mapAiStatus.textContent = '';
           gisSearchReady = false;
           searchIndex = [];
 
@@ -7616,9 +7630,7 @@ if (description) {
           }
           aiMap.invalidateSize({ pan: false });
 
-          mapAiStatus.textContent = TL_IS_MOBILE
-            ? '🗺️ Bản đồ nền đã sẵn sàng — đang tải toàn bộ dữ liệu KMZ theo từng phần...'
-            : '🗺️ Tuyến/khu tưới đang hiển thị — đang tải công trình...';
+          mapAiStatus.textContent = '';
 
           let nonPointCursor = 0;
           const NONPOINT_BATCH = TL_IS_MOBILE ? TL_MOBILE_NONPOINT_BATCH : TL_DESKTOP_NONPOINT_BATCH;
@@ -7763,19 +7775,15 @@ if (description) {
                 '/' + pointFeatures.length.toLocaleString('vi-VN') + '...';
               tlYieldToBrowser(processPointBatch);
             } else {
-              mapAiStatus.textContent =
-                '✅ Bản đồ đã hiển thị ' + features.length.toLocaleString('vi-VN') +
-                ' đối tượng.';
-              setTimeout(function(){ mapAiStatus.style.display = 'none'; }, 1800);
+              mapAiStatus.textContent = '';
+              mapAiStatus.style.display = 'none';
 
               // Search Index tuyệt đối không được tranh CPU với lần render đầu.
               // Mobile chờ lâu hơn; dữ liệu bản đồ vẫn dùng được trong thời gian này.
               window.setTimeout(function() {
                 tlRunWhenIdle(function() {
                   buildSearchIndexDeferred();
-                  mapAiStatus.textContent =
-                    '✅ Bản đồ sẵn sàng — Search Index: ' +
-                    searchIndex.length.toLocaleString('vi-VN') + ' bản ghi.';
+                  mapAiStatus.textContent = '';
                 }, TL_IS_MOBILE ? 2500 : 1200);
               }, TL_IS_MOBILE ? TL_MOBILE_SEARCH_DELAY : TL_DESKTOP_SEARCH_DELAY);
             }
@@ -8594,6 +8602,20 @@ if (description) {
     line-height: 1.25;
     box-shadow: 0 8px 28px rgba(0,0,0,.22);
     pointer-events: none;
+  }
+  #mapAiPanel #mapAiStatus.tl-reservoir-updating {
+    display: block !important;
+    color: #8b0000 !important;
+    background: rgba(255,255,255,.94) !important;
+    border: 1px solid rgba(139,0,0,.22) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.16) !important;
+    font-weight: 800 !important;
+    letter-spacing: .01em;
+    animation: tlReservoirUpdatingBlink 1s ease-in-out infinite;
+  }
+  @keyframes tlReservoirUpdatingBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .38; }
   }
 
   /* Khi bỏ chip, đưa cụm điều khiển nổi lên gần thanh tìm kiếm */

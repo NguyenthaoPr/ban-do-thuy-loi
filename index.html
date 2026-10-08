@@ -8607,8 +8607,18 @@ if (description) {
     box-shadow: 0 8px 28px rgba(0,0,0,.22);
     pointer-events: none;
   }
+  /* Failsafe: status mặc định phải biến mất hoàn toàn để ưu tiên bản đồ.
+     Chỉ cho phép hiện khi chính lifecycle AI_DATA gắn class cập nhật. */
+  #mapAiPanel #mapAiStatus:not(.tl-reservoir-updating) {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
   #mapAiPanel #mapAiStatus.tl-reservoir-updating {
     display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     color: #8b0000 !important;
     background: rgba(255,255,255,.94) !important;
     border: 1px solid rgba(139,0,0,.22) !important;

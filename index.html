@@ -4379,10 +4379,10 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
             return rows;
           } catch (proxyError) {
             throw directError || proxyError;
-          } finally {
-            TL_AI_DATA_INFLIGHT = null;
           }
-        })();
+        })().finally(() => {
+          TL_AI_DATA_INFLIGHT = null;
+        });
         return TL_AI_DATA_INFLIGHT;
       }
 

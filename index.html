@@ -3855,7 +3855,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
 <div class="map-feature-summary" id="mapFeatureSummary">Chọn một công trình trên bản đồ để xem thông tin.</div>
 <button class="map-detail-btn" id="mapFeatureDetail" type="button">Xem chi tiết</button>
 </div>
-<div class="map-ai-status" id="mapAiStatus">Đang chuẩn bị bản đồ...</div>
+<div class="map-ai-status" id="mapAiStatus" aria-live="polite"></div>
 </div></main>
 <!-- ═════════════════════════════════════════════════════════
        PERF PATCH — LAZY LOADER cho Leaflet/MarkerCluster & QRCode
@@ -4337,6 +4337,9 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
         }
         if (!force && TL_AI_DATA_INFLIGHT) return TL_AI_DATA_INFLIGHT;
 
+        // Trạng thái vận hành: chỉ hiện khi thực sự bắt đầu đọc AI_DATA.
+        try { if (typeof tlShowReservoirUpdating === 'function') tlShowReservoirUpdating(); } catch (_) {}
+
         const fetchCsv = async (url) => {
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), TL_LIVE_TIMEOUT);
@@ -4382,6 +4385,7 @@ body>main{width:100%!important;max-width:none!important;margin:0!important;paddi
           }
         })().finally(() => {
           TL_AI_DATA_INFLIGHT = null;
+          try { if (typeof tlHideReservoirUpdating === 'function') tlHideReservoirUpdating(); } catch (_) {}
         });
         return TL_AI_DATA_INFLIGHT;
       }

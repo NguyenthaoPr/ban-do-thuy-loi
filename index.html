@@ -9194,5 +9194,51 @@ if (description) {
   window.__TL_SIX_LAYER_LABELS=labels;
 })();
 </script>
+
+<!-- THÊM NÚT QUAY VỀ TRANG CHÍNH THỦY LỢI AI — không can thiệp logic GIS -->
+<style id="tl-return-home-style">
+  #tlReturnHomeBtn{
+    position:fixed;z-index:2147483000;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;
+    display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:9px 13px;
+    border:1px solid rgba(255,255,255,.42);border-radius:13px;
+    background:rgba(8,35,61,.94);color:#fff;text-decoration:none;
+    font:800 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    box-shadow:0 5px 18px rgba(0,0,0,.24);backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);cursor:pointer;touch-action:manipulation
+  }
+  #tlReturnHomeBtn:active{transform:scale(.97)}
+  #tlReturnHomeBtn .tl-return-arrow{font-size:17px;line-height:1}
+  @media(max-width:600px){
+    #tlReturnHomeBtn{top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;min-height:38px;padding:8px 11px;font-size:11px}
+  }
+</style>
+<a id="tlReturnHomeBtn" href="#" aria-label="Quay về trang chính THỦY LỢI AI">
+  <span class="tl-return-arrow" aria-hidden="true">←</span>
+  <span>VỀ THỦY LỢI AI</span>
+</a>
+<script id="tl-return-home-handler">
+(function(){
+  var btn = document.getElementById('tlReturnHomeBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function(event){
+    event.preventDefault();
+    var ref = document.referrer || '';
+    var ownOrigin = window.location.origin;
+    // Khi bản đồ được mở từ trang THỦY LỢI AI, quay lại đúng trang đã mở nó.
+    if (ref && ref.indexOf(ownOrigin) !== 0) {
+      window.location.assign(ref);
+      return;
+    }
+    // Trường hợp cùng miền hoặc không có referrer, thử quay lại lịch sử trình duyệt.
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    // Không đoán URL trang chính nếu người dùng mở trực tiếp bản đồ.
+    window.alert('Bạn mở bản đồ trực tiếp nên không xác định được link trang chính. Hãy mở THỦY LỢI AI rồi chọn Bản đồ AI.');
+  });
+})();
+</script>
+
 </body>
 </html>
